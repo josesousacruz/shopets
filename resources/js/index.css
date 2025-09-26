@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom utilities for header responsiveness */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Extra small breakpoint for very small screens */
+  @media (min-width: 375px) {
+    .xs\:block {
+      display: block;
+    }
+    .xs\:inline {
+      display: inline;
+    }
+  }
+}

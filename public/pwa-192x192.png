@@ -1,0 +1,6 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="24" fill="#10b981"/>
+  <path d="M48 96C48 69.49 69.49 48 96 48C122.51 48 144 69.49 144 96C144 122.51 122.51 144 96 144C69.49 144 48 122.51 48 96Z" fill="white"/>
+  <path d="M96 72C83.85 72 74 81.85 74 94C74 106.15 83.85 116 96 116C108.15 116 118 106.15 118 94C118 81.85 108.15 72 96 72ZM96 108C88.27 72 80 100.73 80 94C80 87.27 88.27 80 96 80C103.73 80 112 87.27 112 94C112 100.73 103.73 108 96 108Z" fill="#10b981"/>
+  <text x="96" y="140" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">PDV</text>
+</svg>
