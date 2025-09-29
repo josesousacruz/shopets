@@ -21,18 +21,25 @@ class FinanceiroController extends Controller
             ->get()
             ->map(function ($conta) {
                 return [
-                    'id' => $conta->id_conta_pagar,
-                    'supplierId' => $conta->id_fornecedor,
-                    'amount' => $conta->valor_original,
-                    'dueDate' => $conta->data_vencimento->format('Y-m-d'),
-                    'description' => $conta->descricao,
-                    'status' => $conta->status === 'pago' ? 'paid' : 'pending',
-                    'issueDate' => $conta->created_at->format('Y-m-d'),
-                    'paymentDate' => $conta->data_pagamento ? $conta->data_pagamento->format('Y-m-d') : null,
+                    'id_conta_pagar' => $conta->id_conta_pagar,
+                    'id_fornecedor' => $conta->id_fornecedor,
+                    'valor_original' => $conta->valor_original,
+                    'data_vencimento' => $conta->data_vencimento->format('Y-m-d'),
+                    'descricao' => $conta->descricao,
+                    'status' => $conta->status,
+                    'data_criacao' => $conta->created_at->format('Y-m-d'),
+                    'data_pagamento' => $conta->data_pagamento ? $conta->data_pagamento->format('Y-m-d') : null,
                     'numero_documento' => $conta->numero_documento,
                     'categoria' => $conta->categoria,
                     'valor_pago' => $conta->valor_pago,
-                    'observacoes' => $conta->observacoes
+                    'observacoes' => $conta->observacoes,
+                    'fornecedor' => $conta->fornecedor ? [
+                        'id_fornecedor' => $conta->fornecedor->id_fornecedor,
+                        'nome' => $conta->fornecedor->nome,
+                        'contato_principal' => $conta->fornecedor->contato_principal,
+                        'telefone' => $conta->fornecedor->telefone,
+                        'email' => $conta->fornecedor->email
+                    ] : null
                 ];
             });
 
@@ -43,18 +50,24 @@ class FinanceiroController extends Controller
             ->get()
             ->map(function ($conta) {
                 return [
-                    'id' => $conta->id_conta_receber,
-                    'customerId' => $conta->id_cliente,
-                    'amount' => $conta->valor_original,
-                    'dueDate' => $conta->data_vencimento->format('Y-m-d'),
-                    'description' => $conta->descricao,
-                    'status' => $conta->status === 'recebido' ? 'received' : 'pending',
-                    'issueDate' => $conta->created_at->format('Y-m-d'),
-                    'paymentDate' => $conta->data_recebimento ? $conta->data_recebimento->format('Y-m-d') : null,
+                    'id_conta_receber' => $conta->id_conta_receber,
+                    'id_cliente' => $conta->id_cliente,
+                    'valor_original' => $conta->valor_original,
+                    'data_vencimento' => $conta->data_vencimento->format('Y-m-d'),
+                    'descricao' => $conta->descricao,
+                    'status' => $conta->status,
+                    'data_criacao' => $conta->created_at->format('Y-m-d'),
+                    'data_recebimento' => $conta->data_recebimento ? $conta->data_recebimento->format('Y-m-d') : null,
                     'numero_documento' => $conta->numero_documento,
                     'categoria' => $conta->categoria,
                     'valor_recebido' => $conta->valor_recebido,
-                    'observacoes' => $conta->observacoes
+                    'observacoes' => $conta->observacoes,
+                    'cliente' => $conta->cliente ? [
+                        'id_cliente' => $conta->cliente->id_cliente,
+                        'nome' => $conta->cliente->nome,
+                        'telefone' => $conta->cliente->telefone,
+                        'email' => $conta->cliente->email
+                    ] : null
                 ];
             });
 
@@ -64,10 +77,10 @@ class FinanceiroController extends Controller
             ->get()
             ->map(function ($fornecedor) {
                 return [
-                    'id' => $fornecedor->id_fornecedor,
-                    'name' => $fornecedor->nome,
-                    'contactPerson' => $fornecedor->contato_principal,
-                    'phone' => $fornecedor->telefone,
+                    'id_fornecedor' => $fornecedor->id_fornecedor,
+                    'nome' => $fornecedor->nome,
+                    'contato_principal' => $fornecedor->contato_principal,
+                    'telefone' => $fornecedor->telefone,
                     'email' => $fornecedor->email
                 ];
             });
@@ -101,12 +114,73 @@ class FinanceiroController extends Controller
                 ];
             });
 
+        // Calcular estatísticas para contas a pagar
+        $totalPendentePagar = ContaPagar::where('ativo', true)
+            ->where('status', 'pendente')
+            ->sum('valor_original');
+
+        $totalVencidoPagar = ContaPagar::where('ativo', true)
+            ->where('status', 'vencido')
+            ->sum('valor_original');
+
+        $totalPagoMesPagar = ContaPagar::where('ativo', true)
+            ->where('status', 'pago')
+            ->whereMonth('data_pagamento', now()->month)
+            ->whereYear('data_pagamento', now()->year)
+            ->sum('valor_pago');
+
+        $quantidadeVencidasPagar = ContaPagar::where('ativo', true)
+            ->where('status', 'vencido')
+            ->count();
+
+        // Calcular estatísticas para contas a receber
+        $totalPendenteReceber = ContaReceber::where('ativo', true)
+            ->where('status', 'pendente')
+            ->sum('valor_original');
+
+        $totalVencidoReceber = ContaReceber::where('ativo', true)
+            ->where('status', 'vencido')
+            ->sum('valor_original');
+
+        $totalRecebidoMes = ContaReceber::where('ativo', true)
+            ->where('status', 'recebido')
+            ->whereMonth('data_recebimento', now()->month)
+            ->whereYear('data_recebimento', now()->year)
+            ->sum('valor_recebido');
+
+        $quantidadeVencidasReceber = ContaReceber::where('ativo', true)
+            ->where('status', 'vencido')
+            ->count();
+
+        // Vendas de hoje
+        $vendasHoje = Venda::where('status', 'finalizada')
+            ->whereDate('data_venda', today())
+            ->sum('valor_total');
+
         return inertia('Financeiro/Index', [
             'accountsPayable' => $accountsPayable,
             'accountsReceivable' => $accountsReceivable,
             'suppliers' => $suppliers,
             'customers' => $customers,
-            'sales' => $sales
+            'sales' => $sales,
+            'statistics' => [
+                'totalPagar' => $totalPendentePagar + $totalVencidoPagar,
+                'totalReceber' => $totalPendenteReceber + $totalVencidoReceber,
+                'vendasHoje' => $vendasHoje,
+                'contasVencidas' => $quantidadeVencidasPagar + $quantidadeVencidasReceber
+            ],
+            'payableStatistics' => [
+                'totalPendente' => $totalPendentePagar,
+                'totalVencido' => $totalVencidoPagar,
+                'totalPagoMes' => $totalPagoMesPagar,
+                'quantidadeVencidas' => $quantidadeVencidasPagar
+            ],
+            'receivableStatistics' => [
+                'totalPendente' => $totalPendenteReceber,
+                'totalVencido' => $totalVencidoReceber,
+                'totalRecebidoMes' => $totalRecebidoMes,
+                'quantidadeVencidas' => $quantidadeVencidasReceber
+            ]
         ]);
     }
 

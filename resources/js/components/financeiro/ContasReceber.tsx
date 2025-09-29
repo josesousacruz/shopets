@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle, AlertTriangle, Clock, DollarSign, Search, Filter, Eye, Edit, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle, AlertTriangle, Clock, DollarSign, Search, Filter, Edit, Trash2 } from 'lucide-react';
 import { AccountReceivable, Customer, FinancialEntryStatus } from '../../types';
 import { router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
+import Swal from 'sweetalert2';
+import RecebimentoModal, { RecebimentoData } from '../modals/RecebimentoModal';
+import EdicaoContaReceberModal, { EdicaoContaReceberData } from '../modals/EdicaoContaReceberModal';
 
 interface ContasReceberProps {
   accounts: AccountReceivable[];
   customers: Customer[];
   onUpdateStatus: (id: number, type: 'payable' | 'receivable') => void;
   onAdd: () => void;
+  totalPendente?: number;
+  totalVencido?: number;
+  totalRecebidoMes?: number;
+  quantidadeVencidas?: number;
 }
 
 const getStatusBadge = (status: FinancialEntryStatus) => {
@@ -26,9 +34,21 @@ const getStatusBadge = (status: FinancialEntryStatus) => {
   return <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status]}`}>{text[status]}</span>;
 };
 
-const ContasReceber: React.FC<ContasReceberProps> = ({ accounts, customers, onUpdateStatus, onAdd }) => {
+const ContasReceber: React.FC<ContasReceberProps> = ({ 
+  accounts, 
+  customers, 
+  onUpdateStatus, 
+  onAdd,
+  totalPendente = 0,
+  totalVencido = 0,
+  totalRecebidoMes = 0,
+  quantidadeVencidas = 0
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FinancialEntryStatus | 'all'>('all');
+  const [showRecebimentoModal, setShowRecebimentoModal] = useState(false);
+  const [showEdicaoModal, setShowEdicaoModal] = useState(false);
+  const [contaSelecionada, setContaSelecionada] = useState<AccountReceivable | null>(null);
   
   const customerMap = new Map(customers.map(c => [c.id_cliente, c.nome]));
 
@@ -46,34 +66,115 @@ const ContasReceber: React.FC<ContasReceberProps> = ({ accounts, customers, onUp
     return matchesSearch && matchesStatus;
   });
 
-  // Calcular totais com verificação de valores válidos
-  const totalPendente = accounts
-    .filter(acc => acc.status === 'pendente')
-    .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    
-  const totalVencido = accounts
-    .filter(acc => acc.status === 'vencido')
-    .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    
-  const totalRecebido = accounts
-    .filter(acc => acc.status === 'pago')
-    .reduce((sum, acc) => sum + (acc.valor_recebido || 0), 0);
-    
+  // Total geral calculado localmente para exibição
+
   const totalGeral = accounts
     .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
 
-  const handleView = (id: number) => {
-    router.visit(route('contas-receber.show', id));
+  const handleEdit = (conta: AccountReceivable) => {
+    setContaSelecionada(conta);
+    setShowEdicaoModal(true);
   };
 
-  const handleEdit = (id: number) => {
-    router.visit(route('contas-receber.edit', id));
+  const handleReceber = (conta: AccountReceivable) => {
+    setContaSelecionada(conta);
+    setShowRecebimentoModal(true);
+  };
+
+  const handleConfirmarRecebimento = (dados: RecebimentoData) => {
+    if (!contaSelecionada) return;
+
+    router.put(route('contas-receber.receber', contaSelecionada.id_conta_receber), dados, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowRecebimentoModal(false);
+        setContaSelecionada(null);
+        Swal.fire({
+          title: 'Sucesso!',
+          text: 'Recebimento registrado com sucesso!',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      },
+      onError: (errors) => {
+        console.error('Erro ao registrar recebimento:', errors);
+        Swal.fire({
+          title: 'Erro!',
+          text: 'Erro ao registrar recebimento. Tente novamente.',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
+  };
+
+  const handleConfirmarEdicao = (dados: EdicaoContaReceberData) => {
+    if (!contaSelecionada) return;
+
+    router.put(route('contas-receber.update', contaSelecionada.id_conta_receber), dados, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowEdicaoModal(false);
+        setContaSelecionada(null);
+        Swal.fire({
+          title: 'Sucesso!',
+          text: 'Conta atualizada com sucesso!',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      },
+      onError: (errors) => {
+        console.error('Erro ao atualizar conta:', errors);
+        Swal.fire({
+          title: 'Erro!',
+          text: 'Erro ao atualizar conta. Tente novamente.',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir esta conta?')) {
-      router.delete(route('contas-receber.destroy', id));
-    }
+    Swal.fire({
+      title: 'Tem certeza?',
+      text: 'Esta ação não pode ser desfeita!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sim, excluir!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        router.delete(route('contas-receber.destroy', id), {
+          preserveState: true,
+          preserveScroll: true,
+          onSuccess: () => {
+            Swal.fire({
+              title: 'Excluído!',
+              text: 'Conta excluída com sucesso.',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          },
+          onError: (errors) => {
+            console.error('Erro ao excluir conta:', errors);
+            Swal.fire({
+              title: 'Erro!',
+              text: 'Erro ao excluir conta. Tente novamente.',
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          }
+        });
+      }
+    });
   };
 
   const formatCurrency = (value: number | null | undefined) => {
@@ -140,8 +241,8 @@ const ContasReceber: React.FC<ContasReceberProps> = ({ accounts, customers, onUp
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-600">Recebido</p>
-              <p className="text-2xl font-bold text-green-700">{formatCurrency(totalRecebido)}</p>
+              <p className="text-sm font-medium text-green-600">Recebido (Mês)</p>
+              <p className="text-2xl font-bold text-green-700">{formatCurrency(totalRecebidoMes)}</p>
             </div>
             <CheckCircle className="h-8 w-8 text-green-500" />
           </div>
@@ -252,24 +353,17 @@ const ContasReceber: React.FC<ContasReceberProps> = ({ accounts, customers, onUp
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleView(account.id_conta_receber)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Visualizar"
-                    >
-                      <Eye size={16} />
-                    </button>
                     {account.status !== 'pago' && account.status !== 'cancelado' && (
                       <>
                         <button
-                          onClick={() => handleEdit(account.id_conta_receber)}
+                          onClick={() => handleEdit(account)}
                           className="text-yellow-600 hover:text-yellow-900"
                           title="Editar"
                         >
                           <Edit size={16} />
                         </button>
                         <button
-                          onClick={() => onUpdateStatus(account.id_conta_receber, 'receivable')}
+                          onClick={() => handleReceber(account)}
                           className="text-green-600 hover:text-green-900"
                           title="Marcar como Recebido"
                         >
@@ -299,6 +393,28 @@ const ContasReceber: React.FC<ContasReceberProps> = ({ accounts, customers, onUp
           </div>
         )}
       </div>
+
+      {/* Modais */}
+      <RecebimentoModal
+        isOpen={showRecebimentoModal}
+        onClose={() => {
+          setShowRecebimentoModal(false);
+          setContaSelecionada(null);
+        }}
+        onConfirm={handleConfirmarRecebimento}
+        conta={contaSelecionada}
+      />
+
+      <EdicaoContaReceberModal
+        isOpen={showEdicaoModal}
+        onClose={() => {
+          setShowEdicaoModal(false);
+          setContaSelecionada(null);
+        }}
+        onConfirm={handleConfirmarEdicao}
+        conta={contaSelecionada}
+        clientes={customers}
+      />
     </div>
   );
 };

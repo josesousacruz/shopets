@@ -49,16 +49,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/financeiro', [FinanceiroController::class, 'index'])->name('financeiro.index');
     
     // Rotas específicas para Contas a Pagar
-    Route::get('/contas-pagar', [ContaPagarController::class, 'index'])->name('contas-pagar.index');
-    Route::get('/contas-pagar/{contaPagar}', [ContaPagarController::class, 'show'])->name('contas-pagar.show');
-    Route::get('/contas-pagar/{contaPagar}/edit', [ContaPagarController::class, 'edit'])->name('contas-pagar.edit');
-    Route::post('/contas-pagar', [ContaPagarController::class, 'store'])->name('contas-pagar.store');
-    Route::put('/contas-pagar/{contaPagar}', [ContaPagarController::class, 'update'])->name('contas-pagar.update');
-    Route::delete('/contas-pagar/{contaPagar}', [ContaPagarController::class, 'destroy'])->name('contas-pagar.destroy');
-    Route::put('/contas-pagar/{contaPagar}/pagar', [ContaPagarController::class, 'pagar'])->name('contas-pagar.pagar');
+    Route::get('/financeiro/contas-pagar', [ContaPagarController::class, 'index'])->name('contas-pagar.index');
+    Route::post('/financeiro/contas-pagar', [ContaPagarController::class, 'store'])->name('contas-pagar.store');
+    Route::put('/financeiro/contas-pagar/{contaPagar}', [ContaPagarController::class, 'update'])->name('contas-pagar.update');
+    Route::delete('/financeiro/contas-pagar/{contaPagar}', [ContaPagarController::class, 'destroy'])->name('contas-pagar.destroy');
+    Route::put('/financeiro/contas-pagar/{contaPagar}/pagar', [ContaPagarController::class, 'pagar'])->name('contas-pagar.pagar');
+    Route::put('/financeiro/contas-pagar/{contaPagar}/cancelar', [ContaPagarController::class, 'cancelar'])->name('contas-pagar.cancelar');
 
     // Rotas específicas para Contas a Receber
     Route::get('/contas-receber', [ContaReceberController::class, 'index'])->name('contas-receber.index');
+    Route::get('/contas-receber/create', [ContaReceberController::class, 'create'])->name('contas-receber.create');
     Route::get('/contas-receber/{contaReceber}', [ContaReceberController::class, 'show'])->name('contas-receber.show');
     Route::get('/contas-receber/{contaReceber}/edit', [ContaReceberController::class, 'edit'])->name('contas-receber.edit');
     Route::post('/contas-receber', [ContaReceberController::class, 'store'])->name('contas-receber.store');

@@ -18,8 +18,20 @@ interface FinanceiroViewProps {
     vendasHoje: number;
     contasVencidas: number;
   };
+  payableStatistics?: {
+    totalPendente: number;
+    totalVencido: number;
+    totalPagoMes: number;
+    quantidadeVencidas: number;
+  };
+  receivableStatistics?: {
+    totalPendente: number;
+    totalVencido: number;
+    totalRecebidoMes: number;
+    quantidadeVencidas: number;
+  };
   onAddEntry: (entry: Partial<AccountPayable> | Partial<AccountReceivable>, type: 'payable' | 'receivable') => void;
-  onUpdateStatus: (id: number, type: 'payable' | 'receivable') => void;
+  onUpdateStatus: (id: number, status: string) => void;
 }
 
 type FinanceiroSubView = 'fluxo' | 'pagar' | 'receber';
@@ -48,14 +60,22 @@ const FinanceiroView: React.FC<FinanceiroViewProps> = (props) => {
           accounts={props.accountsPayable} 
           suppliers={props.suppliers} 
           onUpdateStatus={props.onUpdateStatus} 
-          onAdd={() => handleOpenForm('payable')} 
+          onAdd={() => handleOpenForm('payable')}
+          totalPendente={props.payableStatistics?.totalPendente || 0}
+          totalVencido={props.payableStatistics?.totalVencido || 0}
+          totalPagoMes={props.payableStatistics?.totalPagoMes || 0}
+          quantidadeVencidas={props.payableStatistics?.quantidadeVencidas || 0}
         />;
       case 'receber':
         return <ContasReceber 
           accounts={props.accountsReceivable} 
           customers={props.customers} 
           onUpdateStatus={props.onUpdateStatus} 
-          onAdd={() => handleOpenForm('receivable')} 
+          onAdd={() => handleOpenForm('receivable')}
+          totalPendente={props.receivableStatistics?.totalPendente || 0}
+          totalVencido={props.receivableStatistics?.totalVencido || 0}
+          totalRecebidoMes={props.receivableStatistics?.totalRecebidoMes || 0}
+          quantidadeVencidas={props.receivableStatistics?.quantidadeVencidas || 0}
         />;
       default:
         return null;

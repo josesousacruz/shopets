@@ -1,5 +1,6 @@
 import React from 'react';
 import { router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import Swal from 'sweetalert2';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import FinanceiroView from '@/components/views/FinanceiroView';
@@ -17,6 +18,18 @@ interface FinanceiroIndexProps {
         vendasHoje: number;
         contasVencidas: number;
     };
+    payableStatistics?: {
+        totalPendente: number;
+        totalVencido: number;
+        totalPagoMes: number;
+        quantidadeVencidas: number;
+    };
+    receivableStatistics?: {
+        totalPendente: number;
+        totalVencido: number;
+        totalRecebidoMes: number;
+        quantidadeVencidas: number;
+    };
 }
 
 export default function Index({ 
@@ -25,12 +38,16 @@ export default function Index({
     suppliers, 
     customers, 
     sales,
-    statistics 
+    statistics,
+    payableStatistics,
+    receivableStatistics
 }: FinanceiroIndexProps) {
     const handleAddEntry = (entry: Partial<AccountPayable> | Partial<AccountReceivable>, type: 'payable' | 'receivable') => {
         const endpoint = type === 'payable' ? route('contas-pagar.store') : route('contas-receber.store');
         
         router.post(endpoint, entry, {
+            preserveState: true,
+            preserveScroll: true,
             onSuccess: () => {
                 Swal.fire({
                     title: 'Sucesso!',
@@ -51,16 +68,38 @@ export default function Index({
         });
     };
 
-    const handleUpdateStatus = (id: number, type: 'payable' | 'receivable') => {
-        const endpoint = type === 'payable' 
-            ? route('contas-pagar.pagar', id) 
-            : route('contas-receber.receber', id);
+    const handleUpdateStatus = (id: number, type: 'payable' | 'receivable', status?: string) => {
+        let endpoint: string;
+        let successMessage: string;
+        
+        if (type === 'payable') {
+            if (status === 'pago') {
+                endpoint = route('contas-pagar.pagar', id);
+                successMessage = 'Conta marcada como paga!';
+            } else if (status === 'cancelado') {
+                endpoint = route('contas-pagar.cancelar', id);
+                successMessage = 'Conta cancelada com sucesso!';
+            } else {
+                console.error('Status não suportado para contas a pagar:', status);
+                return;
+            }
+        } else if (type === 'receivable') {
+            // Para contas a receber, o status é tratado pelo modal de recebimento
+            // Esta função não é usada diretamente para contas a receber
+            console.warn('handleUpdateStatus não deve ser usado diretamente para contas a receber. Use o modal de recebimento.');
+            return;
+        } else {
+            console.error('Tipo não suportado:', type);
+            return;
+        }
         
         router.put(endpoint, {}, {
+            preserveState: true,
+            preserveScroll: true,
             onSuccess: () => {
                 Swal.fire({
                     title: 'Sucesso!',
-                    text: type === 'payable' ? 'Conta marcada como paga!' : 'Conta marcada como recebida!',
+                    text: successMessage,
                     icon: 'success',
                     timer: 2000,
                     showConfirmButton: false
@@ -86,6 +125,8 @@ export default function Index({
                 customers={customers}
                 sales={sales}
                 statistics={statistics}
+                payableStatistics={payableStatistics}
+                receivableStatistics={receivableStatistics}
                 onAddEntry={handleAddEntry}
                 onUpdateStatus={handleUpdateStatus}
             />

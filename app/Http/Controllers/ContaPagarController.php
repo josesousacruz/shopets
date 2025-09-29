@@ -145,29 +145,7 @@ class ContaPagarController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ContaPagar $contaPagar)
-    {
-        $contaPagar->load(['fornecedor', 'pontoVenda', 'usuario', 'parcelas']);
 
-        return Inertia::render('Financeiro/ContasPagar/Show', [
-            'conta' => $contaPagar
-        ]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(ContaPagar $contaPagar)
-    {
-        return Inertia::render('Financeiro/ContasPagar/Edit', [
-            'conta' => $contaPagar,
-            'fornecedores' => Fornecedor::where('ativo', true)->get(['id_fornecedor', 'nome']),
-            'pontosVenda' => PontoVenda::where('ativo', true)->get(['id_pdv', 'nome'])
-        ]);
-    }
 
     /**
      * Update the specified resource in storage.

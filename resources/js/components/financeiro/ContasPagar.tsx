@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle, AlertTriangle, Clock, DollarSign, Search, Filter, Eye, Edit, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle, AlertTriangle, Clock, DollarSign, Search, Filter, Edit, X } from 'lucide-react';
 import { AccountPayable, Supplier, FinancialEntryStatus } from '../../types';
 import { router } from '@inertiajs/react';
+import { route } from 'ziggy-js';
+import PagamentoModal, { DadosPagamento } from '../modals/PagamentoModal';
+import EdicaoContaModal, { DadosEdicaoConta } from '../modals/EdicaoContaModal';
+import Swal from 'sweetalert2';
 
 interface ContasPagarProps {
   accounts: AccountPayable[];
   suppliers: Supplier[];
-  onUpdateStatus: (id: number, type: 'payable' | 'receivable') => void;
+  onUpdateStatus: (id: number, status: string) => void;
   onAdd: () => void;
+  totalPendente?: number;
+  totalVencido?: number;
+  totalPagoMes?: number;
+  quantidadeVencidas?: number;
 }
 
 const getStatusBadge = (status: FinancialEntryStatus) => {
@@ -26,9 +34,23 @@ const getStatusBadge = (status: FinancialEntryStatus) => {
   return <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status]}`}>{text[status]}</span>;
 };
 
-const ContasPagar: React.FC<ContasPagarProps> = ({ accounts, suppliers, onUpdateStatus, onAdd }) => {
+const ContasPagar: React.FC<ContasPagarProps> = ({ 
+  accounts, 
+  suppliers, 
+  onUpdateStatus, 
+  onAdd,
+  totalPendente = 0,
+  totalVencido = 0,
+  totalPagoMes = 0,
+  quantidadeVencidas = 0
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FinancialEntryStatus | 'all'>('all');
+  
+  // Estados para modais
+  const [showPagamentoModal, setShowPagamentoModal] = useState(false);
+  const [showEdicaoModal, setShowEdicaoModal] = useState(false);
+  const [contaSelecionada, setContaSelecionada] = useState<AccountPayable | null>(null);
   
   const supplierMap = new Map(suppliers.map(s => [s.id_fornecedor, s.nome]));
 
@@ -46,34 +68,76 @@ const ContasPagar: React.FC<ContasPagarProps> = ({ accounts, suppliers, onUpdate
     return matchesSearch && matchesStatus;
   });
 
-  // Calcular totais com verificação de valores válidos
-  const totalPendente = accounts
-    .filter(acc => acc.status === 'pendente')
-    .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    
-  const totalVencido = accounts
-    .filter(acc => acc.status === 'vencido')
-    .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    
-  const totalPago = accounts
-    .filter(acc => acc.status === 'pago')
-    .reduce((sum, acc) => sum + (acc.valor_pago || 0), 0);
-    
+  // Calcular total geral para exibição
   const totalGeral = accounts
     .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
 
-  const handleView = (id: number) => {
-    router.visit(route('contas-pagar.show', id));
+  const handleEdit = (conta: AccountPayable) => {
+    setContaSelecionada(conta);
+    setShowEdicaoModal(true);
   };
 
-  const handleEdit = (id: number) => {
-    router.visit(route('contas-pagar.edit', id));
+  const handlePagar = (conta: AccountPayable) => {
+    setContaSelecionada(conta);
+    setShowPagamentoModal(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir esta conta?')) {
-      router.delete(route('contas-pagar.destroy', id));
-    }
+  const handleConfirmarPagamento = (dados: DadosPagamento) => {
+    if (!contaSelecionada) return;
+
+    router.put(route('contas-pagar.pagar', contaSelecionada.id_conta_pagar), dados, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowPagamentoModal(false);
+        setContaSelecionada(null);
+        Swal.fire({
+          title: 'Sucesso!',
+          text: 'Pagamento registrado com sucesso!',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      },
+      onError: (errors) => {
+        console.error('Erro ao registrar pagamento:', errors);
+        Swal.fire({
+          title: 'Erro!',
+          text: 'Erro ao registrar pagamento. Verifique os dados e tente novamente.',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
+  };
+
+  const handleConfirmarEdicao = (dados: DadosEdicaoConta) => {
+    if (!contaSelecionada) return;
+
+    router.put(route('contas-pagar.update', contaSelecionada.id_conta_pagar), dados, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowEdicaoModal(false);
+        setContaSelecionada(null);
+        Swal.fire({
+          title: 'Sucesso!',
+          text: 'Conta atualizada com sucesso!',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      },
+      onError: (errors) => {
+        console.error('Erro ao atualizar conta:', errors);
+        Swal.fire({
+          title: 'Erro!',
+          text: 'Erro ao atualizar conta. Verifique os dados e tente novamente.',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      }
+    });
   };
 
   const formatCurrency = (value: number | null | undefined) => {
@@ -140,8 +204,8 @@ const ContasPagar: React.FC<ContasPagarProps> = ({ accounts, suppliers, onUpdate
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-600">Pago</p>
-              <p className="text-2xl font-bold text-green-700">{formatCurrency(totalPago)}</p>
+              <p className="text-sm font-medium text-green-600">Pago (Mês)</p>
+              <p className="text-2xl font-bold text-green-700">{formatCurrency(totalPagoMes)}</p>
             </div>
             <CheckCircle className="h-8 w-8 text-green-500" />
           </div>
@@ -252,39 +316,30 @@ const ContasPagar: React.FC<ContasPagarProps> = ({ accounts, suppliers, onUpdate
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleView(account.id_conta_pagar)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Visualizar"
-                    >
-                      <Eye size={16} />
-                    </button>
                     {account.status !== 'pago' && account.status !== 'cancelado' && (
                       <>
                         <button
-                          onClick={() => handleEdit(account.id_conta_pagar)}
+                          onClick={() => handleEdit(account)}
                           className="text-yellow-600 hover:text-yellow-900"
                           title="Editar"
                         >
                           <Edit size={16} />
                         </button>
                         <button
-                          onClick={() => onUpdateStatus(account.id_conta_pagar, 'payable')}
+                          onClick={() => handlePagar(account)}
                           className="text-green-600 hover:text-green-900"
                           title="Marcar como Pago"
                         >
                           <CheckCircle size={16} />
                         </button>
+                        <button
+                          onClick={() => onUpdateStatus(account.id_conta_pagar, 'cancelado')}
+                          className="text-red-600 hover:text-red-900"
+                          title="Cancelar"
+                        >
+                          <X size={16} />
+                        </button>
                       </>
-                    )}
-                    {account.status !== 'pago' && (
-                      <button
-                        onClick={() => handleDelete(account.id_conta_pagar)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Excluir"
-                      >
-                        <Trash2 size={16} />
-                      </button>
                     )}
                   </div>
                 </td>
@@ -299,6 +354,28 @@ const ContasPagar: React.FC<ContasPagarProps> = ({ accounts, suppliers, onUpdate
           </div>
         )}
       </div>
+
+      {/* Modais */}
+      <PagamentoModal
+        isOpen={showPagamentoModal}
+        onClose={() => {
+          setShowPagamentoModal(false);
+          setContaSelecionada(null);
+        }}
+        onConfirm={handleConfirmarPagamento}
+        conta={contaSelecionada}
+      />
+
+      <EdicaoContaModal
+        isOpen={showEdicaoModal}
+        onClose={() => {
+          setShowEdicaoModal(false);
+          setContaSelecionada(null);
+        }}
+        onConfirm={handleConfirmarEdicao}
+        conta={contaSelecionada}
+        suppliers={suppliers}
+      />
     </div>
   );
 };

@@ -54,7 +54,7 @@ export function useAccountsReceivable() {
     const filterParams = { ...filters, ...newFilters };
     setFilters(filterParams);
 
-    router.get('/financeiro/contas-receber', filterParams, {
+    router.get('/contas-receber', filterParams, {
       preserveState: true,
       preserveScroll: true,
       onFinish: () => setLoading(false),
@@ -84,7 +84,7 @@ export function useAccountsReceivable() {
   }) => {
     setLoading(true);
 
-    router.post('/financeiro/contas-receber', {
+    router.post('/contas-receber', {
       ...accountData,
       type: 'receivable'
     }, {
@@ -116,7 +116,7 @@ export function useAccountsReceivable() {
   const updateAccountReceivable = (accountId: number, accountData: Partial<AccountReceivable>) => {
     setLoading(true);
 
-    router.put(`/financeiro/contas-receber/${accountId}`, accountData, {
+    router.put(`/contas-receber/${accountId}`, accountData, {
       onSuccess: () => {
         Swal.fire({
           title: 'Sucesso!',
@@ -152,7 +152,7 @@ export function useAccountsReceivable() {
   }) => {
     setLoading(true);
 
-    router.patch(`/financeiro/contas-receber/${accountId}/receive`, paymentData, {
+    router.put(`/contas-receber/${accountId}/receber`, paymentData, {
       onSuccess: () => {
         Swal.fire({
           title: 'Sucesso!',
@@ -192,7 +192,7 @@ export function useAccountsReceivable() {
       if (result.isConfirmed) {
         setLoading(true);
 
-        router.patch(`/financeiro/contas-receber/${accountId}/cancel`, { reason }, {
+        router.put(`/contas-receber/${accountId}`, { status: 'cancelado', observacoes: reason }, {
           onSuccess: () => {
             Swal.fire({
               title: 'Cancelada!',
@@ -234,7 +234,7 @@ export function useAccountsReceivable() {
       if (result.isConfirmed) {
         setLoading(true);
 
-        router.delete(`/financeiro/contas-receber/${accountId}`, {
+        router.delete(`/contas-receber/${accountId}`, {
           onSuccess: () => {
             Swal.fire({
               title: 'Excluída!',
@@ -263,27 +263,14 @@ export function useAccountsReceivable() {
   };
 
   const sendReminder = (accountId: number, reminderType: 'email' | 'sms' | 'whatsapp') => {
-    setLoading(true);
-
-    router.post(`/financeiro/contas-receber/${accountId}/reminder`, { type: reminderType }, {
-      onSuccess: () => {
-        Swal.fire({
-          title: 'Sucesso!',
-          text: 'Lembrete enviado com sucesso!',
-          icon: 'success',
-          confirmButtonText: 'OK'
-        });
-      },
-      onError: (errors) => {
-        console.error('Erro ao enviar lembrete:', errors);
-        Swal.fire({
-          title: 'Erro!',
-          text: 'Erro ao enviar lembrete. Tente novamente.',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-      },
-      onFinish: () => setLoading(false)
+    // Funcionalidade de lembrete não implementada no backend
+    console.warn('Funcionalidade de lembrete não implementada');
+    
+    Swal.fire({
+      title: 'Aviso!',
+      text: 'Funcionalidade de lembrete ainda não implementada.',
+      icon: 'warning',
+      confirmButtonText: 'OK'
     });
   };
 
@@ -294,21 +281,14 @@ export function useAccountsReceivable() {
     category?: string;
     status?: string;
   }) => {
-    setLoading(true);
-
-    router.get('/financeiro/contas-receber/relatorio', reportFilters, {
-      preserveState: true,
-      preserveScroll: true,
-      onFinish: () => setLoading(false),
-      onError: (errors) => {
-        console.error('Erro ao gerar relatório:', errors);
-        Swal.fire({
-          title: 'Erro!',
-          text: 'Erro ao gerar relatório de contas a receber.',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-      }
+    // Funcionalidade de relatório não implementada no backend
+    console.warn('Funcionalidade de relatório não implementada');
+    
+    Swal.fire({
+      title: 'Aviso!',
+      text: 'Funcionalidade de relatório ainda não implementada.',
+      icon: 'warning',
+      confirmButtonText: 'OK'
     });
   };
 
@@ -321,31 +301,14 @@ export function useAccountsReceivable() {
     category: string;
     saleId?: number;
   }) => {
-    setLoading(true);
-
-    router.post('/financeiro/contas-receber/parcelamento', accountData, {
-      onSuccess: () => {
-        Swal.fire({
-          title: 'Sucesso!',
-          text: 'Parcelamento criado com sucesso!',
-          icon: 'success',
-          confirmButtonText: 'OK'
-        });
-        // Atualizar lista de contas
-        if (props.accountsReceivable) {
-          setAccountsReceivable(props.accountsReceivable as AccountReceivable[]);
-        }
-      },
-      onError: (errors) => {
-        console.error('Erro ao criar parcelamento:', errors);
-        Swal.fire({
-          title: 'Erro!',
-          text: 'Erro ao criar parcelamento. Tente novamente.',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-      },
-      onFinish: () => setLoading(false)
+    // Funcionalidade de parcelamento não implementada no backend
+    console.warn('Funcionalidade de parcelamento não implementada');
+    
+    Swal.fire({
+      title: 'Aviso!',
+      text: 'Funcionalidade de parcelamento ainda não implementada.',
+      icon: 'warning',
+      confirmButtonText: 'OK'
     });
   };
 
