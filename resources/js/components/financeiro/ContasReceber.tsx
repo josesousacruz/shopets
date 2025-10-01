@@ -10,7 +10,7 @@ import EdicaoContaReceberModal, { EdicaoContaReceberData } from '../modals/Edica
 interface ContasReceberProps {
   accounts: AccountReceivable[];
   customers: Customer[];
-  onUpdateStatus: (id: number, type: 'payable' | 'receivable') => void;
+  onUpdateStatus: (id: number, type: 'payable' | 'receivable', status?: string) => void;
   onAdd: () => void;
   totalPendente?: number;
   totalVencido?: number;
@@ -21,13 +21,13 @@ interface ContasReceberProps {
 const getStatusBadge = (status: FinancialEntryStatus) => {
   const styles = {
     pendente: 'bg-yellow-100 text-yellow-800',
-    pago: 'bg-green-100 text-green-800',
+    recebido: 'bg-green-100 text-green-800',
     vencido: 'bg-red-100 text-red-800',
     cancelado: 'bg-gray-100 text-gray-800',
   };
   const text = {
     pendente: 'Pendente',
-    pago: 'Recebido',
+    recebido: 'Recebido',
     vencido: 'Vencido',
     cancelado: 'Cancelado',
   };
@@ -65,11 +65,11 @@ const ContasReceber: React.FC<ContasReceberProps> = ({
     const matchesStatus = statusFilter === 'all' || account.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
-  // Total geral calculado localmente para exibição
-
-  const totalGeral = accounts
-    .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+  console.log(filteredAccounts);
+  console.log(customers);
+  
+  // Total // Calcular total geral para exibição (soma dos outros 3 indicadores)
+  const totalGeral = totalVencido + totalPendente + totalRecebidoMes;
 
   const handleEdit = (conta: AccountReceivable) => {
     setContaSelecionada(conta);
@@ -353,7 +353,7 @@ const ContasReceber: React.FC<ContasReceberProps> = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center space-x-2">
-                    {account.status !== 'pago' && account.status !== 'cancelado' && (
+                    {account.status !== 'recebido' && account.status !== 'cancelado' && (
                       <>
                         <button
                           onClick={() => handleEdit(account)}

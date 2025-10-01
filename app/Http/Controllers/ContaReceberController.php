@@ -20,6 +20,9 @@ class ContaReceberController extends Controller
      */
     public function index(Request $request)
     {
+        // Atualizar status de contas vencidas antes das consultas
+        $this->updateOverdueAccounts();
+        
         $query = ContaReceber::with(['cliente', 'venda', 'pontoVenda', 'usuario'])
             ->where('ativo', true);
 
@@ -96,7 +99,7 @@ class ContaReceberController extends Controller
         $validated = $request->validate([
             'numero_documento' => 'nullable|string|max:50',
             'descricao' => 'required|string|max:255',
-            'id_cliente' => 'required|exists:clientes,id_cliente',
+            'id_cliente' => 'nullable|exists:clientes,id_cliente',
             'id_venda' => 'nullable|exists:vendas,id_venda',
             'id_pdv' => 'required|exists:pontos_venda,id_pdv',
             'valor_original' => 'required|numeric|min:0.01',
@@ -142,7 +145,7 @@ class ContaReceberController extends Controller
 
             DB::commit();
 
-            return redirect()->route('contas-receber.index')
+            return redirect()->route('financeiro.index')
                            ->with('success', 'Conta a receber criada com sucesso!');
 
         } catch (\Exception $e) {
@@ -198,9 +201,16 @@ class ContaReceberController extends Controller
             'observacoes' => 'nullable|string|max:500'
         ]);
 
+        // Se a data de vencimento foi alterada para hoje ou futuro, ajusta o status
+        if ($contaReceber->status === 'vencido' && 
+            isset($validated['data_vencimento']) && 
+            Carbon::parse($validated['data_vencimento'])->gte(now()->startOfDay())) {
+            $validated['status'] = 'pendente';
+        }
+
         $contaReceber->update($validated);
 
-        return redirect()->route('contas-receber.index')
+        return redirect()->route('financeiro.index')
                        ->with('success', 'Conta a receber atualizada com sucesso!');
     }
 
@@ -214,9 +224,9 @@ class ContaReceberController extends Controller
             return back()->withErrors(['error' => 'Não é possível excluir uma conta já recebida.']);
         }
 
-        $contaReceber->update(['ativo' => false]);
+        $contaReceber->update(['status' => 'cancelado']);
 
-        return redirect()->route('contas-receber.index')
+        return redirect()->route('financeiro.index')
                        ->with('success', 'Conta a receber removida com sucesso!');
     }
 
@@ -248,7 +258,7 @@ class ContaReceberController extends Controller
 
             DB::commit();
 
-            return redirect()->route('contas-receber.index')
+            return redirect()->route('financeiro.index')
                            ->with('success', 'Recebimento registrado com sucesso!');
 
         } catch (\Exception $e) {
@@ -268,7 +278,7 @@ class ContaReceberController extends Controller
 
         $contaReceber->cancelar();
 
-        return redirect()->route('contas-receber.index')
+        return redirect()->route('financeiro.index')
                        ->with('success', 'Conta cancelada com sucesso!');
     }
 
@@ -277,6 +287,9 @@ class ContaReceberController extends Controller
      */
     public function relatorio(Request $request)
     {
+        // Atualizar status de contas vencidas antes das consultas
+        $this->updateOverdueAccounts();
+        
         $query = ContaReceber::with(['cliente', 'venda', 'pontoVenda'])
             ->where('ativo', true);
 
@@ -373,5 +386,18 @@ class ContaReceberController extends Controller
             DB::rollback();
             return back()->withErrors(['error' => 'Erro ao gerar conta a receber: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Atualiza automaticamente o status de contas a receber vencidas
+     */
+    private function updateOverdueAccounts()
+    {
+        $today = now()->toDateString();
+        
+        ContaReceber::where('ativo', true)
+            ->where('status', 'pendente')
+            ->where('data_vencimento', '<', $today)
+            ->update(['status' => 'vencido']);
     }
 }

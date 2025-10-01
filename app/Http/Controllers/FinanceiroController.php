@@ -9,11 +9,16 @@ use App\Models\ContaReceber;
 use App\Models\Fornecedor;
 use App\Models\Cliente;
 use App\Models\Venda;
+use App\Models\FluxoCaixa;
+use Carbon\Carbon;
 
 class FinanceiroController extends Controller
 {
     public function index()
     {
+        // Atualizar status de contas vencidas antes das consultas
+        $this->updateOverdueAccounts();
+        
         // Buscar contas a pagar do banco
         $accountsPayable = ContaPagar::with('fornecedor')
             ->where('ativo', true)
@@ -91,10 +96,10 @@ class FinanceiroController extends Controller
             ->get()
             ->map(function ($cliente) {
                 return [
-                    'id' => $cliente->id_cliente,
-                    'name' => $cliente->nome,
+                    'id_cliente' => $cliente->id_cliente,
+                    'nome' => $cliente->nome,
                     'email' => $cliente->email,
-                    'phone' => $cliente->telefone
+                    'telefone' => $cliente->telefone
                 ];
             });
 
@@ -114,16 +119,16 @@ class FinanceiroController extends Controller
                 ];
             });
 
-        // Calcular estatísticas para contas a pagar
-        $totalPendentePagar = ContaPagar::where('ativo', true)
+        // Calcular estatísticas para contas a pagar (garantindo tipo float)
+        $totalPendentePagar = (float) ContaPagar::where('ativo', true)
             ->where('status', 'pendente')
             ->sum('valor_original');
 
-        $totalVencidoPagar = ContaPagar::where('ativo', true)
+        $totalVencidoPagar = (float) ContaPagar::where('ativo', true)
             ->where('status', 'vencido')
             ->sum('valor_original');
 
-        $totalPagoMesPagar = ContaPagar::where('ativo', true)
+        $totalPagoMesPagar = (float) ContaPagar::where('ativo', true)
             ->where('status', 'pago')
             ->whereMonth('data_pagamento', now()->month)
             ->whereYear('data_pagamento', now()->year)
@@ -133,16 +138,16 @@ class FinanceiroController extends Controller
             ->where('status', 'vencido')
             ->count();
 
-        // Calcular estatísticas para contas a receber
-        $totalPendenteReceber = ContaReceber::where('ativo', true)
+        // Calcular estatísticas para contas a receber (garantindo tipo float)
+        $totalPendenteReceber = (float) ContaReceber::where('ativo', true)
             ->where('status', 'pendente')
             ->sum('valor_original');
 
-        $totalVencidoReceber = ContaReceber::where('ativo', true)
+        $totalVencidoReceber = (float) ContaReceber::where('ativo', true)
             ->where('status', 'vencido')
             ->sum('valor_original');
 
-        $totalRecebidoMes = ContaReceber::where('ativo', true)
+        $totalRecebidoMes = (float) ContaReceber::where('ativo', true)
             ->where('status', 'recebido')
             ->whereMonth('data_recebimento', now()->month)
             ->whereYear('data_recebimento', now()->year)
@@ -152,10 +157,22 @@ class FinanceiroController extends Controller
             ->where('status', 'vencido')
             ->count();
 
-        // Vendas de hoje
-        $vendasHoje = Venda::where('status', 'finalizada')
+        // Vendas de hoje (garantindo tipo float)
+        $vendasHoje = (float) Venda::where('status', 'finalizada')
             ->whereDate('data_venda', today())
             ->sum('valor_total');
+
+        // Calcular totais recebidos e pagos (garantindo tipo float)
+        $totalRecebido = (float) ContaReceber::where('ativo', true)
+            ->where('status', 'recebido')
+            ->sum('valor_recebido');
+
+        $totalPago = (float) ContaPagar::where('ativo', true)
+            ->where('status', 'pago')
+            ->sum('valor_pago');
+
+        // Buscar dados do fluxo de caixa
+        $fluxoCaixaData = $this->getFluxoCaixaData();
 
         return inertia('Financeiro/Index', [
             'accountsPayable' => $accountsPayable,
@@ -163,11 +180,18 @@ class FinanceiroController extends Controller
             'suppliers' => $suppliers,
             'customers' => $customers,
             'sales' => $sales,
+            'fluxoCaixaData' => $fluxoCaixaData,
             'statistics' => [
-                'totalPagar' => $totalPendentePagar + $totalVencidoPagar,
-                'totalReceber' => $totalPendenteReceber + $totalVencidoReceber,
-                'vendasHoje' => $vendasHoje,
-                'contasVencidas' => $quantidadeVencidasPagar + $quantidadeVencidasReceber
+                'totalReceivable' => $totalPendenteReceber + $totalVencidoReceber + $totalRecebido,
+                'totalPayable' => $totalPendentePagar + $totalVencidoPagar + $totalPago,
+                'totalReceived' => $totalRecebido + $vendasHoje,
+                'totalPaid' => $totalPago,
+                'pendingReceivable' => $totalPendenteReceber,
+                'pendingPayable' => $totalPendentePagar,
+                'overdueReceivable' => $totalVencidoReceber,
+                'overduePayable' => $totalVencidoPagar,
+                'cashFlow' => ($totalRecebido + $vendasHoje) - $totalPago,
+                'projectedCashFlow' => $totalPendenteReceber - $totalPendentePagar
             ],
             'payableStatistics' => [
                 'totalPendente' => $totalPendentePagar,
@@ -184,214 +208,98 @@ class FinanceiroController extends Controller
         ]);
     }
 
-    // Métodos para Contas a Pagar
-    public function showPayable($id)
+    /**
+     * Busca dados do fluxo de caixa dos últimos 30 dias
+     */
+    private function getFluxoCaixaData()
     {
-        $conta = ContaPagar::with(['fornecedor', 'pontoVenda', 'user'])->findOrFail($id);
-        
-        return inertia('Financeiro/ContasPagar/Show', [
-            'conta' => $conta
-        ]);
-    }
-
-    public function editPayable($id)
-    {
-        $conta = ContaPagar::with(['fornecedor'])->findOrFail($id);
-        $fornecedores = Fornecedor::where('ativo', true)->get();
-        
-        return inertia('Financeiro/ContasPagar/Edit', [
-            'conta' => $conta,
-            'fornecedores' => $fornecedores
-        ]);
-    }
-
-    public function storePayable(Request $request)
-    {
-        $request->validate([
-            'numero_documento' => 'nullable|string|max:50',
-            'descricao' => 'required|string|max:200',
-            'id_fornecedor' => 'nullable|exists:fornecedores,id_fornecedor',
-            'valor_original' => 'required|numeric|min:0.01',
-            'data_vencimento' => 'required|date',
-            'categoria' => 'required|in:fornecedor,despesa_operacional,imposto,financiamento,outros',
-            'tipo_documento' => 'required|in:nota_fiscal,boleto,duplicata,recibo,outros',
-            'observacoes' => 'nullable|string'
-        ]);
-
-        ContaPagar::create([
-            'numero_documento' => $request->numero_documento,
-            'descricao' => $request->descricao,
-            'id_fornecedor' => $request->id_fornecedor,
-            'id_pdv' => 1, // Assumindo PDV padrão por enquanto
-            'user_id' => auth()->id(),
-            'valor_original' => $request->valor_original,
-            'data_vencimento' => $request->data_vencimento,
-            'categoria' => $request->categoria,
-            'tipo_documento' => $request->tipo_documento,
-            'observacoes' => $request->observacoes,
-            'status' => 'pendente'
-        ]);
-
-        return back()->with('success', 'Conta a pagar criada com sucesso!');
-    }
-
-    public function updatePayable(Request $request, $id)
-    {
-        $conta = ContaPagar::findOrFail($id);
-        
-        $request->validate([
-            'numero_documento' => 'nullable|string|max:50',
-            'descricao' => 'required|string|max:200',
-            'id_fornecedor' => 'nullable|exists:fornecedores,id_fornecedor',
-            'valor_original' => 'required|numeric|min:0.01',
-            'data_vencimento' => 'required|date',
-            'categoria' => 'required|in:fornecedor,despesa_operacional,imposto,financiamento,outros',
-            'tipo_documento' => 'required|in:nota_fiscal,boleto,duplicata,recibo,outros',
-            'observacoes' => 'nullable|string'
-        ]);
-
-        $conta->update($request->only([
-            'numero_documento', 'descricao', 'id_fornecedor', 'valor_original',
-            'data_vencimento', 'categoria', 'tipo_documento', 'observacoes'
-        ]));
-
-        return back()->with('success', 'Conta a pagar atualizada com sucesso!');
-    }
-
-    public function destroyPayable($id)
-    {
-        $conta = ContaPagar::findOrFail($id);
-        $conta->update(['ativo' => false]);
-
-        return back()->with('success', 'Conta a pagar removida com sucesso!');
-    }
-
-    public function updatePayableStatus(Request $request, $id)
-    {
-        $conta = ContaPagar::findOrFail($id);
-        
-        $request->validate([
-            'status' => 'required|in:pendente,pago,vencido,cancelado',
-            'data_pagamento' => 'nullable|date',
-            'valor_pago' => 'nullable|numeric|min:0'
-        ]);
-
-        $updateData = ['status' => $request->status];
-        
-        if ($request->status === 'pago') {
-            $updateData['data_pagamento'] = $request->data_pagamento ?? now();
-            $updateData['valor_pago'] = $request->valor_pago ?? $conta->valor_original;
+        // Gera os últimos 30 dias incluindo hoje
+        $last30Days = collect();
+        for ($i = 29; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i)->format('Y-m-d');
+            $last30Days->push($date);
         }
 
-        $conta->update($updateData);
+        // Busca movimentações do fluxo de caixa dos últimos 30 dias
+        $movimentacoes = FluxoCaixa::whereBetween('created_at', [
+            Carbon::now()->subDays(29)->startOfDay(),
+            Carbon::now()->endOfDay()
+        ])
+        ->selectRaw('DATE(created_at) as data, tipo_operacao, SUM(valor) as total')
+        ->groupBy('data', 'tipo_operacao')
+        ->get()
+        ->groupBy('data');
 
-        return back()->with('success', 'Status da conta atualizado com sucesso!');
+        // Organiza os dados por dia
+        $dailyData = $last30Days->map(function ($date) use ($movimentacoes) {
+            $dayData = $movimentacoes->get($date, collect());
+            
+            $entradas = $dayData->where('tipo_operacao', 'entrada')->sum('total');
+            $saidas = $dayData->where('tipo_operacao', 'saida')->sum('total');
+            
+            return [
+                'date' => $date,
+                'entradas' => (float) $entradas,
+                'saidas' => (float) $saidas,
+                'saldo' => (float) ($entradas - $saidas)
+            ];
+        });
+
+        // Calcula estatísticas gerais
+        $totalEntradas = FluxoCaixa::where('tipo_operacao', 'entrada')
+            ->whereBetween('created_at', [
+                Carbon::now()->subDays(29)->startOfDay(),
+                Carbon::now()->endOfDay()
+            ])
+            ->sum('valor');
+
+        $totalSaidas = FluxoCaixa::where('tipo_operacao', 'saida')
+            ->whereBetween('created_at', [
+                Carbon::now()->subDays(29)->startOfDay(),
+                Carbon::now()->endOfDay()
+            ])
+            ->sum('valor');
+
+        // Entradas e saídas de hoje
+        $entradasHoje = FluxoCaixa::where('tipo_operacao', 'entrada')
+            ->whereDate('created_at', Carbon::today())
+            ->sum('valor');
+
+        $saidasHoje = FluxoCaixa::where('tipo_operacao', 'saida')
+            ->whereDate('created_at', Carbon::today())
+            ->sum('valor');
+
+        return [
+            'dailyData' => $dailyData,
+            'statistics' => [
+                'totalEntradas' => (float) $totalEntradas,
+                'totalSaidas' => (float) $totalSaidas,
+                'saldoTotal' => (float) ($totalEntradas - $totalSaidas),
+                'entradasHoje' => (float) $entradasHoje,
+                'saidasHoje' => (float) $saidasHoje,
+                'saldoHoje' => (float) ($entradasHoje - $saidasHoje)
+            ]
+        ];
     }
 
-    // Métodos para Contas a Receber
-    public function showReceivable($id)
+    /**
+     * Atualiza automaticamente o status de contas vencidas
+     * Deve ser chamado antes de consultas que dependem do status 'vencido'
+     */
+    private function updateOverdueAccounts()
     {
-        $conta = ContaReceber::with(['cliente', 'venda', 'pontoVenda', 'user'])->findOrFail($id);
+        $today = now()->toDateString();
         
-        return inertia('Financeiro/ContasReceber/Show', [
-            'conta' => $conta
-        ]);
-    }
-
-    public function editReceivable($id)
-    {
-        $conta = ContaReceber::with(['cliente', 'venda'])->findOrFail($id);
-        $clientes = Cliente::where('ativo', true)->get();
-        
-        return inertia('Financeiro/ContasReceber/Edit', [
-            'conta' => $conta,
-            'clientes' => $clientes
-        ]);
-    }
-
-    public function storeReceivable(Request $request)
-    {
-        $request->validate([
-            'numero_documento' => 'nullable|string|max:50',
-            'descricao' => 'required|string|max:200',
-            'id_cliente' => 'nullable|exists:clientes,id_cliente',
-            'id_venda' => 'nullable|exists:vendas,id_venda',
-            'valor_original' => 'required|numeric|min:0.01',
-            'data_vencimento' => 'required|date',
-            'categoria' => 'required|in:venda_prazo,servico,outros',
-            'tipo_documento' => 'required|in:duplicata,promissoria,cheque,boleto,outros',
-            'observacoes' => 'nullable|string'
-        ]);
-
-        ContaReceber::create([
-            'numero_documento' => $request->numero_documento,
-            'descricao' => $request->descricao,
-            'id_cliente' => $request->id_cliente,
-            'id_venda' => $request->id_venda,
-            'id_pdv' => 1, // Assumindo PDV padrão por enquanto
-            'user_id' => auth()->id(),
-            'valor_original' => $request->valor_original,
-            'data_vencimento' => $request->data_vencimento,
-            'categoria' => $request->categoria,
-            'tipo_documento' => $request->tipo_documento,
-            'observacoes' => $request->observacoes,
-            'status' => 'pendente'
-        ]);
-
-        return back()->with('success', 'Conta a receber criada com sucesso!');
-    }
-
-    public function updateReceivable(Request $request, $id)
-    {
-        $conta = ContaReceber::findOrFail($id);
-        
-        $request->validate([
-            'numero_documento' => 'nullable|string|max:50',
-            'descricao' => 'required|string|max:200',
-            'id_cliente' => 'nullable|exists:clientes,id_cliente',
-            'id_venda' => 'nullable|exists:vendas,id_venda',
-            'valor_original' => 'required|numeric|min:0.01',
-            'data_vencimento' => 'required|date',
-            'categoria' => 'required|in:venda_prazo,servico,outros',
-            'tipo_documento' => 'required|in:duplicata,promissoria,cheque,boleto,outros',
-            'observacoes' => 'nullable|string'
-        ]);
-
-        $conta->update($request->only([
-            'numero_documento', 'descricao', 'id_cliente', 'id_venda', 'valor_original',
-            'data_vencimento', 'categoria', 'tipo_documento', 'observacoes'
-        ]));
-
-        return back()->with('success', 'Conta a receber atualizada com sucesso!');
-    }
-
-    public function destroyReceivable($id)
-    {
-        $conta = ContaReceber::findOrFail($id);
-        $conta->update(['ativo' => false]);
-
-        return back()->with('success', 'Conta a receber removida com sucesso!');
-    }
-
-    public function updateReceivableStatus(Request $request, $id)
-    {
-        $conta = ContaReceber::findOrFail($id);
-        
-        $request->validate([
-            'status' => 'required|in:pendente,recebido,vencido,cancelado',
-            'data_recebimento' => 'nullable|date',
-            'valor_recebido' => 'nullable|numeric|min:0'
-        ]);
-
-        $updateData = ['status' => $request->status];
-        
-        if ($request->status === 'recebido') {
-            $updateData['data_recebimento'] = $request->data_recebimento ?? now();
-            $updateData['valor_recebido'] = $request->valor_recebido ?? $conta->valor_original;
-        }
-
-        $conta->update($updateData);
-
-        return back()->with('success', 'Status da conta atualizado com sucesso!');
+        // Atualizar contas a pagar vencidas
+        ContaPagar::where('ativo', true)
+            ->where('status', 'pendente')
+            ->where('data_vencimento', '<', $today)
+            ->update(['status' => 'vencido']);
+            
+        // Atualizar contas a receber vencidas
+        ContaReceber::where('ativo', true)
+            ->where('status', 'pendente')
+            ->where('data_vencimento', '<', $today)
+            ->update(['status' => 'vencido']);
     }
 }

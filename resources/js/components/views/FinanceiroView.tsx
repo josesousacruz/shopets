@@ -6,12 +6,30 @@ import ContasPagar from '../financeiro/ContasPagar';
 import ContasReceber from '../financeiro/ContasReceber';
 import LancamentoForm from '../financeiro/LancamentoForm';
 
+interface FluxoCaixaData {
+  dailyData: {
+    date: string;
+    entradas: number;
+    saidas: number;
+    saldo: number;
+  }[];
+  statistics: {
+    totalEntradas: number;
+    totalSaidas: number;
+    saldoTotal: number;
+    entradasHoje: number;
+    saidasHoje: number;
+    saldoHoje: number;
+  };
+}
+
 interface FinanceiroViewProps {
   accountsPayable: AccountPayable[];
   accountsReceivable: AccountReceivable[];
   suppliers: Supplier[];
   customers: Customer[];
   sales: Sale[];
+  fluxoCaixaData?: FluxoCaixaData;
   statistics?: {
     totalPagar: number;
     totalReceber: number;
@@ -31,7 +49,7 @@ interface FinanceiroViewProps {
     quantidadeVencidas: number;
   };
   onAddEntry: (entry: Partial<AccountPayable> | Partial<AccountReceivable>, type: 'payable' | 'receivable') => void;
-  onUpdateStatus: (id: number, status: string) => void;
+  onUpdateStatus: (id: number, type: 'payable' | 'receivable', status?: string) => void;
 }
 
 type FinanceiroSubView = 'fluxo' | 'pagar' | 'receber';
@@ -54,6 +72,7 @@ const FinanceiroView: React.FC<FinanceiroViewProps> = (props) => {
           accountsReceivable={props.accountsReceivable} 
           sales={props.sales}
           statistics={props.statistics}
+          fluxoCaixaData={props.fluxoCaixaData}
         />;
       case 'pagar':
         return <ContasPagar 

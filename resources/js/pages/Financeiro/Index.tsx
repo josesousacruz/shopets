@@ -6,12 +6,30 @@ import AuthenticatedLayout from '@/layouts/AuthenticatedLayout';
 import FinanceiroView from '@/components/views/FinanceiroView';
 import { AccountPayable, AccountReceivable, Supplier, Customer, Sale } from '@/types';
 
+interface FluxoCaixaData {
+    dailyData: {
+        date: string;
+        entradas: number;
+        saidas: number;
+        saldo: number;
+    }[];
+    statistics: {
+        totalEntradas: number;
+        totalSaidas: number;
+        saldoTotal: number;
+        entradasHoje: number;
+        saidasHoje: number;
+        saldoHoje: number;
+    };
+}
+
 interface FinanceiroIndexProps {
     accountsPayable: AccountPayable[];
     accountsReceivable: AccountReceivable[];
     suppliers: Supplier[];
     customers: Customer[];
     sales: Sale[];
+    fluxoCaixaData?: FluxoCaixaData;
     statistics?: {
         totalPagar: number;
         totalReceber: number;
@@ -38,6 +56,7 @@ export default function Index({
     suppliers, 
     customers, 
     sales,
+    fluxoCaixaData,
     statistics,
     payableStatistics,
     receivableStatistics
@@ -124,6 +143,7 @@ export default function Index({
                 suppliers={suppliers}
                 customers={customers}
                 sales={sales}
+                fluxoCaixaData={fluxoCaixaData}
                 statistics={statistics}
                 payableStatistics={payableStatistics}
                 receivableStatistics={receivableStatistics}

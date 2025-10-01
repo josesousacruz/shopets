@@ -10,7 +10,7 @@ import Swal from 'sweetalert2';
 interface ContasPagarProps {
   accounts: AccountPayable[];
   suppliers: Supplier[];
-  onUpdateStatus: (id: number, status: string) => void;
+  onUpdateStatus: (id: number, type: 'payable' | 'receivable', status?: string) => void;
   onAdd: () => void;
   totalPendente?: number;
   totalVencido?: number;
@@ -68,9 +68,8 @@ const ContasPagar: React.FC<ContasPagarProps> = ({
     return matchesSearch && matchesStatus;
   });
 
-  // Calcular total geral para exibição
-  const totalGeral = accounts
-    .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+  // Calcular total geral para exibição (soma dos outros 3 indicadores)
+  const totalGeral = totalVencido + totalPendente + totalPagoMes;
 
   const handleEdit = (conta: AccountPayable) => {
     setContaSelecionada(conta);
@@ -333,7 +332,7 @@ const ContasPagar: React.FC<ContasPagarProps> = ({
                           <CheckCircle size={16} />
                         </button>
                         <button
-                          onClick={() => onUpdateStatus(account.id_conta_pagar, 'cancelado')}
+                          onClick={() => onUpdateStatus(account.id_conta_pagar, 'payable', 'cancelado')}
                           className="text-red-600 hover:text-red-900"
                           title="Cancelar"
                         >

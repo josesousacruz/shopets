@@ -20,6 +20,7 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
   const [linkId, setLinkId] = useState('');
   const [categoria, setCategoria] = useState('');
   const [tipo_documento, setTipoDocumento] = useState('');
+  const [numero_documento, setNumeroDocumento] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -29,6 +30,7 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
       setLinkId('');
       setCategoria('');
       setTipoDocumento('');
+      setNumeroDocumento('');
     }
   }, [isOpen]);
 
@@ -49,10 +51,10 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
 
     // Validação específica para contas a receber
     if (type === 'receivable') {
-      if (!linkId || !categoria || !tipo_documento) {
+      if (!categoria || !tipo_documento) {
         Swal.fire({
           title: 'Campos Obrigatórios',
-          text: 'Para contas a receber, é obrigatório informar o cliente, categoria e tipo de documento.',
+          text: 'Para contas a receber, é obrigatório informar a categoria e tipo de documento.',
           icon: 'warning',
           confirmButtonText: 'OK',
           confirmButtonColor: '#f59e0b'
@@ -62,19 +64,15 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
     }
     
     const entryData = {
-      descricao,
-      valor_original: parseFloat(valor_original),
-      data_vencimento: new Date(data_vencimento),
       total_parcelas: 1,
       id_pdv: 1,
-      ...(type === 'payable' 
-        ? { id_fornecedor: linkId } 
-        : { 
-            id_cliente: linkId,
-            categoria,
-            tipo_documento
-          }
-      ),
+      descricao,
+      valor_original: parseFloat(valor_original),
+      data_vencimento,
+      categoria: isPayable ? 'fornecedor' : categoria,
+      tipo_documento: isPayable ? tipo_documento : tipo_documento,
+      numero_documento: numero_documento || undefined,
+      ...(isPayable ? { id_fornecedor: linkId || null } : { id_cliente: linkId || null })
     };
     
     onSave(entryData, type);
@@ -118,21 +116,18 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
               required 
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Valor *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  value={valor_original} 
-                  onChange={e => setValorOriginal(e.target.value)} 
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg" 
-                  required 
-                />
-              </div>
+              <input 
+                type="number" 
+                step="0.01" 
+                value={valor_original} 
+                onChange={e => setValorOriginal(e.target.value)} 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
+                required 
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento *</label>
@@ -148,23 +143,67 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {linkLabel} {!isPayable && '*'}
+              {linkLabel} (Opcional)
             </label>
             <select 
               value={linkId} 
               onChange={e => setLinkId(e.target.value)} 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              required={!isPayable}
             >
               <option value="">Selecione...</option>
               {linkOptions.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.name}</option>
+                <option 
+                  key={isPayable ? opt.id_fornecedor : opt.id_cliente} 
+                  value={isPayable ? opt.id_fornecedor : opt.id_cliente}
+                >
+                  {opt.nome}
+                </option>
               ))}
             </select>
           </div>
 
+          {isPayable && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número do Documento</label>
+                <input 
+                  type="text" 
+                  value={numero_documento} 
+                  onChange={e => setNumeroDocumento(e.target.value)} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Ex: NF-001, Boleto-123..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+                <select 
+                  value={tipo_documento} 
+                  onChange={e => setTipoDocumento(e.target.value)} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="nota_fiscal">Nota Fiscal</option>
+                  <option value="boleto">Boleto</option>
+                  <option value="duplicata">Duplicata</option>
+                  <option value="recibo">Recibo</option>
+                  <option value="outros">Outros</option>
+                </select>
+              </div>
+            </>
+          )}
+
           {!isPayable && (
             <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número do Documento</label>
+                <input 
+                  type="text" 
+                  value={numero_documento} 
+                  onChange={e => setNumeroDocumento(e.target.value)} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Ex: NF-001, Duplicata-123..."
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
                 <select 
@@ -173,13 +212,12 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 >
-                  <option value="">Selecione a categoria...</option>
+                  <option value="">Selecione...</option>
                   <option value="venda">Venda</option>
                   <option value="servico">Serviço</option>
                   <option value="outros">Outros</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
                 <select 
@@ -188,7 +226,7 @@ const LancamentoForm: React.FC<LancamentoFormProps> = ({ isOpen, onClose, onSave
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 >
-                  <option value="">Selecione o tipo...</option>
+                  <option value="">Selecione...</option>
                   <option value="nota_fiscal">Nota Fiscal</option>
                   <option value="boleto">Boleto</option>
                   <option value="recibo">Recibo</option>

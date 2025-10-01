@@ -138,7 +138,7 @@ export interface Customer {
   lastPurchase?: string;
 }
 
-export type FinancialEntryStatus = 'pendente' | 'pago' | 'vencido' | 'cancelado';
+export type FinancialEntryStatus = 'pendente' | 'recebido' | 'vencido' | 'cancelado';
 export type FinancialCategory = 'compra' | 'despesa' | 'servico' | 'venda' | 'outros';
 export type DocumentType = 'nota_fiscal' | 'boleto' | 'duplicata' | 'promissoria' | 'recibo' | 'outros';
 

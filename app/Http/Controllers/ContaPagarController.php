@@ -19,6 +19,9 @@ class ContaPagarController extends Controller
      */
     public function index(Request $request)
     {
+        // Atualizar status de contas vencidas antes das consultas
+        $this->updateOverdueAccounts();
+        
         $query = ContaPagar::with(['fornecedor', 'pontoVenda', 'usuario'])
             ->where('ativo', true);
 
@@ -93,7 +96,7 @@ class ContaPagarController extends Controller
     {
         $validated = $request->validate([
             'descricao' => 'required|string|max:255',
-            'id_fornecedor' => 'exists:fornecedores,id_fornecedor',
+            'id_fornecedor' => 'nullable|exists:fornecedores,id_fornecedor',
             'id_pdv' => 'required|exists:pontos_venda,id_pdv',
             'valor_original' => 'required|numeric|min:0.01',
             'data_vencimento' => 'required|date',
@@ -136,7 +139,7 @@ class ContaPagarController extends Controller
 
             DB::commit();
 
-            return redirect()->route('contas-pagar.index')
+            return redirect()->route('financeiro.index')
                            ->with('success', 'Conta a pagar criada com sucesso!');
 
         } catch (\Exception $e) {
@@ -168,7 +171,7 @@ class ContaPagarController extends Controller
 
         $contaPagar->update($validated);
 
-        return redirect()->route('contas-pagar.index')
+        return redirect()->route('financeiro.index')
                        ->with('success', 'Conta a pagar atualizada com sucesso!');
     }
 
@@ -184,7 +187,7 @@ class ContaPagarController extends Controller
 
         $contaPagar->update(['ativo' => false]);
 
-        return redirect()->route('contas-pagar.index')
+        return redirect()->route('financeiro.index')
                        ->with('success', 'Conta a pagar removida com sucesso!');
     }
 
@@ -216,7 +219,7 @@ class ContaPagarController extends Controller
 
             DB::commit();
 
-            return redirect()->route('contas-pagar.index')
+            return redirect()->route('financeiro.index')
                            ->with('success', 'Pagamento registrado com sucesso!');
 
         } catch (\Exception $e) {
@@ -236,7 +239,7 @@ class ContaPagarController extends Controller
 
         $contaPagar->cancelar();
 
-        return redirect()->route('contas-pagar.index')
+        return redirect()->route('financeiro.index')
                        ->with('success', 'Conta cancelada com sucesso!');
     }
 
@@ -245,6 +248,9 @@ class ContaPagarController extends Controller
      */
     public function relatorio(Request $request)
     {
+        // Atualizar status de contas vencidas antes das consultas
+        $this->updateOverdueAccounts();
+        
         $query = ContaPagar::with(['fornecedor', 'pontoVenda'])
             ->where('ativo', true);
 
@@ -273,5 +279,18 @@ class ContaPagarController extends Controller
             'resumo' => $resumo,
             'filtros' => $request->only(['data_inicio', 'data_fim', 'status'])
         ]);
+    }
+
+    /**
+     * Atualiza automaticamente o status de contas a pagar vencidas
+     */
+    private function updateOverdueAccounts()
+    {
+        $today = now()->toDateString();
+        
+        ContaPagar::where('ativo', true)
+            ->where('status', 'pendente')
+            ->where('data_vencimento', '<', $today)
+            ->update(['status' => 'vencido']);
     }
 }

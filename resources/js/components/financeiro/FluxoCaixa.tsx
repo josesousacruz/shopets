@@ -18,11 +18,29 @@ interface FinancialStatistics {
   projectedCashFlow: number;
 }
 
+interface FluxoCaixaData {
+  dailyData: {
+    date: string;
+    entradas: number;
+    saidas: number;
+    saldo: number;
+  }[];
+  statistics: {
+    totalEntradas: number;
+    totalSaidas: number;
+    saldoTotal: number;
+    entradasHoje: number;
+    saidasHoje: number;
+    saldoHoje: number;
+  };
+}
+
 interface FluxoCaixaProps {
   accountsPayable: AccountPayable[];
   accountsReceivable: AccountReceivable[];
   sales: Sale[];
   statistics?: FinancialStatistics;
+  fluxoCaixaData?: FluxoCaixaData;
 }
 
 const getPaymentMethodBadge = (method: 'dinheiro' | 'cartao' | 'pix') => {
@@ -49,7 +67,7 @@ const getPaymentMethodBadge = (method: 'dinheiro' | 'cartao' | 'pix') => {
   );
 };
 
-const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceivable, sales, statistics }) => {
+const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceivable, sales, statistics, fluxoCaixaData }) => {
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -89,34 +107,67 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
 
   // Calcular estatísticas se não fornecidas
   const calculatedStats = useMemo(() => {
+    
+    // Fallback: usar statistics fornecidas ou calcular das tabelas originais
     if (statistics) return statistics;
-
+    
+    // Totais originais
     const totalReceivable = accountsReceivable.reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
     const totalPayable = accountsPayable.reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    const totalReceived = accountsReceivable.filter(acc => acc.status === 'pago').reduce((sum, acc) => sum + (acc.valor_recebido || 0), 0);
-    const totalPaid = accountsPayable.filter(acc => acc.status === 'pago').reduce((sum, acc) => sum + (acc.valor_pago || 0), 0);
-    const pendingReceivable = accountsReceivable.filter(acc => acc.status === 'pendente').reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    const pendingPayable = accountsPayable.filter(acc => acc.status === 'pendente').reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    const overdueReceivable = accountsReceivable.filter(acc => acc.status === 'vencido').reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
-    const overduePayable = accountsPayable.filter(acc => acc.status === 'vencido').reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+    
+    // Totais recebidos/pagos
+    const totalReceived = accountsReceivable
+      .filter(acc => acc.status === 'recebido')
+      .reduce((sum, acc) => sum + (acc.valor_recebido || 0), 0);
+    
+    const totalPaid = accountsPayable
+      .filter(acc => acc.status === 'recebido')
+      .reduce((sum, acc) => sum + (acc.valor_pago || 0), 0);
+    
+    // Vendas do PDV
+    const totalSales = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+    
+    // Pendentes
+    const pendingReceivable = accountsReceivable
+      .filter(acc => acc.status === 'pendente')
+      .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+    
+    const pendingPayable = accountsPayable
+      .filter(acc => acc.status === 'pendente')
+      .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+    
+    // Vencidos
+    const overdueReceivable = accountsReceivable
+      .filter(acc => acc.status === 'vencido')
+      .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+    
+    const overduePayable = accountsPayable
+      .filter(acc => acc.status === 'vencido')
+      .reduce((sum, acc) => sum + (acc.valor_original || 0), 0);
+
+    // Fluxo de caixa atual (recebido + vendas - pago)
+    const cashFlow = (totalReceived + totalSales) - totalPaid;
+    
+    // Projeção (pendente a receber - pendente a pagar)
+    const projectedCashFlow = pendingReceivable - pendingPayable;
 
     return {
       totalReceivable,
       totalPayable,
-      totalReceived,
+      totalReceived: totalReceived + totalSales,
       totalPaid,
       pendingReceivable,
       pendingPayable,
       overdueReceivable,
       overduePayable,
-      cashFlow: totalReceived - totalPaid,
-      projectedCashFlow: pendingReceivable - pendingPayable
+      cashFlow,
+      projectedCashFlow
     };
-  }, [accountsPayable, accountsReceivable, statistics]);
+  }, [accountsPayable, accountsReceivable, sales, statistics]);
 
   const filteredData = useMemo(() => {
-    const isDateInRange = (date: string | undefined | null) => {
-      if (!date || typeof date !== 'string') return false;
+    const isDateInRange = (date: string | Date | undefined | null) => {
+      if (!date) return false;
       if (!filters.startDate && !filters.endDate) return true;
       
       try {
@@ -132,9 +183,9 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
     };
 
     const filteredSales = filters.showSales ? sales.filter(sale => 
-      isDateInRange(sale.created_at) && 
-      sale.payment_method && 
-      filters.paymentMethods.includes(sale.payment_method as 'dinheiro' | 'cartao' | 'pix')
+      isDateInRange(sale.date) && 
+      sale.paymentMethod && 
+      filters.paymentMethods.includes(sale.paymentMethod)
     ) : [];
 
     const filteredReceivables = filters.showReceivables ? accountsReceivable.filter(acc => 
@@ -150,24 +201,69 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
 
   // Dados para o gráfico de fluxo de caixa
   const chartData = useMemo(() => {
+    // Se temos dados do fluxo de caixa, usar eles
+    if (fluxoCaixaData && fluxoCaixaData.dailyData) {
+      return fluxoCaixaData.dailyData.map(day => ({
+        date: day.date,
+        received: day.entradas,
+        paid: day.saidas,
+        net: day.saldo
+      }));
+    }
+
+    // Fallback: usar lógica anterior se não temos dados do fluxo de caixa
+    
+    // Gera os últimos 30 dias incluindo hoje
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const date = new Date();
+      // i=0 = 29 dias atrás, i=29 = hoje (0 dias atrás)
       date.setDate(date.getDate() - (29 - i));
       return date.toISOString().split('T')[0];
     });
 
     const dailyData = last30Days.map(date => {
-      const dayReceived = accountsReceivable
-        .filter(acc => acc.data_recebimento && typeof acc.data_recebimento === 'string' && acc.data_recebimento.startsWith(date))
-        .reduce((sum, acc) => sum + (acc.valor_recebido || 0), 0);
+      // Debug para o dia atual
+      const isToday = date === new Date().toISOString().split('T')[0];
       
-      const dayPaid = accountsPayable
-        .filter(acc => acc.data_pagamento && typeof acc.data_pagamento === 'string' && acc.data_pagamento.startsWith(date))
-        .reduce((sum, acc) => sum + (acc.valor_pago || 0), 0);
+      // Contas recebidas no dia (já recebidas) + contas com vencimento hoje (pendentes)
+      const dayReceived = accountsReceivable
+        .filter(acc => {
+          // Contas já recebidas no dia
+          const recebidaHoje = acc.data_recebimento && acc.data_recebimento.startsWith(date);
+          // Contas com vencimento hoje (mesmo que pendentes)
+          const venceHoje = acc.data_vencimento && acc.data_vencimento.startsWith(date);
+          return recebidaHoje || venceHoje;
+        })
+        .reduce((sum, acc) => {
+          // Se foi recebida, usar valor_recebido, senão usar valor_original
+          const valorRaw = acc.data_recebimento ? (acc.valor_recebido || 0) : (acc.valor_original || 0);
+          const valor = parseFloat(valorRaw) || 0;
+          return sum + valor;
+        }, 0);
 
+      // Contas pagas no dia (já pagas) + contas com vencimento hoje (pendentes)
+      const dayPaid = accountsPayable
+        .filter(acc => {
+          // Contas já pagas no dia
+          const pagaHoje = acc.data_pagamento && acc.data_pagamento.startsWith(date);
+          // Contas com vencimento hoje (mesmo que pendentes)
+          const venceHoje = acc.data_vencimento && acc.data_vencimento.startsWith(date);
+          return pagaHoje || venceHoje;
+        })
+        .reduce((sum, acc) => {
+          // Se foi paga, usar valor_pago, senão usar valor_original
+          const valorRaw = acc.data_pagamento ? (acc.valor_pago || 0) : (acc.valor_original || 0);
+          const valor = parseFloat(valorRaw) || 0;
+          return sum + valor;
+        }, 0);
+
+      // Vendas do dia
       const daySales = sales
-        .filter(sale => sale.created_at && typeof sale.created_at === 'string' && sale.created_at.startsWith(date))
-        .reduce((sum, sale) => sum + (sale.total || 0), 0);
+        .filter(sale => {
+          const saleDate = new Date(sale.date).toISOString().split('T')[0];
+          return saleDate === date;
+        })
+        .reduce((sum, sale) => sum + (parseFloat(sale.total) || 0), 0);
 
       return {
         date,
@@ -178,7 +274,7 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
     });
 
     return dailyData;
-  }, [accountsReceivable, accountsPayable, sales]);
+  }, [accountsReceivable, accountsPayable, sales, fluxoCaixaData]);
 
   const chartOptions: ApexOptions = {
     chart: {
@@ -192,7 +288,13 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
       curve: 'smooth'
     },
     xaxis: {
-      categories: chartData.map(item => new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
+      categories: chartData.map(item => {
+        const [year, month, day] = item.date.split('-').map(Number);
+        return new Date(year, month - 1, day).toLocaleDateString('pt-BR', { 
+          day: '2-digit', 
+          month: '2-digit' 
+        });
+      }),
       labels: {
         style: {
           fontSize: '12px'
@@ -269,7 +371,9 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
             <div>
               <p className="text-blue-100 text-sm font-medium">Projeção</p>
               <p className="text-2xl font-bold">{formatCurrency(calculatedStats.projectedCashFlow)}</p>
-              <p className="text-blue-100 text-xs mt-1">Pendente</p>
+              <p className="text-blue-100 text-xs mt-1">
+                {calculatedStats.projectedCashFlow >= 0 ? 'Positiva' : 'Negativa'}
+              </p>
             </div>
             <div className="bg-white bg-opacity-20 rounded-lg p-3">
               <DollarSign className="h-6 w-6" />
@@ -286,8 +390,8 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
           <div className="flex items-center justify-between">
             <div>
               <p className="text-emerald-100 text-sm font-medium">Total a Receber</p>
-              <p className="text-2xl font-bold">{formatCurrency(calculatedStats.pendingReceivable)}</p>
-              <p className="text-emerald-100 text-xs mt-1">Pendente</p>
+              <p className="text-2xl font-bold">{formatCurrency(calculatedStats.pendingReceivable + calculatedStats.overdueReceivable)}</p>
+              <p className="text-emerald-100 text-xs mt-1">Pendente + Vencido</p>
             </div>
             <div className="bg-white bg-opacity-20 rounded-lg p-3">
               <ArrowUp className="h-6 w-6" />
@@ -304,8 +408,8 @@ const FluxoCaixa: React.FC<FluxoCaixaProps> = ({ accountsPayable, accountsReceiv
           <div className="flex items-center justify-between">
             <div>
               <p className="text-red-100 text-sm font-medium">Total a Pagar</p>
-              <p className="text-2xl font-bold">{formatCurrency(calculatedStats.pendingPayable)}</p>
-              <p className="text-red-100 text-xs mt-1">Pendente</p>
+              <p className="text-2xl font-bold">{formatCurrency(calculatedStats.pendingPayable + calculatedStats.overduePayable)}</p>
+              <p className="text-red-100 text-xs mt-1">Pendente + Vencido</p>
             </div>
             <div className="bg-white bg-opacity-20 rounded-lg p-3">
               <ArrowDown className="h-6 w-6" />
