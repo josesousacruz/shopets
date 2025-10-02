@@ -27,9 +27,7 @@ const getUnitLabel = (unit: string): string => {
 };
 
 const formatPrice = (price: number, unit: string): string => {
-  if (unit === 'ml' || unit === 'g') {
-    return `R$ ${(price * 100).toFixed(2)}/100${getUnitLabel(unit)}`;
-  }
+  // Exibir preço por unidade individual para melhor clareza
   return `R$ ${price.toFixed(2)}/${getUnitLabel(unit)}`;
 };
 
@@ -54,7 +52,7 @@ const EstoqueView: React.FC<EstoqueViewProps> = ({
   const [editingCategory, setEditingCategory] = useState<Category | undefined>();
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode?.includes(searchTerm);
+    const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode?.includes(searchTerm);
     if (filterType === 'baixo') return matchesSearch && product.stock <= (product.minStock || 0) && product.stock > 0;
     if (filterType === 'zerado') return matchesSearch && product.stock === 0;
     if (filterType === 'fracionado') return matchesSearch && product.allowFractional;

@@ -11,9 +11,15 @@ class Venda extends Model
 {
     use HasFactory, LogsActivity;
 
+    protected $table = 'vendas';
+    protected $primaryKey = 'id_venda';
+
     protected $fillable = [
         'numero_venda',
-        'data_venda',
+        'id_cliente',
+        'id_usuario',
+        'id_pdv',
+        'id_forma_pagamento',
         'valor_subtotal',
         'valor_desconto',
         'valor_acrescimo',
@@ -22,9 +28,7 @@ class Venda extends Model
         'pontos_fidelidade_gerados',
         'status',
         'observacoes',
-        'id_cliente',
-        'id_usuario',
-        'id_pdv',
+        'data_venda',
     ];
 
     protected $casts = [
@@ -73,11 +77,19 @@ class Venda extends Model
     }
 
     /**
+     * Relacionamento com forma de pagamento
+     */
+    public function formaPagamento()
+    {
+        return $this->belongsTo(FormaPagamento::class, 'id_forma_pagamento', 'id_forma_pagamento');
+    }
+
+    /**
      * Relacionamento com itens da venda
      */
     public function itens()
     {
-        return $this->hasMany(ItemVenda::class);
+        return $this->hasMany(ItemVenda::class, 'id_venda', 'id_venda');
     }
 
     /**

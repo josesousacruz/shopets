@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Só executar triggers em bancos MySQL/MariaDB
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Trigger 1: Fluxo de caixa para vendas finalizadas
         DB::unprepared('
             CREATE TRIGGER tr_fluxo_caixa_venda
@@ -69,6 +74,11 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Só executar em bancos MySQL/MariaDB
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_venda');
         DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_conta_pagar');
         DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_conta_receber');

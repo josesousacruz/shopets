@@ -25,10 +25,7 @@ const getUnitLabel = (unit: string): string => {
 };
 
 const formatPrice = (price: number, unit: string): string => {
-  if (unit === 'ml' || unit === 'g') {
-    // Para unidades pequenas, mostrar preço por 100 unidades para melhor visualização
-    return `R$ ${(price * 100).toFixed(2)}/100${getUnitLabel(unit)}`;
-  }
+  // Exibir preço por unidade individual para melhor clareza
   return `R$ ${price.toFixed(2)}/${getUnitLabel(unit)}`;
 };
 

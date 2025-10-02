@@ -36,8 +36,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     if (searchTerm.trim()) {
       const lowercasedSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(customer => 
-        customer.name.toLowerCase().includes(lowercasedSearchTerm) ||
-        customer.phone.includes(searchTerm) ||
+        (customer.name || '').toLowerCase().includes(lowercasedSearchTerm) ||
+        (customer.phone || '').includes(searchTerm) ||
         customer.email?.toLowerCase().includes(lowercasedSearchTerm) ||
         customer.cpf?.includes(searchTerm)
       );

@@ -46,7 +46,7 @@ const FornecedorForm: React.FC<FornecedorFormProps> = ({ isOpen, onClose, onSave
   }, [supplier, isOpen]);
 
   const filteredProducts = useMemo(() => 
-    allProducts.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+    allProducts.filter(p => (p.name || '').toLowerCase().includes(productSearch.toLowerCase()))
   , [allProducts, productSearch]);
 
   const handleProductToggle = (productId: string) => {

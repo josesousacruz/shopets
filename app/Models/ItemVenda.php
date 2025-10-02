@@ -10,19 +10,23 @@ class ItemVenda extends Model
     use HasFactory;
 
     protected $table = 'itens_venda';
+    protected $primaryKey = 'id_item';
 
     protected $fillable = [
-        'venda_id',
-        'produto_id',
+        'id_venda',
+        'id_produto',
         'quantidade',
         'preco_unitario',
-        'subtotal',
+        'desconto_item',
+        'valor_total_item',
+        'observacoes',
     ];
 
     protected $casts = [
-        'quantidade' => 'integer',
+        'quantidade' => 'decimal:3',
         'preco_unitario' => 'decimal:2',
-        'subtotal' => 'decimal:2',
+        'desconto_item' => 'decimal:2',
+        'valor_total_item' => 'decimal:2',
     ];
 
     /**
@@ -30,7 +34,7 @@ class ItemVenda extends Model
      */
     public function venda()
     {
-        return $this->belongsTo(Venda::class);
+        return $this->belongsTo(Venda::class, 'id_venda', 'id_venda');
     }
 
     /**
@@ -38,6 +42,6 @@ class ItemVenda extends Model
      */
     public function produto()
     {
-        return $this->belongsTo(Produto::class);
+        return $this->belongsTo(Produto::class, 'id_produto', 'id_produto');
     }
 }

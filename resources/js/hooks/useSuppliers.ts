@@ -157,10 +157,10 @@ export const useSuppliers = (options: UseSupplierOptions = {}) => {
 
     const lowercasedTerm = searchTerm.toLowerCase();
     return suppliers.filter(supplier =>
-      supplier.name.toLowerCase().includes(lowercasedTerm) ||
+      (supplier.name || '').toLowerCase().includes(lowercasedTerm) ||
       supplier.contactPerson?.toLowerCase().includes(lowercasedTerm) ||
-      supplier.email.toLowerCase().includes(lowercasedTerm) ||
-      supplier.phone.toLowerCase().includes(lowercasedTerm)
+      (supplier.email || '').toLowerCase().includes(lowercasedTerm) ||
+      (supplier.phone || '').toLowerCase().includes(lowercasedTerm)
     );
   }, [suppliers]);
 

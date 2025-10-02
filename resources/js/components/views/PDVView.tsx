@@ -22,7 +22,9 @@ interface PDVViewProps {
   onAddToCart: (product: Product, quantity?: number) => void;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: (paymentMethod: 'dinheiro' | 'cartao' | 'pix') => void;
+  onCheckout: () => void;
+  vendaEmAberto?: { id: number; numero: string } | null;
+  onCancelarVenda?: () => void;
 }
 
 const PDVView: React.FC<PDVViewProps> = ({
@@ -38,6 +40,8 @@ const PDVView: React.FC<PDVViewProps> = ({
   onUpdateQuantity,
   onRemoveItem,
   onCheckout,
+  vendaEmAberto,
+  onCancelarVenda,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -47,7 +51,7 @@ const PDVView: React.FC<PDVViewProps> = ({
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                            product.barcode?.includes(searchTerm) ||
                            product.internalCode?.includes(searchTerm);
       
@@ -78,6 +82,8 @@ const PDVView: React.FC<PDVViewProps> = ({
     onRemoveItem,
     onCheckout,
     onRenameCart,
+    vendaEmAberto,
+    onCancelarVenda,
   };
 
   return (

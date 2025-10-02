@@ -107,7 +107,7 @@ export const useSupplierManagement = ({
     
     const lowercaseQuery = query.toLowerCase();
     return suppliers.filter(supplier => 
-      supplier.name.toLowerCase().includes(lowercaseQuery) ||
+      (supplier.name || '').toLowerCase().includes(lowercaseQuery) ||
       supplier.email?.toLowerCase().includes(lowercaseQuery) ||
       supplier.phone?.includes(query)
     );

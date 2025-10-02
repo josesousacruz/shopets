@@ -20,7 +20,10 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
     // PDV - Ponto de Venda
     Route::get('/pdv', [PDVController::class, 'index'])->name('pdv');
+    Route::get('/pdv/products', [PDVController::class, 'getProducts'])->name('pdv.products');
     Route::post('/sales', [PDVController::class, 'storeSale'])->name('sales.store');
+    Route::post('/sales/finalizar', [PDVController::class, 'finalizarVenda'])->name('sales.finalizar');
+    Route::post('/sales/cancelar', [PDVController::class, 'cancelarVenda'])->name('sales.cancelar');
     
     Route::get('/estoque', [EstoqueController::class, 'index'])->name('estoque.index');
     Route::post('/estoque', [EstoqueController::class, 'store'])->name('estoque.store');
