@@ -31,6 +31,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/estoque/{id}', [EstoqueController::class, 'destroy'])->name('estoque.destroy');
     Route::post('/estoque/add-stock', [EstoqueController::class, 'addStock'])->name('estoque.add-stock');
     
+    // Rotas para estatísticas de estoque
+    Route::get('/estoque/statistics/product/{productId}', [EstoqueController::class, 'getProductStatistics'])->name('estoque.statistics.product');
+    Route::get('/estoque/statistics/supplier/{supplierId}', [EstoqueController::class, 'getSupplierStatistics'])->name('estoque.statistics.supplier');
+    Route::get('/estoque/history/{productId}', [EstoqueController::class, 'getStockHistory'])->name('estoque.history');
+    Route::get('/estoque/latest-entries', [EstoqueController::class, 'getLatestStockEntries'])->name('estoque.latest-entries');
+    
     // Rotas para categorias
     Route::post('/estoque/categories', [EstoqueController::class, 'storeCategory'])->name('estoque.categories.store');
     Route::put('/estoque/categories/{id}', [EstoqueController::class, 'updateCategory'])->name('estoque.categories.update');

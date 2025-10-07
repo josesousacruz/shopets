@@ -12,6 +12,7 @@ class MovimentacaoEstoque extends Model
     use HasFactory, LogsActivity;
 
     protected $table = 'movimentacoes_estoque';
+    protected $primaryKey = 'id_movimentacao';
 
     protected $fillable = [
         'id_produto',

@@ -26,9 +26,13 @@ const getUnitLabel = (unit: string): string => {
   return labels[unit as keyof typeof labels] || unit;
 };
 
-const formatPrice = (price: number, unit: string): string => {
+const formatPrice = (price: number | string | null | undefined, unit: string): string => {
+  // Garantir que price seja um número válido
+  const numericPrice = typeof price === 'number' ? price : parseFloat(String(price || 0));
+  const safePrice = isNaN(numericPrice) ? 0 : numericPrice;
+  
   // Exibir preço por unidade individual para melhor clareza
-  return `R$ ${price.toFixed(2)}/${getUnitLabel(unit)}`;
+  return `R$ ${safePrice.toFixed(2)}/${getUnitLabel(unit)}`;
 };
 
 const EstoqueView: React.FC<EstoqueViewProps> = ({ 

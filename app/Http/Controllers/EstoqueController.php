@@ -205,10 +205,42 @@ class EstoqueController extends Controller
             'quantity' => 'required|numeric|min:0',
             'type' => 'required|in:entrada,saida,ajuste',
             'reason' => 'nullable|string',
-            'supplierId' => 'nullable|exists:fornecedores,id_fornecedor'
+            'supplierId' => 'nullable|exists:fornecedores,id_fornecedor',
+            'purchasePrice' => 'nullable|numeric|min:0',
+            'invoiceNumber' => 'nullable|string|max:50'
         ]);
 
         $produto = Produto::where('id_produto', $request->productId)->firstOrFail();
+        
+        // Para entradas de estoque, registrar na nova tabela entradas_estoque
+        if ($request->type === 'entrada' && $request->supplierId && $request->purchasePrice) {
+            $valorTotal = $request->quantity * $request->purchasePrice;
+            
+            // Registrar entrada de estoque detalhada
+            \App\Models\EntradaEstoque::create([
+                'id_produto' => $request->productId,
+                'id_fornecedor' => $request->supplierId,
+                'quantidade' => $request->quantity,
+                'preco_unitario' => $request->purchasePrice,
+                'valor_total' => $valorTotal,
+                'numero_nota_fiscal' => $request->invoiceNumber,
+                'data_entrada' => now(),
+                'id_usuario' => auth()->id(),
+                'observacoes' => $request->reason
+            ]);
+
+            // Atualizar preço de custo com média ponderada
+            $novoPrecoMedio = \App\Models\EntradaEstoque::precoMedioPonderado($request->productId, 90);
+            if ($novoPrecoMedio > 0) {
+                $produto->preco_custo = $novoPrecoMedio;
+            }
+
+            // Atualizar preço do fornecedor na tabela pivot
+            $produto->fornecedores()->updateExistingPivot($request->supplierId, [
+                'preco_custo_fornecedor' => $request->purchasePrice,
+                'updated_at' => now()
+            ]);
+        }
         
         // Atualizar estoque do produto
         if ($request->type === 'entrada' || $request->type === 'ajuste') {
@@ -219,7 +251,7 @@ class EstoqueController extends Controller
         
         $produto->save();
 
-        // Registrar movimentação de estoque
+        // Registrar movimentação de estoque (mantém compatibilidade)
         MovimentacaoEstoque::create([
             'id_produto' => $request->productId,
             'id_usuario' => auth()->id(),
@@ -230,5 +262,66 @@ class EstoqueController extends Controller
         ]);
 
         return back()->with('success', 'Estoque atualizado com sucesso!');
+    }
+
+    public function getProductStatistics($productId)
+    {
+        $produto = Produto::where('id_produto', $productId)->firstOrFail();
+        
+        $statistics = [
+            'preco_medio_30_dias' => \App\Models\EntradaEstoque::precoMedioPonderado($productId, 30),
+            'preco_medio_90_dias' => \App\Models\EntradaEstoque::precoMedioPonderado($productId, 90),
+            'preco_medio_geral' => \App\Models\EntradaEstoque::precoMedioPonderado($productId),
+            'fornecedor_mais_barato' => \App\Models\EntradaEstoque::fornecedorMaisBarato($productId),
+            'evolucao_precos' => \App\Models\EntradaEstoque::evolucaoPrecos($productId),
+            'total_entradas_30_dias' => \App\Models\EntradaEstoque::where('id_produto', $productId)
+                ->where('data_entrada', '>=', now()->subDays(30))
+                ->count(),
+        ];
+
+        return response()->json($statistics);
+    }
+
+    public function getSupplierStatistics($supplierId)
+    {
+        $fornecedor = \App\Models\Fornecedor::where('id_fornecedor', $supplierId)->firstOrFail();
+        
+        $statistics = \App\Models\EntradaEstoque::estatisticasFornecedor($supplierId);
+        
+        return response()->json([
+            'fornecedor' => $fornecedor,
+            'estatisticas' => $statistics
+        ]);
+    }
+
+    public function getStockHistory($productId)
+    {
+        $entradas = \App\Models\EntradaEstoque::where('id_produto', $productId)
+            ->with(['fornecedor', 'usuario'])
+            ->orderBy('data_entrada', 'desc')
+            ->paginate(20);
+
+        return response()->json($entradas);
+    }
+
+    public function getLatestStockEntries()
+    {
+        $entradas = \App\Models\EntradaEstoque::with(['fornecedor', 'produto'])
+            ->orderBy('data_entrada', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($entrada) {
+                return [
+                    'id' => $entrada->id_entrada,
+                    'fornecedor_nome' => $entrada->fornecedor->nome ?? 'Não informado',
+                    'produto_nome' => $entrada->produto->nome ?? 'Produto não encontrado',
+                    'quantidade' => $entrada->quantidade,
+                    'valor_entrada' => $entrada->valor_total,
+                    'data_entrada' => $entrada->data_entrada->format('d/m/Y H:i'),
+                    'numero_nota_fiscal' => $entrada->numero_nota_fiscal
+                ];
+            });
+
+        return response()->json($entradas);
     }
 }
