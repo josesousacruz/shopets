@@ -10,6 +10,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Só executar triggers em bancos MySQL/MariaDB
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Trigger 1: Atualizar estoque automaticamente após venda
         DB::unprepared('
             CREATE TRIGGER tr_atualizar_estoque_venda
@@ -197,6 +202,11 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Só executar em bancos MySQL/MariaDB
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::unprepared('DROP TRIGGER IF EXISTS tr_atualizar_estoque_venda');
         DB::unprepared('DROP TRIGGER IF EXISTS tr_calcular_pontos_fidelidade');
         DB::unprepared('DROP TRIGGER IF EXISTS tr_verificar_estoque_minimo');

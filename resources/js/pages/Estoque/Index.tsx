@@ -35,7 +35,15 @@ export default function EstoqueIndex({ products, categories, suppliers }: Estoqu
   };
 
   const handleAddStock = (productId: string, stockEntry: Omit<StockEntry, 'id'>) => {
-    router.post('/estoque/add-stock', { productId, ...stockEntry }, {
+    router.post('/estoque/add-stock', { 
+      productId, 
+      type: 'entrada', // Campo obrigatório para o EstoqueController
+      quantity: stockEntry.quantity,
+      supplierId: stockEntry.supplierId,
+      purchasePrice: stockEntry.purchasePrice,
+      reason: stockEntry.notes,
+      invoiceNumber: stockEntry.invoiceNumber
+    }, {
       onSuccess: () => {
         Swal.fire('Sucesso!', 'Estoque adicionado com sucesso.', 'success');
       },

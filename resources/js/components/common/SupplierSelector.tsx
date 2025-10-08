@@ -37,9 +37,9 @@ export const SupplierSelector: React.FC<SupplierSelectorProps> = ({
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId);
 
   const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (supplier.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     supplier.contactPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (supplier.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSupplierSelect = (supplier: Supplier) => {

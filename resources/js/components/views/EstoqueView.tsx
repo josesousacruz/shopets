@@ -60,7 +60,7 @@ const EstoqueView: React.FC<EstoqueViewProps> = ({
   const [editingCategory, setEditingCategory] = useState<Category | undefined>();
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode?.includes(searchTerm);
+    const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode?.includes(searchTerm);
     if (filterType === 'baixo') return matchesSearch && product.stock <= (product.minStock || 0) && product.stock > 0;
     if (filterType === 'zerado') return matchesSearch && product.stock === 0;
     if (filterType === 'fracionado') return matchesSearch && product.allowFractional;

@@ -34,7 +34,7 @@ export default function AuthenticatedLayout({ children, currentView }: Props) {
     };
     
     const handleViewChange = (view: string) => {
-        // Navega para a rota correspondente
+        // Navega para a rota correspondente preservando estado/scroll para transições mais rápidas
         const routes: { [key: string]: string } = {
             'pdv': '/pdv',
             'estoque': '/estoque',
@@ -43,7 +43,11 @@ export default function AuthenticatedLayout({ children, currentView }: Props) {
             'clientes': '/clientes',
             'financeiro': '/financeiro'
         };
-        router.get(routes[view] || '/pdv');
+        router.get(routes[view] || '/pdv', {}, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
     }
 
     return (
@@ -59,9 +63,9 @@ export default function AuthenticatedLayout({ children, currentView }: Props) {
             <main className="container mx-auto px-4 py-6 max-w-7xl">
                 <motion.div
                     key={currentView}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0.6, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.15 }}
                 >
                     {children} {/* As páginas serão inseridas aqui */}
                 </motion.div>

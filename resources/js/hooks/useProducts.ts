@@ -197,11 +197,11 @@ export const useProducts = (options: UseProductsOptions = {}) => {
 
     const lowercasedTerm = searchTerm.toLowerCase();
     return products.filter(product =>
-      product.name.toLowerCase().includes(lowercasedTerm) ||
+      (product.name || '').toLowerCase().includes(lowercasedTerm) ||
       product.barcode?.toLowerCase().includes(lowercasedTerm) ||
       product.internalCode?.toLowerCase().includes(lowercasedTerm) ||
       product.description?.toLowerCase().includes(lowercasedTerm) ||
-      product.category.toLowerCase().includes(lowercasedTerm)
+      (product.category || '').toLowerCase().includes(lowercasedTerm)
     );
   }, [products]);
 

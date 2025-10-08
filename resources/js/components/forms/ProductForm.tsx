@@ -4,6 +4,7 @@ import { Product, UnitType, Supplier, StockEntry, Category } from '../../types';
 import { motion } from 'framer-motion';
 import { AddStockModal } from '../modals/AddStockModal';
 import { StockHistory } from '../StockHistory';
+import LatestStockEntries from '../LatestStockEntries';
 // SupplierSelector removed - supplier management moved to stock addition flow
 
 interface ProductFormProps {
@@ -35,7 +36,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
     name: '',
     category: categories.length > 0 ? categories[0].name : '',
     price: '',
-    purchasePrice: '',
     salePrice: '',
     unit: 'peca' as UnitType,
     stock: '',
@@ -59,7 +59,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
         name: product.name,
         category: product.category,
         price: product.price.toString(),
-        purchasePrice: product.purchasePrice?.toString() || '',
         salePrice: product.salePrice?.toString() || '',
         unit: product.unit,
         stock: product.stock.toString(),
@@ -95,7 +94,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
     if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Preço deve ser maior que zero';
-    if (!formData.purchasePrice || parseFloat(formData.purchasePrice) <= 0) newErrors.purchasePrice = 'Preço de compra deve ser maior que zero';
     if (!formData.salePrice || parseFloat(formData.salePrice) <= 0) newErrors.salePrice = 'Preço de venda deve ser maior que zero';
     if (formData.stock === '' || parseFloat(formData.stock) < 0) newErrors.stock = 'Estoque não pode ser negativo';
     if (!formData.minQuantity || parseFloat(formData.minQuantity) <= 0) newErrors.minQuantity = 'Quantidade mínima deve ser maior que zero';
@@ -115,7 +113,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
       name: formData.name.trim(),
       categoryId: selectedCategory?.id,
       price: parseFloat(formData.price),
-      purchasePrice: parseFloat(formData.purchasePrice),
       unit: formData.unit,
       barcode: formData.barcode.trim() || undefined,
       description: formData.description.trim() || undefined,
@@ -163,6 +160,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
           </div>
 
+          {/* Últimas Entradas de Estoque */}
+          <LatestStockEntries />
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
@@ -195,15 +195,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Compra *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R$</span>
-                  <input type="number" step="0.01" min="0" value={formData.purchasePrice} onChange={(e) => setFormData(prev => ({ ...prev, purchasePrice: e.target.value }))} className={`w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.purchasePrice ? 'border-red-500' : 'border-gray-300'}`} placeholder="0,00"/>
-                </div>
-                {errors.purchasePrice && <p className="text-red-500 text-xs mt-1">{errors.purchasePrice}</p>}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda *</label>
                 <div className="relative">
@@ -214,7 +206,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-gray-700">Estoque Atual *</label>
+                  <label className="block text-sm font-medium text-gray-700">Estoque Atual</label>
                   {product && (
                     <button
                       type="button"
@@ -226,8 +218,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
                     </button>
                   )}
                 </div>
-                <input type="number" step={formData.allowFractional ? "0.1" : "1"} min="0" value={formData.stock} onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.value }))} className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.stock ? 'border-red-500' : 'border-gray-300'}`} placeholder="0"/>
-                {errors.stock && <p className="text-red-500 text-xs mt-1">{errors.stock}</p>}
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                  {product ? `${product.stock.toFixed(formData.allowFractional ? 1 : 0)} ${formData.unit}` : 'Produto não salvo'}
+                </div>
                 {product && product.stockHistory && product.stockHistory.length > 0 && (
                   <button
                     type="button"
@@ -326,6 +319,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
           productId={product.id}
           productName={product.name}
           productUnit={product.unidade}
+          currentStock={product.stock}
           suppliers={suppliers}
         />
       )}

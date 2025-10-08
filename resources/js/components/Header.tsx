@@ -31,9 +31,9 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
             {/* Logo e Info do Operador */}
             <motion.div 
               className="flex items-center space-x-3 min-w-0 flex-shrink"
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0.6, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <div className="relative">
                 <img src="/src/img/logo.png" alt="ShopPet" className="w-10 h-10 rounded-lg shadow-lg" />
@@ -58,9 +58,9 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
             {/* Navegação Desktop */}
             <motion.nav 
               className="hidden lg:flex items-center space-x-2"
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0.6, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.2 }}
             >
               {navigationItems.map((item, index) => {
                 const Icon = item.icon;
@@ -70,17 +70,14 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
                   <motion.button
                     key={item.id}
                     onClick={() => onViewChange(item.id as any)}
-                    className={`relative group flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${
+                    className={`relative group flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-200 ${
                       isActive
                         ? 'bg-white/20 backdrop-blur-sm shadow-lg'
                         : 'hover:bg-white/10 backdrop-blur-sm'
                     }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                >
                     <div className={`relative p-2 rounded-lg bg-gradient-to-br ${item.color} shadow-lg`}>
                       <Icon className="w-5 h-5 text-white" />
                       {item.id === 'pdv' && cartItemCount > 0 && (
@@ -102,9 +99,9 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
                       <motion.div
                         className="absolute bottom-0 left-1/2 w-8 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full"
                         layoutId="activeTab"
-                        initial={{ opacity: 0 }}
+                        initial={{ opacity: 0.7 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.15 }}
                         style={{ transform: 'translateX(-50%)' }}
                       />
                     )}

@@ -87,6 +87,7 @@ export interface StockEntry {
   supplierId: string;
   date: Date;
   notes?: string;
+  invoiceNumber?: string;
   invoiceFile?: File | string;
 }
 

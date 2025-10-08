@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Plus, Minus, CreditCard, Banknote, Smartphone, Edit2, Check, ShoppingBag, X } from 'lucide-react';
+import { Trash2, Plus, Minus, Edit2, Check, ShoppingBag, X } from 'lucide-react';
 import { Cart as CartType, CartItem, Product } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { categories } from '../../data/mockData';
@@ -8,8 +8,10 @@ interface CartProps {
   cart: CartType | null;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: (paymentMethod: 'dinheiro' | 'cartao' | 'pix') => void;
+  onCheckout: () => void;
   onRenameCart: (cartId: string, newName: string) => void;
+  vendaEmAberto?: { id: number; numero: string } | null;
+  onCancelarVenda?: () => void;
 }
 
 const getUnitLabel = (unit: string): string => {
@@ -26,8 +28,9 @@ const Cart: React.FC<CartProps> = ({
   onRemoveItem,
   onCheckout,
   onRenameCart,
+  vendaEmAberto,
+  onCancelarVenda,
 }) => {
-  const [showPayment, setShowPayment] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<string>('');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -36,7 +39,6 @@ const Cart: React.FC<CartProps> = ({
   useEffect(() => {
     if (cart) {
       setCartName(cart.name);
-      setShowPayment(false);
     }
   }, [cart]);
 
@@ -175,19 +177,24 @@ const Cart: React.FC<CartProps> = ({
           <span className="font-bold text-xl text-green-600">R$ {total.toFixed(2)}</span>
         </div>
         
-        {!showPayment ? (
-          <button onClick={() => setShowPayment(true)} disabled={items.length === 0} className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
-            Finalizar Venda
+        <div className="space-y-2">
+          <button 
+            onClick={onCheckout} 
+            disabled={items.length === 0} 
+            className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {vendaEmAberto ? 'Continuar' : 'Finalizar Venda'}
           </button>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-center text-gray-600 mb-3">Escolha a forma de pagamento:</p>
-            <button onClick={() => onCheckout('dinheiro')} className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"><Banknote size={20} /><span>Dinheiro</span></button>
-            <button onClick={() => onCheckout('cartao')} className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"><CreditCard size={20} /><span>Cartão</span></button>
-            <button onClick={() => onCheckout('pix')} className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"><Smartphone size={20} /><span>PIX</span></button>
-            <button onClick={() => setShowPayment(false)} className="w-full bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400 transition-colors mt-2">Voltar</button>
-          </div>
-        )}
+          
+          {vendaEmAberto && onCancelarVenda && (
+            <button 
+              onClick={onCancelarVenda} 
+              className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+            >
+              Cancelar Venda
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

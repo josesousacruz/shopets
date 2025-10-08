@@ -27,7 +27,7 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
     
     return suppliers.filter(supplier => {
       const matchesSupplierInfo =
-        supplier.name.toLowerCase().includes(lowercasedSearchTerm) ||
+        (supplier.name || '').toLowerCase().includes(lowercasedSearchTerm) ||
         supplier.contactPerson?.toLowerCase().includes(lowercasedSearchTerm);
   
       if (matchesSupplierInfo) {

@@ -159,4 +159,94 @@ class Produto extends Model implements HasMedia
 
         return $conversion ? $media->getUrl($conversion) : $media->getUrl();
     }
+
+    /**
+     * Relacionamento com entradas de estoque
+     */
+    public function entradasEstoque()
+    {
+        return $this->hasMany(EntradaEstoque::class, 'id_produto', 'id_produto');
+    }
+
+    /**
+     * Obter fornecedor principal
+     */
+    public function getFornecedorPrincipal()
+    {
+        return $this->fornecedores()->wherePivot('fornecedor_principal', true)->first();
+    }
+
+    /**
+     * Calcular preço médio ponderado baseado nas entradas
+     */
+    public function calcularPrecoMedioPonderado($diasConsiderados = 90)
+    {
+        return EntradaEstoque::precoMedioPonderado($this->id_produto, $diasConsiderados);
+    }
+
+    /**
+     * Obter fornecedor mais barato
+     */
+    public function getFornecedorMaisBarato($diasConsiderados = 30)
+    {
+        return EntradaEstoque::fornecedorMaisBarato($this->id_produto, $diasConsiderados);
+    }
+
+    /**
+     * Obter evolução de preços
+     */
+    public function getEvolucaoPrecos($mesesConsiderados = 6)
+    {
+        return EntradaEstoque::evolucaoPrecos($this->id_produto, $mesesConsiderados);
+    }
+
+    /**
+     * Atualizar preço de custo baseado na média ponderada
+     */
+    public function atualizarPrecoCusto($diasConsiderados = 90)
+    {
+        $novoPreco = $this->calcularPrecoMedioPonderado($diasConsiderados);
+        
+        if ($novoPreco > 0) {
+            $this->preco_custo = $novoPreco;
+            $this->save();
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Verificar se produto tem estoque baixo
+     */
+    public function isEstoqueBaixo($limite = 10)
+    {
+        return $this->estoque_atual <= $limite;
+    }
+
+    /**
+     * Obter margem de lucro atual
+     */
+    public function getMargemLucro()
+    {
+        if ($this->preco_custo <= 0) {
+            return 0;
+        }
+
+        return (($this->preco_venda - $this->preco_custo) / $this->preco_custo) * 100;
+    }
+
+    /**
+     * Sugerir preço de venda baseado na margem desejada
+     */
+    public function sugerirPrecoVenda($margemDesejada = 30)
+    {
+        $precoCustoAtualizado = $this->calcularPrecoMedioPonderado();
+        
+        if ($precoCustoAtualizado <= 0) {
+            return $this->preco_venda;
+        }
+
+        return $precoCustoAtualizado * (1 + ($margemDesejada / 100));
+    }
 }

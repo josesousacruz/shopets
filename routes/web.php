@@ -20,13 +20,22 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
     // PDV - Ponto de Venda
     Route::get('/pdv', [PDVController::class, 'index'])->name('pdv');
+    Route::get('/pdv/products', [PDVController::class, 'getProducts'])->name('pdv.products');
     Route::post('/sales', [PDVController::class, 'storeSale'])->name('sales.store');
+    Route::post('/sales/finalizar', [PDVController::class, 'finalizarVenda'])->name('sales.finalizar');
+    Route::post('/sales/cancelar', [PDVController::class, 'cancelarVenda'])->name('sales.cancelar');
     
     Route::get('/estoque', [EstoqueController::class, 'index'])->name('estoque.index');
     Route::post('/estoque', [EstoqueController::class, 'store'])->name('estoque.store');
     Route::put('/estoque/{id}', [EstoqueController::class, 'update'])->name('estoque.update');
     Route::delete('/estoque/{id}', [EstoqueController::class, 'destroy'])->name('estoque.destroy');
     Route::post('/estoque/add-stock', [EstoqueController::class, 'addStock'])->name('estoque.add-stock');
+    
+    // Rotas para estatísticas de estoque
+    Route::get('/estoque/statistics/product/{productId}', [EstoqueController::class, 'getProductStatistics'])->name('estoque.statistics.product');
+    Route::get('/estoque/statistics/supplier/{supplierId}', [EstoqueController::class, 'getSupplierStatistics'])->name('estoque.statistics.supplier');
+    Route::get('/estoque/history/{productId}', [EstoqueController::class, 'getStockHistory'])->name('estoque.history');
+    Route::get('/estoque/latest-entries', [EstoqueController::class, 'getLatestStockEntries'])->name('estoque.latest-entries');
     
     // Rotas para categorias
     Route::post('/estoque/categories', [EstoqueController::class, 'storeCategory'])->name('estoque.categories.store');

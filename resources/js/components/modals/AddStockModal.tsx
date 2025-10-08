@@ -10,6 +10,7 @@ interface AddStockModalProps {
   productId: string;
   productName: string;
   productUnit?: string;
+  currentStock: number;
   suppliers: Supplier[];
   onSupplierAdded?: (supplier: Supplier) => void;
 }
@@ -21,15 +22,12 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
   productId,
   productName,
   productUnit,
+  currentStock,
   suppliers,
   onSupplierAdded
 }) => {
-  // Filter suppliers to show only those associated with this product
-  const associatedSuppliers = React.useMemo(() => {
-    const filtered = (suppliers || []).filter(supplier => 
-      supplier.productIds && supplier.productIds.includes(productId.toString())
-    );
-    
+  // Show all available suppliers - any supplier can provide any product
+  const availableSuppliers = React.useMemo(() => {
     // Always add "Not Informed" option at the beginning
     const notInformedOption = {
       id: 'not-informed',
@@ -39,14 +37,15 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
       productIds: []
     };
     
-    return [notInformedOption, ...filtered];
-  }, [suppliers, productId]);
+    return [notInformedOption, ...(suppliers || [])];
+  }, [suppliers]);
 
   const [formData, setFormData] = useState({
     quantity: '',
     purchasePrice: '',
     supplierId: '',
-    notes: ''
+    notes: '',
+    invoiceNumber: ''
   });
 
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
@@ -84,6 +83,7 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
       supplierId: formData.supplierId,
       date: new Date(),
       notes: formData.notes || undefined,
+      invoiceNumber: formData.invoiceNumber || undefined,
       invoiceFile: invoiceFile || undefined
     };
 
@@ -96,7 +96,8 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
       quantity: '',
       purchasePrice: '',
       supplierId: '',
-      notes: ''
+      notes: '',
+      invoiceNumber: ''
     });
     setInvoiceFile(null);
     setErrors({});
@@ -120,8 +121,9 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
             <Package className="w-5 h-5" />
@@ -138,6 +140,19 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-600">Produto:</p>
           <p className="font-medium text-gray-800">{productName}</p>
+        </div>
+
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-600 flex items-center gap-1">
+            <Package className="w-4 h-4" />
+            Estoque Atual:
+          </p>
+          <p className="font-medium text-blue-800">
+            {currentStock.toLocaleString('pt-BR', { 
+              minimumFractionDigits: currentStock % 1 === 0 ? 0 : 2,
+              maximumFractionDigits: 2 
+            })}{productUnit && ` ${productUnit}`}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -184,7 +199,7 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
           </div>
 
           <SupplierSelector
-            suppliers={associatedSuppliers}
+            suppliers={availableSuppliers}
             selectedSupplierId={formData.supplierId}
             onSupplierSelect={(supplierId) => setFormData({ ...formData, supplierId })}
             error={errors.supplierId}
@@ -192,6 +207,20 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
             showSupplierDetails={true}
             placeholder="Selecione o fornecedor para esta entrada de estoque"
           />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <FileText className="w-4 h-4 inline mr-1" />
+              Número da Nota Fiscal (opcional)
+            </label>
+            <input
+              type="text"
+              value={formData.invoiceNumber}
+              onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Ex: 123456"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -245,6 +274,7 @@ export const AddStockModal: React.FC<AddStockModalProps> = ({
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

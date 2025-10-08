@@ -10,7 +10,7 @@ interface CartModalProps {
   cart: CartType | null;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: (paymentMethod: 'dinheiro' | 'cartao' | 'pix') => void;
+  onCheckout: () => void;
   onRenameCart: (cartId: string, newName: string) => void;
 }
 
