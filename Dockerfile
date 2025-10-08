@@ -1,84 +1,48 @@
-# Multi-stage Dockerfile para Laravel (PHP 8.2 + Nginx) e build de assets (Vite)
+# Base: PHP com Node.js embutido
+FROM php:8.2-cli
 
-# 1) Builder de assets (Node)
-FROM node:18-alpine AS node-builder
-WORKDIR /app
+# Instala dependências do sistema
+RUN apt-get update && apt-get install -y \
+    git curl unzip zip libzip-dev libpng-dev libonig-dev \
+    nodejs npm \
+    && docker-php-ext-install pdo pdo_mysql zip gd
 
-# Dependências do frontend
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Instala Composer
+RUN curl -sS https://getcomposer.org/installer | php && \
+    mv composer.phar /usr/local/bin/composer
 
-# Código do projeto (inclui resources e vite.config)
+# Define o diretório de trabalho
+WORKDIR /var/www
+
+# Copia o projeto Laravel
 COPY . .
-# Build dos assets para produção (gera public/build)
-RUN npm run build
 
+# Cria o banco sqlite, se não existir
+RUN mkdir -p database && touch database/database.sqlite
 
-# 2) Builder de dependências PHP (Composer)
-FROM composer:2 AS composer-builder
-WORKDIR /app
+# Instala dependências PHP
+RUN composer install
 
-# Dependências PHP
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress
+# Gera APP_KEY
+RUN php artisan key:generate --force
 
+# Executa migrações (se desejar)
+RUN php artisan migrate --force
 
-# 3) Imagem final: PHP + Nginx (webdevops/php-nginx)
-FROM webdevops/php-nginx:8.2-alpine
-ENV WEB_DOCUMENT_ROOT=/var/www/html/public
-WORKDIR /var/www/html
+# Instala dependências JS e builda com Vite
+RUN npm install && npm run build
 
-# Copia código da aplicação
-COPY --chown=application:application . .
+# Permissões corretas
+RUN chmod -R 775 storage bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache
 
-# Copia vendor e assets gerados nos estágios anteriores
-COPY --from=composer-builder /app/vendor ./vendor
-COPY --from=node-builder /app/public/build ./public/build
+# Gera caches do Laravel
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
 
-# Opcional: criar link de storage (não falha se já existir)
-RUN php -r "file_exists('.env') ?: copy('.env.example', '.env');" \
-    && php -r "@mkdir('storage/app/public', 0777, true);" \
-    && php artisan storage:link || true
+# Expõe a porta onde Laravel irá escutar
+EXPOSE 8000
 
-# A imagem webdevops já inicia Nginx+PHP via supervisord
-# Porta padrão: 80
-EXPOSE 80
-# Multi-stage Dockerfile para Laravel (PHP 8.2 + Nginx) e build de assets (Vite)
-
-# 1) Builder de assets (Node)
-FROM node:18-alpine AS node-builder
-WORKDIR /app
-
-# Dependências do frontend
-COPY package.json package-lock.json* ./
-RUN npm ci
-
-# Código do projeto (inclui resources e vite.config)
-COPY . .
-# Build dos assets para produção (gera public/build)
-RUN npm run build
-
-
-# 2) Builder de dependências PHP (Composer)
-FROM composer:2 AS composer-builder
-WORKDIR /app
-
-# Dependências PHP
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress
-
-
-# 3) Imagem final: PHP + Nginx (webdevops/php-nginx)
-FROM webdevops/php-nginx:8.2-alpine
-ENV WEB_DOCUMENT_ROOT=/var/www/html/public
-WORKDIR /var/www/html
-
-# Copia código da aplicação
-COPY --chown=application:application . .
-
-# Copia vendor e assets gerados nos estágios anteriores
-COPY --from=composer-builder /app/vendor ./vendor
-COPY --from=node-builder /app/public/build ./public/build
-
-# A imagem webdevops já inicia Nginx+PHP via supervisord
-EXPOSE 80
+# Comando final
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
