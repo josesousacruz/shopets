@@ -13,17 +13,19 @@ class FornecedorController extends Controller
     public function index()
     {
         // Buscar fornecedores ativos com produtos relacionados
-        $fornecedores = Fornecedor::with('produtos')->where('ativo', true)->get();
+        $fornecedores = Fornecedor::with('produtos')->get();
         
         // Mapear dados para o formato esperado pelo frontend
         $suppliers = $fornecedores->map(function ($fornecedor) {
             return [
-                'id' => (string) $fornecedor->id_fornecedor,
+                'id_fornecedor' => (int) $fornecedor->id_fornecedor,
                 'name' => $fornecedor->nome,
+                'cnpj' => $fornecedor->cnpj,
                 'contactPerson' => $fornecedor->contato_principal,
                 'phone' => $fornecedor->telefone,
                 'email' => $fornecedor->email,
                 'address' => $fornecedor->endereco,
+                'ativo' => (bool) $fornecedor->ativo,
                 'productIds' => $fornecedor->produtos->pluck('id_produto')->map(fn($id) => (string) $id)->toArray(),
                 'purchaseHistory' => []
             ];
@@ -52,6 +54,7 @@ class FornecedorController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:150',
+            'cnpj' => 'required|string|max:150',
             'contactPerson' => 'nullable|string|max:100',
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:150',
@@ -63,6 +66,7 @@ class FornecedorController extends Controller
         try {
             $fornecedor = Fornecedor::create([
                 'nome' => $request->name,
+                'cnpj' => $request->cnpj,
                 'contato_principal' => $request->contactPerson,
                 'telefone' => $request->phone,
                 'email' => $request->email,
@@ -87,6 +91,7 @@ class FornecedorController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:150',
+            'cnpj' => 'nullable|string|max:18',
             'contactPerson' => 'nullable|string|max:100',
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:150',
@@ -100,6 +105,7 @@ class FornecedorController extends Controller
             
             $fornecedor->update([
                 'nome' => $request->name,
+                'cnpj' => $request->cnpj,
                 'contato_principal' => $request->contactPerson,
                 'telefone' => $request->phone,
                 'email' => $request->email,
@@ -111,11 +117,9 @@ class FornecedorController extends Controller
                 $fornecedor->produtos()->sync($request->productIds ?? []);
             }
 
-            return redirect()->route('fornecedores.index')
-                           ->with('success', 'Fornecedor atualizado com sucesso!');
+            return back()->with('success', 'Fornecedor atualizado com sucesso!');
         } catch (\Exception $e) {
-            return redirect()->route('fornecedores.index')
-                           ->with('error', 'Erro ao atualizar fornecedor: ' . $e->getMessage());
+            return back()->with('error', 'Erro ao atualizar fornecedor: ' . $e->getMessage());
         }
     }
 
@@ -127,19 +131,38 @@ class FornecedorController extends Controller
             // Verificar se o fornecedor tem produtos associados
             $produtosAssociados = $fornecedor->produtos()->count();
             
-            if ($produtosAssociados > 0) {
-                return redirect()->route('fornecedores.index')
-                               ->with('error', 'Não é possível excluir o fornecedor pois ele possui produtos associados. Remova os produtos primeiro.');
-            }
+            // if ($produtosAssociados > 0) {
+            //     return back()->with('error', 'Não é possível excluir o fornecedor pois ele possui produtos associados. Remova os produtos primeiro.');
+            // }
             
             // Marcar como inativo em vez de deletar fisicamente
             $fornecedor->update(['ativo' => false]);
             
-            return redirect()->route('fornecedores.index')
-                           ->with('success', 'Fornecedor excluído com sucesso!');
+            return back()->with('success', 'Fornecedor excluído com sucesso!');
         } catch (\Exception $e) {
-            return redirect()->route('fornecedores.index')
-                           ->with('error', 'Erro ao excluir fornecedor: ' . $e->getMessage());
+            return back()->with('error', 'Erro ao excluir fornecedor: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reativar um fornecedor inativo
+     */
+    public function reactivate($id)
+    {
+        try {
+            $fornecedor = Fornecedor::findOrFail($id);
+            
+            // Verificar se o fornecedor está realmente inativo
+            if ($fornecedor->ativo) {
+                return back()->with('error', 'O fornecedor já está ativo.');
+            }
+            
+            // Reativar o fornecedor
+            $fornecedor->update(['ativo' => true]);
+            
+            return back()->with('success', 'Fornecedor reativado com sucesso!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erro ao reativar fornecedor: ' . $e->getMessage());
         }
     }
 }

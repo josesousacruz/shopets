@@ -59,7 +59,7 @@ const OperatorLogin: React.FC<OperatorLoginProps> = ({ onLogin }) => {
       >
         {/* Logo e Título */}
         <div className="text-center mb-8">
-          <img src="/src/img/logo.png" alt="ShopPet" className="w-16 h-16 mx-auto mb-4" />
+          <img src="/logo.png" alt="ShopPet" className="w-16 h-16 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">ShopPet PDV</h1>
           <p className="text-gray-600">Faça login para continuar</p>
         </div>

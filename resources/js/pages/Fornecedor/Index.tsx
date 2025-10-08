@@ -23,12 +23,14 @@ export default function FornecedorIndex({ suppliers, products }: FornecedorProps
   };
 
   const handleUpdateSupplier = (supplier: Supplier) => {
-    router.put(`/fornecedores/${supplier.id}`, supplier, {
-      onSuccess: () => {
-        Swal.fire('Sucesso!', 'Fornecedor atualizado com sucesso.', 'success');
+    router.put(`/fornecedores/${supplier.id_fornecedor}`, supplier, {
+      onSuccess: (page) => {
+        const message = page.props.flash?.success || 'Fornecedor atualizado com sucessoooo.';
+        Swal.fire('Sucesso!', message, 'success');
       },
       onError: (errors) => {
-        Swal.fire('Erro!', 'Não foi possível atualizar o fornecedor.', 'error');
+        const message = 'Não foi possível atualizar o fornecedor.';
+        Swal.fire('Erro!', message, 'error');
       }
     });
   };
@@ -46,11 +48,39 @@ export default function FornecedorIndex({ suppliers, products }: FornecedorProps
     }).then((result) => {
       if (result.isConfirmed) {
         router.delete(`/fornecedores/${supplierId}`, {
-          onSuccess: () => {
-            Swal.fire('Deletado!', 'Fornecedor removido com sucesso.', 'success');
+          onSuccess: (page) => {
+            const message = page.props.flash?.success || 'Fornecedor removido com sucesso.';
+            Swal.fire('Deletado!', message, 'success');
           },
           onError: (errors) => {
-            Swal.fire('Erro!', 'Não foi possível remover o fornecedor.', 'error');
+            const message = 'Não foi possível remover o fornecedor.';
+            Swal.fire('Erro!', message, 'error');
+          }
+        });
+      }
+    });
+  };
+
+  const handleReactivateSupplier = (supplierId: string) => {
+    Swal.fire({
+      title: 'Reativar fornecedor?',
+      text: 'O fornecedor será reativado e poderá ser usado novamente.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sim, reativar!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        router.patch(`/fornecedores/${supplierId}/reactivate`, {}, {
+          onSuccess: (page) => {
+            const message = page.props.flash?.success || 'Fornecedor reativado com sucesso.';
+            Swal.fire('Reativado!', message, 'success');
+          },
+          onError: (errors) => {
+            const message = page.props.flash?.error || 'Não foi possível reativar o fornecedor.';
+            Swal.fire('Erro!', message, 'error');
           }
         });
       }
@@ -64,6 +94,7 @@ export default function FornecedorIndex({ suppliers, products }: FornecedorProps
       onAddSupplier={handleAddSupplier}
       onUpdateSupplier={handleUpdateSupplier}
       onDeleteSupplier={handleDeleteSupplier}
+      onReactivateSupplier={handleReactivateSupplier}
     />
   );
 }

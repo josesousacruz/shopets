@@ -18,12 +18,11 @@ class Fornecedor extends Model
 
     protected $fillable = [
         'nome',
-        'razao_social',
         'cnpj',
         'endereco',
         'telefone',
         'email',
-        'contato',
+        'contato_principal',
         'ativo',
     ];
 
@@ -37,7 +36,7 @@ class Fornecedor extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['nome', 'razao_social', 'cnpj', 'telefone', 'email', 'ativo'])
+            ->logOnly(['nome', 'cnpj', 'telefone', 'email', 'contato_principal', 'ativo'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

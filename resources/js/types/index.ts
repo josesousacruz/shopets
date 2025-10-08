@@ -52,20 +52,30 @@ export interface Category {
   icon?: string;
 }
 
+export interface SupplierFormData {
+  name: string;
+  cnpj?: string;
+  contactPerson?: string;
+  phone: string;
+  email: string;
+  address?: string;
+  productIds: (string | number)[];
+}
+
 export interface Supplier {
   id_fornecedor: number;
-  nome: string;
-  cpf_cnpj?: string;
-  email?: string;
-  telefone?: string;
-  endereco?: string;
-  pessoa_contato?: string;
-  observacoes?: string;
+  name: string;
+  cnpj?: string;
+  email: string;
+  phone: string;
+  address?: string;
+  contactPerson?: string;
+  observations?: string;
   ativo: boolean;
-  created_at: string;
-  updated_at: string;
+  createdAt?: string;
+  updatedAt?: string;
   // Campos para compatibilidade
-  productIds?: string[];
+  productIds?: (string | number)[];
   purchaseHistory?: PurchaseHistory[];
 }
 

@@ -34,7 +34,7 @@ export default function Register() {
                 >
                     {/* Logo e Título */}
                     <div className="text-center mb-8">
-                        <img src="/logo.svg" alt="ShopPet" className="w-16 h-16 mx-auto mb-4" />
+                        <img src="/logo.png" alt="ShopPet" className="w-16 h-16 mx-auto mb-4" />
                         <h1 className="text-2xl font-bold text-gray-800 mb-2">Criar Conta</h1>
                         <p className="text-gray-600">Cadastre-se no ShopPet PDV</p>
                     </div>

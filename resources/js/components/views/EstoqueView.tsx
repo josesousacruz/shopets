@@ -26,11 +26,17 @@ const getUnitLabel = (unit: string): string => {
   return labels[unit as keyof typeof labels] || unit;
 };
 
-const formatPrice = (price: number, unit: string): string => {
+const formatPrice = (price: number | string | null | undefined, unit: string): string => {
+  // Converte para número e trata casos inválidos
+  const numPrice = typeof price === 'number' ? price : parseFloat(String(price || 0));
+  
+  // Se não for um número válido, retorna 0.00
+  const validPrice = isNaN(numPrice) ? 0 : numPrice;
+  
   if (unit === 'ml' || unit === 'g') {
-    return `R$ ${(price * 100).toFixed(2)}/100${getUnitLabel(unit)}`;
+    return `R$ ${(validPrice * 100).toFixed(2)}/100${getUnitLabel(unit)}`;
   }
-  return `R$ ${price.toFixed(2)}/${getUnitLabel(unit)}`;
+  return `R$ ${validPrice.toFixed(2)}/${getUnitLabel(unit)}`;
 };
 
 const EstoqueView: React.FC<EstoqueViewProps> = ({ 

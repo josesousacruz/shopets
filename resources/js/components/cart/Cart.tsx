@@ -139,7 +139,7 @@ const Cart: React.FC<CartProps> = ({
                         <Trash2 size={16} />
                       </button>
                     </div>
-                    <p className="text-sm font-bold text-green-600 mt-1">R$ {(item.product.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-green-600 mt-1">R$ {((Number(item.product.price) || 0) * item.quantity).toFixed(2)}</p>
 
                     <div className="flex items-center justify-between mt-2">
                       {editingItem === item.product.id ? (

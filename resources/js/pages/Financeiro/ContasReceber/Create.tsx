@@ -292,7 +292,7 @@ export default function Create({ clientes, pontosVenda, vendas }: CreateContaRec
                                             <option value={0}>Selecione uma venda (opcional)</option>
                                             {vendas.map((venda) => (
                                                 <option key={venda.id_venda} value={venda.id_venda}>
-                                                    Venda #{venda.id_venda} - {venda.cliente?.nome} - R$ {venda.valor_total?.toFixed(2)}
+                                                    Venda #{venda.id_venda} - {venda.cliente?.nome} - R$ {(Number(venda.valor_total) || 0).toFixed(2)}
                                                 </option>
                                             ))}
                                         </select>

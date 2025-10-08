@@ -1,28 +1,29 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Save, User, Phone, Mail, MapPin, Search, History, FileText } from 'lucide-react';
-import { Supplier, Product } from '../../types';
+import { Supplier, Product, SupplierFormData } from '../../types';
 import { motion } from 'framer-motion';
 import { PurchaseHistory } from '../PurchaseHistory';
 
 interface FornecedorFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (supplier: Omit<Supplier, 'id'>) => void;
+  onSave: (supplier: SupplierFormData) => void;
   supplier?: Supplier;
   allProducts: Product[];
 }
 
-const initialFormData = {
+const initialFormData: SupplierFormData = {
   name: '',
+  cnpj: '',
   contactPerson: '',
   phone: '',
   email: '',
   address: '',
-  productIds: [] as string[],
+  productIds: [],
 };
 
 const FornecedorForm: React.FC<FornecedorFormProps> = ({ isOpen, onClose, onSave, supplier, allProducts }) => {
-  const [formData, setFormData] = useState(initialFormData);
+  const [formData, setFormData] = useState<SupplierFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [productSearch, setProductSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
@@ -32,6 +33,7 @@ const FornecedorForm: React.FC<FornecedorFormProps> = ({ isOpen, onClose, onSave
     if (supplier) {
       setFormData({
         name: supplier.name,
+        cnpj: supplier.cnpj || '',
         contactPerson: supplier.contactPerson || '',
         phone: supplier.phone,
         email: supplier.email,
@@ -49,7 +51,7 @@ const FornecedorForm: React.FC<FornecedorFormProps> = ({ isOpen, onClose, onSave
     allProducts.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
   , [allProducts, productSearch]);
 
-  const handleProductToggle = (productId: string) => {
+  const handleProductToggle = (productId: string | number) => {
     setFormData(prev => {
       const newProductIds = prev.productIds.includes(productId)
         ? prev.productIds.filter(id => id !== productId)
@@ -117,6 +119,10 @@ const FornecedorForm: React.FC<FornecedorFormProps> = ({ isOpen, onClose, onSave
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Fornecedor *</label>
                   <input type="text" value={formData.name} onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))} className={`w-full px-3 py-2 border rounded-lg ${errors.name ? 'border-red-500' : 'border-gray-300'}`} />
                   {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+                  <input type="text" value={formData.cnpj || ''} onChange={(e) => setFormData(p => ({ ...p, cnpj: e.target.value }))} placeholder="00.000.000/0000-00" className="w-full px-3 py-2 border rounded-lg border-gray-300" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Contato</label>

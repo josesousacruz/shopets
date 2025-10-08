@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Edit, Users, User, Phone, Mail, MapPin, Star, Award, Calendar, CreditCard } from 'lucide-react';
+import { Search, Plus, Edit, Users, User, Phone, Mail, MapPin, Star, Award, Calendar, CreditCard, DollarSign } from 'lucide-react';
 import { Customer, LoyaltyTransaction, LoyaltyProgram, AccountReceivable } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import ClienteForm from '../forms/ClienteForm';

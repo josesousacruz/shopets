@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Edit, Package, User, Phone, Mail, MapPin } from 'lucide-react';
-import { Supplier, Product } from '../../types';
+import { Search, Plus, Edit, Package, User, Phone, Mail, MapPin, Trash2, RotateCcw } from 'lucide-react';
+import { Supplier, Product, SupplierFormData } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import FornecedorForm from '../forms/FornecedorForm';
 
 interface FornecedoresViewProps {
   suppliers: Supplier[];
   products: Product[];
-  onAddSupplier: (supplier: Omit<Supplier, 'id'>) => void;
+  onAddSupplier: (supplier: SupplierFormData) => void;
   onUpdateSupplier: (supplier: Supplier) => void;
+  onDeleteSupplier: (supplierId: string) => void;
+  onReactivateSupplier: (supplierId: string) => void;
 }
 
-const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products, onAddSupplier, onUpdateSupplier }) => {
+const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products, onAddSupplier, onUpdateSupplier, onDeleteSupplier, onReactivateSupplier }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>();
@@ -32,10 +34,10 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
         return true;
       }
   
-      const matchesProducts = supplier.productIds.some(productId => {
+      const matchesProducts = supplier.productIds?.some(productId => {
         const product = products.find(p => p.id === productId);
         return product && product.name.toLowerCase().includes(lowercasedSearchTerm);
-      });
+      }) || false;
   
       return matchesProducts;
     });
@@ -51,9 +53,9 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
     setIsFormOpen(true);
   };
 
-  const handleSaveSupplier = (supplierData: Omit<Supplier, 'id'>) => {
+  const handleSaveSupplier = (supplierData: SupplierFormData) => {
     if (editingSupplier) {
-      onUpdateSupplier({ ...supplierData, id: editingSupplier.id });
+      onUpdateSupplier({ ...supplierData, id_fornecedor: editingSupplier.id_fornecedor });
     } else {
       onAddSupplier(supplierData);
     }
@@ -88,7 +90,7 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
         <AnimatePresence>
           {filteredSuppliers.map(supplier => (
             <motion.div
-              key={supplier.id}
+              key={supplier.id_fornecedor}
               layout
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -98,10 +100,28 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
             >
               <div className="p-5 border-b border-gray-200/80">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-gray-900 truncate">{supplier.name}</h3>
-                  <button onClick={() => handleEditSupplier(supplier)} className="text-gray-400 hover:text-blue-600 p-1 rounded-full transition-colors">
-                    <Edit size={18} />
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <h3 className="text-xl font-bold text-gray-900 truncate">{supplier.name}</h3>
+                    {!supplier.ativo && (
+                      <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                        Inativo
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex space-x-1">
+                    <button onClick={() => handleEditSupplier(supplier)} className="text-gray-400 hover:text-blue-600 p-1 rounded-full transition-colors">
+                      <Edit size={18} />
+                    </button>
+                    {!supplier.ativo ? (
+                      <button onClick={() => onReactivateSupplier(supplier.id_fornecedor)} className="text-gray-400 hover:text-green-600 p-1 rounded-full transition-colors" title="Reativar fornecedor">
+                        <RotateCcw size={18} />
+                      </button>
+                    ) : (
+                      <button onClick={() => onDeleteSupplier(supplier.id_fornecedor)} className="text-gray-400 hover:text-red-600 p-1 rounded-full transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {supplier.contactPerson && (
                   <div className="flex items-center space-x-2 mt-2 text-sm text-gray-500">
@@ -130,11 +150,11 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
 
               <div className="bg-gray-50/70 px-5 py-4 border-t border-gray-200/80">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                  Produtos Fornecidos ({supplier.productIds.length})
+                  Produtos Fornecidos ({supplier.productIds?.length || 0})
                 </h4>
-                {supplier.productIds.length > 0 ? (
+                {(supplier.productIds?.length || 0) > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {supplier.productIds.slice(0, 4).map(productId => {
+                    {supplier.productIds?.slice(0, 4).map(productId => {
                       const product = products.find(p => p.id === productId);
                       return product ? (
                         <span key={productId} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">
@@ -142,9 +162,9 @@ const FornecedoresView: React.FC<FornecedoresViewProps> = ({ suppliers, products
                         </span>
                       ) : null;
                     })}
-                    {supplier.productIds.length > 4 && (
+                    {(supplier.productIds?.length || 0) > 4 && (
                       <span className="bg-gray-200 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                        +{supplier.productIds.length - 4} mais
+                        +{(supplier.productIds?.length || 0) - 4} mais
                       </span>
                     )}
                   </div>

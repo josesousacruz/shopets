@@ -17,7 +17,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
       <div className="px-2 sm:px-4 py-2 sm:py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-1 sm:space-x-2 min-w-0 flex-shrink">
-            <img src="/src/img/logo.png" alt="ShopPet" className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
+            <img src="/logo.png" alt="ShopPet" className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <h1 className="text-xs sm:text-lg font-bold truncate">ShopPet PDV</h1>
               {currentOperator && (

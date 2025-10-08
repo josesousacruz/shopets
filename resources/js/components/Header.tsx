@@ -36,7 +36,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
               transition={{ duration: 0.5 }}
             >
               <div className="relative">
-                <img src="/logo.svg" alt="ShopPet" className="w-10 h-10 rounded-lg shadow-lg" />
+                <img src="/src/img/logo.png" alt="ShopPet" className="w-10 h-10 rounded-lg shadow-lg" />
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
               </div>
               <div className="flex flex-col min-w-0">

@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/fornecedores', [FornecedorController::class, 'store'])->name('fornecedores.store');
     Route::put('/fornecedores/{id}', [FornecedorController::class, 'update'])->name('fornecedores.update');
     Route::delete('/fornecedores/{id}', [FornecedorController::class, 'destroy'])->name('fornecedores.destroy');
+    Route::patch('/fornecedores/{id}/reactivate', [FornecedorController::class, 'reactivate'])->name('fornecedores.reactivate');
 
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
