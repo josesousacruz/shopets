@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  # Instala dependências PHP via imagem composer (sem Dockerfile)
+  composer:
+    image: composer:2
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -lc "composer install --no-dev --prefer-dist --no-interaction"
+    restart: "no"
+
+  # Build dos assets frontend via Node (Vite)
+  assets:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -lc "npm ci && npm run build"
+    restart: "no"
+
+  # Aplicação Laravel servida por PHP+Nginx (imagem pronta)
+  app:
+    image: webdevops/php-nginx:8.2-alpine
+    container_name: shopets-app
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+      CACHE_DRIVER: file
+      QUEUE_CONNECTION: sync
+      FILESYSTEM_DISK: public
+      WEB_DOCUMENT_ROOT: /var/www/html/public
+    ports:
+      - "8083:80"
+    volumes:
+      - .:/var/www/html
+      - storage:/var/www/html/storage
+    depends_on:
+      - composer
+      - assets
+    # Aguarda vendor e build, gera APP_KEY e caches, então inicia supervisord
+    command: sh -lc "php -r \"file_exists('.env') ?: copy('.env.example', '.env');\" && php artisan key:generate --force || true && php artisan config:cache && php artisan route:cache && php artisan view:cache && /usr/bin/supervisord -n"
+    restart: unless-stopped
+
+volumes:
+  storage:
