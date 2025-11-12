@@ -26,7 +26,7 @@ export default function Login({ canResetPassword, status }: LoginProps) {
 
     return (
         <>
-            <Head title="Login - ShopPet" />
+            <Head title="Login - PDV" />
             
             <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 flex items-center justify-center p-4">
                 <motion.div
@@ -37,8 +37,9 @@ export default function Login({ canResetPassword, status }: LoginProps) {
                 >
                     {/* Logo e Título */}
                     <div className="text-center mb-8">
-                        <img src="/logo.png" alt="ShopPet" className="w-16 h-16 mx-auto mb-4" />
-                        <h1 className="text-2xl font-bold text-gray-800 mb-2">ShopPet PDV</h1>
+                        <img src="/logo.png" alt="PDV" className="w-16 h-16 mx-auto mb-4" />
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">ABBA TECH</h1>
+                        <span className="text-1xl font-bold text-gray-800 mb-2">CruzTech PDV</span>
                         <p className="text-gray-600">Faça login para continuar</p>
                     </div>
 
@@ -150,7 +151,7 @@ export default function Login({ canResetPassword, status }: LoginProps) {
                     </form>
 
                     {/* Links */}
-                    <div className="mt-6 text-center space-y-2">
+                    {/* <div className="mt-6 text-center space-y-2">
                         {canResetPassword && (
                             <Link
                                 href={route('password.request')}
@@ -169,10 +170,10 @@ export default function Login({ canResetPassword, status }: LoginProps) {
                                 Cadastre-se
                             </Link>
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Usuários de teste */}
-                    <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+                    {/* <div className="mt-8 p-4 bg-gray-50 rounded-lg">
                         <h3 className="text-sm font-medium text-gray-700 mb-3">Usuários de teste:</h3>
                         <div className="space-y-2">
                             <button
@@ -202,7 +203,7 @@ export default function Login({ canResetPassword, status }: LoginProps) {
                             </button>
                         </div>
                         <p className="text-xs text-gray-500 mt-2 text-center">Clique em um usuário para preencher automaticamente</p>
-                    </div>
+                    </div> */}
                 </motion.div>
             </div>
         </>

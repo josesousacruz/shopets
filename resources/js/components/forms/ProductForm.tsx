@@ -19,15 +19,15 @@ interface ProductFormProps {
 }
 
 const unitOptions: { value: UnitType; label: string; fractional: boolean }[] = [
-  { value: 'kg', label: 'Quilograma (kg)', fractional: true },
-  { value: 'g', label: 'Grama (g)', fractional: true },
-  { value: 'L', label: 'Litro (L)', fractional: true },
-  { value: 'ml', label: 'Mililitro (ml)', fractional: true },
-  { value: 'metro', label: 'Metro (m)', fractional: true },
-  { value: 'cm', label: 'Centímetro (cm)', fractional: true },
-  { value: 'peca', label: 'Peça/Unidade', fractional: false },
-  { value: 'pacote', label: 'Pacote', fractional: false },
-  { value: 'caixa', label: 'Caixa', fractional: false },
+  // { value: 'kg', label: 'Quilograma (kg)', fractional: true },
+  // { value: 'g', label: 'Grama (g)', fractional: true },
+  // { value: 'L', label: 'Litro (L)', fractional: true },
+  // { value: 'ml', label: 'Mililitro (ml)', fractional: true },
+  // { value: 'metro', label: 'Metro (m)', fractional: true },
+  // { value: 'cm', label: 'Centímetro (cm)', fractional: true },
+  { value: 'un', label: 'Peça/Unidade', fractional: false },
+  // { value: 'pacote', label: 'Pacote', fractional: false },
+  // { value: 'caixa', label: 'Caixa', fractional: false },
 ];
 
 const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAddStock, product, suppliers, categories, onSupplierAdded }) => {
@@ -37,7 +37,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
     category: categories.length > 0 ? categories[0].name : '',
     price: '',
     salePrice: '',
-    unit: 'peca' as UnitType,
+    purchasePrice: '',
+    unit: 'un' as UnitType,
     stock: '',
     barcode: '',
     description: '',
@@ -60,6 +61,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
         category: product.category,
         price: product.price.toString(),
         salePrice: product.salePrice?.toString() || '',
+        purchasePrice: product.purchasePrice?.toString() || '',
         unit: product.unit,
         stock: product.stock.toString(),
         barcode: product.barcode || '',
@@ -95,10 +97,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
     if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
     if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Preço deve ser maior que zero';
     if (!formData.salePrice || parseFloat(formData.salePrice) <= 0) newErrors.salePrice = 'Preço de venda deve ser maior que zero';
-    if (formData.stock === '' || parseFloat(formData.stock) < 0) newErrors.stock = 'Estoque não pode ser negativo';
+    // if (formData.stock === '' || parseFloat(formData.stock) < 0) newErrors.stock = 'Estoque não pode ser negativo';
     if (!formData.minQuantity || parseFloat(formData.minQuantity) <= 0) newErrors.minQuantity = 'Quantidade mínima deve ser maior que zero';
     if (!formData.stepQuantity || parseFloat(formData.stepQuantity) <= 0) newErrors.stepQuantity = 'Incremento deve ser maior que zero';
     setErrors(newErrors);
+    console.log(newErrors);
+    
     return Object.keys(newErrors).length === 0;
   };
 
@@ -118,6 +122,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
       description: formData.description.trim() || undefined,
       allowFraction: formData.allowFractional,
       minStock: parseFloat(formData.minStock),
+      purchasePrice: parseFloat(formData.price),
       supplierId: formData.supplierId || undefined,
     };
 

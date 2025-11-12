@@ -82,8 +82,8 @@ class EstoqueController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
-            'purchasePrice' => 'required|numeric|min:0',
             'categoryId' => 'required|exists:categorias,id_categoria',
+            'purchasePrice' => 'required|numeric|min:0',
             'unit' => 'required|in:un,kg,g,l,ml,cx,m,cm',
             'barcode' => 'nullable|string|unique:produtos,codigo_barras',
             'internalCode' => 'nullable|string|unique:produtos,codigo_interno',
