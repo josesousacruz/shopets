@@ -30,7 +30,6 @@ COPY --from=frontend /app/public/build ./public/build
 RUN mkdir -p database && touch database/database.sqlite
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --ignore-platform-reqs --no-scripts
 
-RUN php artisan package:discover --ansi
 
 RUN chmod -R 775 storage bootstrap/cache && \
     chown -R www-data:www-data storage bootstrap/cache
