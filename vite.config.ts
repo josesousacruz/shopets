@@ -20,4 +20,9 @@ export default defineConfig({
     esbuild: {
         jsx: 'automatic',
     },
+    server: {
+        host: 'abbatech.cruztech.dev', // opcional, ajuda no ambiente local
+        https: true, // 👈 força HTTPS em dev/local também
+
+    },
 });
