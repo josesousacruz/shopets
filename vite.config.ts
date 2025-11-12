@@ -22,7 +22,5 @@ export default defineConfig({
     },
     server: {
         host: 'abbatech.cruztech.dev', // opcional, ajuda no ambiente local
-        https: true, // 👈 força HTTPS em dev/local também
-
     },
 });
