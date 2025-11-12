@@ -19,11 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-    if (app()->runningInConsole()) {
-        return; // evita rodar durante composer install
-    }
-    if (config('app.env') === 'production') {
+    // if (app()->runningInConsole()) {
+    //     return; // evita rodar durante composer install
+    // }
+    // if (config('app.env') === 'production') {
         URL::forceScheme('https');
-    }
+    // }
     }
 }
