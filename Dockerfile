@@ -5,6 +5,7 @@ FROM node:20 AS frontend
 WORKDIR /app
 COPY package*.json vite.config.* tsconfig.* ./
 COPY resources resources
+COPY public ./public
 RUN npm install && npm run build
 
 # ===============================
