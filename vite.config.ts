@@ -7,16 +7,10 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             ssr: 'resources/js/ssr.tsx',
-            refresh: true,
-            buildDirectory: 'build', // 👈 força saída em public/build
+            refresh: true
         }),
         react(),
     ],
-    build: {
-        outDir: 'public/build', // 👈 garante compatibilidade com Laravel em produção
-        manifest: true,
-        emptyOutDir: true,
-    },
     esbuild: {
         jsx: 'automatic',
     },
