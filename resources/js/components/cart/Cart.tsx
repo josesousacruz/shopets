@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Plus, Minus, Edit2, Check, ShoppingBag, X } from 'lucide-react';
 import { Cart as CartType, CartItem, Product } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import CartDesconto from './CartDesconto';
 import { categories } from '../../data/mockData';
 
 interface CartProps {
   cart: CartType | null;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: () => void;
+  onCheckout: (desconto: { value: number; type: 'fixed' | 'percent' }) => void;
   onRenameCart: (cartId: string, newName: string) => void;
   vendaEmAberto?: { id: number; numero: string } | null;
   onCancelarVenda?: () => void;
@@ -35,6 +36,8 @@ const Cart: React.FC<CartProps> = ({
   const [tempQuantity, setTempQuantity] = useState<string>('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [cartName, setCartName] = useState(cart?.name || '');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
 
   useEffect(() => {
     if (cart) {
@@ -53,6 +56,29 @@ const Cart: React.FC<CartProps> = ({
   }
 
   const { id, items, total } = cart;
+
+  const discountedTotal = (() => {
+    if (!total) return 0;
+    if (discountValue <= 0) return total;
+    if (discountType === 'fixed') {
+      const t = total - discountValue;
+      return t < 0 ? 0 : t;
+    }
+    const pct = discountValue / 100;
+    const t = total * (1 - pct);
+    return t < 0 ? 0 : t;
+  })();
+
+  const appliedDiscountValue = (() => {
+    if (!total) return 0;
+    if (discountValue <= 0) return 0;
+    if (discountType === 'fixed') {
+      const d = discountValue;
+      return d < 0 ? 0 : Math.min(d, total);
+    }
+    const d = (total * discountValue) / 100;
+    return d < 0 ? 0 : Math.min(d, total);
+  })();
 
   const handleEditQuantity = (item: CartItem) => {
     setEditingItem(item.product.id);
@@ -171,15 +197,46 @@ const Cart: React.FC<CartProps> = ({
         </div>
       )}
       
+      <div className="p-4 border-t border-gray-100 bg-white md:bg-gray-50">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">Desconto</span>
+          <CartDesconto
+            onApply={(value, type) => {
+              setDiscountValue(value);
+              setDiscountType(type);
+            }}
+          />
+        </div>
+        {discountValue > 0 && (
+          <div className="mt-2 text-sm text-gray-600">
+            {discountType === 'fixed'
+              ? `Aplicado: R$ ${discountValue.toFixed(2)}`
+              : `Aplicado: ${discountValue}%`}
+          </div>
+        )}
+      </div>
+      
       <div className="p-4 border-t border-gray-200 bg-white rounded-b-xl md:bg-gray-50 flex-shrink-0">
+        {appliedDiscountValue > 0 && (
+          <div className="space-y-1 mb-3 text-sm text-gray-700">
+            <div className="flex justify-between">
+              <span>Sem desconto:</span>
+              <span>R$ {total.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Desconto:</span>
+              <span>- R$ {appliedDiscountValue.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-4">
           <span className="font-semibold text-lg">Total:</span>
-          <span className="font-bold text-xl text-green-600">R$ {total.toFixed(2)}</span>
+          <span className="font-bold text-xl text-green-600">R$ {discountedTotal.toFixed(2)}</span>
         </div>
         
         <div className="space-y-2">
           <button 
-            onClick={onCheckout} 
+            onClick={() => onCheckout({ value: discountValue, type: discountType })} 
             disabled={items.length === 0} 
             className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
           >

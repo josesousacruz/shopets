@@ -22,7 +22,7 @@ interface PDVViewProps {
   onAddToCart: (product: Product, quantity?: number) => void;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: () => void;
+  onCheckout: (desconto: { value: number; type: 'fixed' | 'percent' }) => void;
   vendaEmAberto?: { id: number; numero: string } | null;
   onCancelarVenda?: () => void;
 }

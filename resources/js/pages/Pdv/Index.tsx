@@ -34,6 +34,7 @@ interface DadosFinalizacao {
     pontos_fidelidade_utilizados?: number;
     observacoes?: string;
     acao_pos?: 'finalizar' | 'cupom' | 'nfe';
+    desconto_valor?: number;
 }
 
 interface Props {
@@ -94,6 +95,9 @@ function PDV({
         status?: string; 
     } | null>(null);
 
+    // Estado para valor do desconto calculado no frontend
+    const [descontoValor, setDescontoValor] = useState<number | null>(null);
+
     // Estado para produtos atualizados
     const [currentProducts, setCurrentProducts] = useState<Product[]>(products);
 
@@ -121,8 +125,15 @@ function PDV({
     }, [venda]);
 
     // Função para abrir o modal de finalização
-    const handleCheckout = async () => {
+    const handleCheckout = async (descontoInfo: { value: number; type: 'fixed' | 'percent' }) => {
         if (!activeCart || activeCart.items.length === 0) return;
+
+        // Calcula o valor do desconto (aplicado) no frontend
+        const bruto = descontoInfo.type === 'fixed'
+            ? descontoInfo.value
+            : (activeCart.total * (descontoInfo.value / 100));
+        const aplicado = Math.max(0, Math.min(activeCart.total, isNaN(bruto) ? 0 : bruto));
+        setDescontoValor(aplicado);
 
         // Se já existe uma venda em aberto, apenas abre o modal
         if (vendaEmAberto) {
@@ -179,7 +190,8 @@ function PDV({
             id_forma_pagamento: dados.id_forma_pagamento,
             id_cliente: dados.id_cliente,
             pontos_fidelidade_utilizados: dados.pontos_fidelidade_utilizados,
-            observacoes: dados.observacoes
+            observacoes: dados.observacoes,
+            desconto_valor: dados.desconto_valor ?? descontoValor ?? 0
         };
 
         console.log('Dados enviados para finalização:', saleData);
@@ -301,6 +313,7 @@ function PDV({
                 numeroVenda={vendaEmAberto?.numero}
                 clientes={clientes}
                 formasPagamento={formasPagamento}
+                descontoValor={descontoValor ?? undefined}
             />
 
             <CupomPreviewModal

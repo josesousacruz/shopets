@@ -25,6 +25,7 @@ interface DadosFinalizacao {
   pontos_fidelidade_utilizados?: number;
   observacoes?: string;
   acao_pos?: 'finalizar' | 'cupom' | 'nfe';
+  desconto_valor?: number;
 }
 
 interface FinalizarVendaModalProps {
@@ -36,6 +37,7 @@ interface FinalizarVendaModalProps {
   formasPagamento: FormaPagamento[];
   valorTotal: number;
   numeroVenda?: string;
+  descontoValor?: number;
 }
 
 const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
@@ -46,12 +48,14 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
   clientes,
   formasPagamento,
   valorTotal,
-  numeroVenda
+  numeroVenda,
+  descontoValor
 }) => {
   const [formData, setFormData] = useState<DadosFinalizacao>({
     id_forma_pagamento: formasPagamento?.[0]?.id_forma_pagamento || 1,
     pontos_fidelidade_utilizados: 0,
-    observacoes: ''
+    observacoes: '',
+    desconto_valor: descontoValor
   });
 
   const [searchCliente, setSearchCliente] = useState('');
@@ -66,7 +70,8 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
       setFormData({
         id_forma_pagamento: formasPagamento?.[0]?.id_forma_pagamento || 1,
         pontos_fidelidade_utilizados: 0,
-        observacoes: ''
+        observacoes: '',
+        desconto_valor: descontoValor
       });
       setSearchCliente('');
       setClienteSelecionado(null);
@@ -74,7 +79,7 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
       setErrors({});
       setShowActions(false);
     }
-  }, [isOpen]);
+  }, [isOpen, descontoValor]);
 
   const clientesFiltrados = (clientes || []).filter(cliente => {
     const searchTerm = (searchCliente || '').toLowerCase();
@@ -166,6 +171,10 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
     }).format(value);
   };
 
+  const valorSemDesconto = valorTotal || 0;
+  const descontoAplicado = formData.desconto_valor || 0;
+  const valorComDesconto = Math.max(0, valorSemDesconto - descontoAplicado);
+
   if (!isOpen) return null;
 
   return (
@@ -195,6 +204,22 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
 
           {/* Content */}
           <div className="p-6 space-y-6">
+
+            {/* Resumo Financeiro */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>Sem desconto</span>
+                <span>{formatCurrency(valorSemDesconto)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-700 mt-1">
+                <span>Desconto</span>
+                <span>- {formatCurrency(descontoAplicado)}</span>
+              </div>
+              <div className="flex justify-between font-semibold mt-2">
+                <span>Total</span>
+                <span className="text-green-600">{formatCurrency(valorComDesconto)}</span>
+              </div>
+            </div>
 
 
             {/* Passo 1: somente botões de pagamento */}

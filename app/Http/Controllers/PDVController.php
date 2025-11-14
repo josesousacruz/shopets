@@ -298,6 +298,7 @@ class PDVController extends Controller
                 'id_forma_pagamento' => 'required|exists:formas_pagamento,id_forma_pagamento',
                 'pontos_fidelidade_utilizados' => 'nullable|numeric|min:0',
                 'observacoes' => 'nullable|string|max:500',
+                'desconto_valor' => 'nullable|numeric|min:0',
             ]);
 
             \DB::beginTransaction();
@@ -313,6 +314,7 @@ class PDVController extends Controller
                 'id_forma_pagamento' => $validated['id_forma_pagamento'],
                 'pontos_fidelidade_utilizados' => $validated['pontos_fidelidade_utilizados'] ?? 0,
                 'observacoes' => $validated['observacoes'] ?? null,
+                'valor_desconto' => $validated['desconto_valor'] ?? 0,
                 'status' => 'finalizada', // Mudança de status que ativará os triggers
             ]);
 
