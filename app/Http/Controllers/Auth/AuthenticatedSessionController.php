@@ -45,7 +45,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended('/pdv');
+        return redirect()->to(route('pdv', absolute: false));
     }
 
     /**
