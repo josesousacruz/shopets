@@ -8,6 +8,7 @@ use App\Models\Venda;
 use App\Models\ItemVenda;
 use App\Models\Cliente;
 use App\Models\FormaPagamento;
+use App\Models\ConfiguracaoEmpresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Arr;
@@ -98,11 +99,23 @@ class PDVController extends Controller
             ];
         });
 
+        // Carrega configuração da empresa para o cabeçalho do cupom
+        $empresaModel = ConfiguracaoEmpresa::first();
+        $empresa = $empresaModel ? [
+            'nome_empresa' => $empresaModel->nome_empresa,
+            'razao_social' => $empresaModel->razao_social,
+            'cnpj' => $empresaModel->cnpj,
+            'telefone' => $empresaModel->telefone,
+            'email' => $empresaModel->email,
+            'endereco' => $empresaModel->endereco,
+        ] : null;
+
         return Inertia::render('Pdv/Index', [
             'products' => $products,
             'categories' => $categories,
             'clientes' => $clientes,
             'formasPagamento' => $formasPagamento,
+            'empresa' => $empresa,
         ]);
     }
 

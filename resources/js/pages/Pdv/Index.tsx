@@ -5,6 +5,7 @@ import { router } from '@inertiajs/react';
 import { useMultiCart } from '../../hooks/useMultiCart';
 import PDVView from '../../components/views/PDVView';
 import FinalizarVendaModal from '../../components/modals/FinalizarVendaModal';
+import CupomPreviewModal from '../../components/modals/CupomPreviewModal';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { Product, Category } from '../../types';
 import Swal from 'sweetalert2';
@@ -32,6 +33,7 @@ interface DadosFinalizacao {
     id_forma_pagamento: number;
     pontos_fidelidade_utilizados?: number;
     observacoes?: string;
+    acao_pos?: 'finalizar' | 'cupom' | 'nfe';
 }
 
 interface Props {
@@ -39,6 +41,14 @@ interface Props {
     categories: Category[];
     clientes: Cliente[];
     formasPagamento: FormaPagamento[];
+    empresa?: {
+        nome_empresa: string;
+        razao_social?: string;
+        cnpj?: string;
+        telefone?: string;
+        email?: string;
+        endereco?: string;
+    } | null;
     flash?: {
         success?: string;
         error?: string;
@@ -56,6 +66,7 @@ function PDV({
     categories, 
     clientes, 
     formasPagamento,
+    empresa,
     flash,
     venda
 }: Props) {
@@ -65,6 +76,15 @@ function PDV({
     
     // Estado para controlar o modal de finalização
     const [isFinalizarModalOpen, setIsFinalizarModalOpen] = useState(false);
+    const [isCupomModalOpen, setIsCupomModalOpen] = useState(false);
+    const [cupomData, setCupomData] = useState<{
+        venda: { numero?: string; valor_total?: number } | null;
+        items: any[];
+        cliente?: Cliente | null;
+        formaPagamentoNome?: string;
+        observacoes?: string;
+        empresa?: typeof empresa;
+    }>({ venda: null, items: [], cliente: null, formaPagamentoNome: undefined, observacoes: undefined, empresa });
     
     // Estado para controlar se há uma venda em aberto
     const [vendaEmAberto, setVendaEmAberto] = useState<{ 
@@ -168,6 +188,23 @@ function PDV({
             const response = await axios.post('/sales/finalizar', saleData);
             
             if (response.data.success) {
+                const acaoPos = dados.acao_pos || 'finalizar';
+                if (acaoPos === 'cupom') {
+                    const formaSel = formasPagamento.find(fp => fp.id_forma_pagamento === dados.id_forma_pagamento);
+                    const clienteSel = dados.id_cliente ? clientes.find(c => c.id_cliente === dados.id_cliente) : null;
+                    // Abrir visualização em modal e usar window.print no botão
+                    setCupomData({
+                        venda: { numero: vendaEmAberto?.numero, valor_total: vendaEmAberto?.valor_total ?? activeCart?.total },
+                        items: [...activeCart.items],
+                        cliente: clienteSel || null,
+                        formaPagamentoNome: formaSel?.nome,
+                        observacoes: dados.observacoes,
+                        empresa
+                    });
+                    setIsCupomModalOpen(true);
+                } else if (acaoPos === 'nfe') {
+                    await Swal.fire('NFe', 'Emissão de NFe ainda não implementada.', 'info');
+                }
                 setIsFinalizarModalOpen(false);
                 setVendaEmAberto(null);
                 cartActions.removeCart(activeCart!.id);
@@ -185,6 +222,8 @@ function PDV({
             Swal.fire('Erro!', errorMessage, 'error');
         }
     };
+
+    // Removido: abertura de nova janela para imprimir cupom
 
     // Função para cancelar a venda
     const handleCancelarVenda = () => {
@@ -262,6 +301,17 @@ function PDV({
                 numeroVenda={vendaEmAberto?.numero}
                 clientes={clientes}
                 formasPagamento={formasPagamento}
+            />
+
+            <CupomPreviewModal
+                isOpen={isCupomModalOpen}
+                onClose={() => setIsCupomModalOpen(false)}
+                venda={cupomData.venda}
+                items={cupomData.items}
+                cliente={cupomData.cliente || undefined}
+                formaPagamentoNome={cupomData.formaPagamentoNome}
+                observacoes={cupomData.observacoes}
+                empresa={empresa || undefined}
             />
         </>
     );

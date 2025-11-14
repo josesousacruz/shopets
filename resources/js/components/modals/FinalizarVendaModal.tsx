@@ -24,6 +24,7 @@ interface DadosFinalizacao {
   id_forma_pagamento: number;
   pontos_fidelidade_utilizados?: number;
   observacoes?: string;
+  acao_pos?: 'finalizar' | 'cupom' | 'nfe';
 }
 
 interface FinalizarVendaModalProps {
@@ -57,6 +58,7 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
   const [showClienteDropdown, setShowClienteDropdown] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showActions, setShowActions] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -70,6 +72,7 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
       setClienteSelecionado(null);
       setShowClienteDropdown(false);
       setErrors({});
+      setShowActions(false);
     }
   }, [isOpen]);
 
@@ -143,6 +146,14 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
       id_forma_pagamento: idForma
     };
     setFormData(dados);
+    setShowActions(true);
+  };
+
+  const handleAction = (acao: 'finalizar' | 'cupom' | 'nfe') => {
+    const dados: DadosFinalizacao = {
+      ...formData,
+      acao_pos: acao
+    };
     if (validateForm(dados)) {
       onConfirm(dados);
     }
@@ -184,155 +195,139 @@ const FinalizarVendaModal: React.FC<FinalizarVendaModalProps> = ({
 
           {/* Content */}
           <div className="p-6 space-y-6">
-            {/* Valor Total */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-green-700 font-medium">Total da Venda:</span>
-                <span className="text-2xl font-bold text-green-800">
-                  {formatCurrency(valorTotal)}
-                </span>
-              </div>
-            </div>
 
-            {/* Cliente */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                <User className="inline mr-2" size={16} />
-                Cliente (Opcional)
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar cliente por nome, email ou telefone..."
-                  value={searchCliente}
-                  onChange={(e) => {
-                    setSearchCliente(e.target.value);
-                    setShowClienteDropdown(true);
-                    if (!e.target.value) {
-                      setClienteSelecionado(null);
-                      setFormData(prev => ({ ...prev, id_cliente: undefined }));
-                    }
-                  }}
-                  onFocus={() => setShowClienteDropdown(true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                
-                {showClienteDropdown && searchCliente && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {clientesFiltrados.length > 0 ? (
-                      clientesFiltrados.map((cliente) => (
+
+            {/* Passo 1: somente botões de pagamento */}
+            {!showActions && (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <CreditCard className="inline mr-2" size={16} />
+                    Passo 1: Escolha a forma de pagamento
+                  </label>
+                  <div className="flex flex-col gap-3">
+                    {formasPagamento.map((forma) => {
+                      const baseBtn =
+                        'w-full px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors';
+                      const byTipo: Record<string, string> = {
+                        dinheiro: 'bg-green-600 text-white hover:bg-green-700',
+                        cartao_credito: 'bg-blue-600 text-white hover:bg-blue-700',
+                        cartao_debito: 'bg-blue-600 text-white hover:bg-blue-700',
+                        pix: 'bg-purple-600 text-white hover:bg-purple-700',
+                        transferencia: 'bg-orange-600 text-white hover:bg-orange-700',
+                        cheque: 'bg-gray-600 text-white hover:bg-gray-700'
+                      };
+                      const style = byTipo[forma.tipo] || 'bg-gray-600 text-white hover:bg-gray-700';
+                      return (
                         <button
-                          key={cliente.id_cliente}
-                          onClick={() => handleClienteSelect(cliente)}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                          key={forma.id_forma_pagamento}
+                          onClick={() => finalizeWithPayment(forma.id_forma_pagamento)}
+                          className={`${baseBtn} ${style}`}
                         >
-                          <div className="font-medium">{cliente.nome}</div>
-                          {cliente.email && (
-                            <div className="text-sm text-gray-500">{cliente.email}</div>
-                          )}
-                          {cliente.pontos_fidelidade && cliente.pontos_fidelidade > 0 && (
-                            <div className="text-sm text-green-600">
-                              {cliente.pontos_fidelidade} pontos disponíveis
-                            </div>
-                          )}
+                          <CreditCard size={18} />
+                          {forma.nome}
                         </button>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-gray-500">Nenhum cliente encontrado</div>
-                    )}
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-              {errors.cliente && (
-                <p className="text-red-500 text-sm flex items-center">
-                  <AlertCircle size={16} className="mr-1" />
-                  {errors.cliente}
-                </p>
-              )}
-            </div>
-
-            {/* Pontos de Fidelidade */}
-            {clienteSelecionado && clienteSelecionado.pontos_fidelidade && clienteSelecionado.pontos_fidelidade > 0 && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  <Gift className="inline mr-2" size={16} />
-                  Pontos de Fidelidade
-                </label>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-700 mb-2">
-                    Cliente possui {clienteSelecionado.pontos_fidelidade} pontos disponíveis
-                  </p>
-                  <input
-                    type="number"
-                    min="0"
-                    max={clienteSelecionado.pontos_fidelidade}
-                    placeholder="Pontos a utilizar"
-                    value={formData.pontos_fidelidade_utilizados || ''}
-                    onChange={(e) => handleInputChange('pontos_fidelidade_utilizados', parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  {errors.id_forma_pagamento && (
+                    <p className="text-red-500 text-sm flex items-center">
+                      <AlertCircle size={16} className="mr-1" />
+                      {errors.id_forma_pagamento}
+                    </p>
+                  )}
                 </div>
-                {errors.pontos_fidelidade_utilizados && (
-                  <p className="text-red-500 text-sm flex items-center">
-                    <AlertCircle size={16} className="mr-1" />
-                    {errors.pontos_fidelidade_utilizados}
-                  </p>
-                )}
-              </div>
+              </>
             )}
 
-            {/* Forma de Pagamento em Botões */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                <CreditCard className="inline mr-2" size={16} />
-                Escolha a forma de pagamento
-              </label>
-              <div className="flex flex-col gap-3">
-                {formasPagamento.map((forma) => {
-                  const baseBtn =
-                    'w-full px-4 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors';
-                  const byTipo: Record<string, string> = {
-                    dinheiro: 'bg-green-600 text-white hover:bg-green-700',
-                    cartao_credito: 'bg-blue-600 text-white hover:bg-blue-700',
-                    cartao_debito: 'bg-blue-600 text-white hover:bg-blue-700',
-                    pix: 'bg-purple-600 text-white hover:bg-purple-700',
-                    transferencia: 'bg-orange-600 text-white hover:bg-orange-700',
-                    cheque: 'bg-gray-600 text-white hover:bg-gray-700'
-                  };
-                  const style = byTipo[forma.tipo] || 'bg-gray-600 text-white hover:bg-gray-700';
-                  return (
+            {/* Passo 2: somente ações pós-pagamento */}
+            {showActions && (
+              <>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Passo 2: Escolha o que fazer após o pagamento
+                  </label>
+                  <div className="grid grid-cols-1 gap-3">
                     <button
-                      key={forma.id_forma_pagamento}
-                      onClick={() => finalizeWithPayment(forma.id_forma_pagamento)}
-                      className={`${baseBtn} ${style}`}
+                      type="button"
+                      className="w-full px-4 py-3 rounded-lg font-medium bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
+                      onClick={() => handleAction('finalizar')}
                     >
-                      <CreditCard size={18} />
-                      {forma.nome}
+                      Finalizar
                     </button>
-                  );
-                })}
-              </div>
-              {errors.id_forma_pagamento && (
-                <p className="text-red-500 text-sm flex items-center">
-                  <AlertCircle size={16} className="mr-1" />
-                  {errors.id_forma_pagamento}
-                </p>
-              )}
-            </div>
+                    <button
+                      type="button"
+                      className="w-full px-4 py-3 rounded-lg font-medium bg-green-100 hover:bg-green-200 text-green-800 transition-colors"
+                      onClick={() => handleAction('cupom')}
+                    >
+                      Imprimir Cupom Não Fiscal
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full px-4 py-3 rounded-lg font-medium bg-blue-100 hover:bg-blue-200 text-blue-800 transition-colors"
+                      onClick={() => handleAction('nfe')}
+                    >
+                      Emitir NFe
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
-            {/* Observações */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                <FileText className="inline mr-2" size={16} />
-                Observações
-              </label>
-              <textarea
-                placeholder="Observações sobre a venda..."
-                value={formData.observacoes || ''}
-                onChange={(e) => handleInputChange('observacoes', e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              />
+                        {/* Cliente (Select) e Observações — fora dos steps */}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <User className="inline mr-2" size={16} />
+                  Cliente (Opcional)
+                </label>
+                <select
+                  value={formData.id_cliente ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setClienteSelecionado(null);
+                      setFormData(prev => ({ ...prev, id_cliente: undefined }));
+                    } else {
+                      const id = parseInt(val, 10);
+                      const c = (clientes || []).find(cli => cli.id_cliente === id) || null;
+                      setClienteSelecionado(c);
+                      setFormData(prev => ({ ...prev, id_cliente: id }));
+                    }
+                    if (errors.cliente) {
+                      setErrors(prev => ({ ...prev, cliente: '' }));
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Sem cliente</option>
+                  {(clientes || []).map((cliente) => (
+                    <option key={cliente.id_cliente} value={cliente.id_cliente}>
+                      {cliente.nome}{cliente.email ? ` - ${cliente.email}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {errors.cliente && (
+                  <p className="text-red-500 text-sm flex items-center">
+                    <AlertCircle size={16} className="mr-1" />
+                    {errors.cliente}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <FileText className="inline mr-2" size={16} />
+                  Observações
+                </label>
+                <textarea
+                  placeholder="Observações sobre a venda..."
+                  value={formData.observacoes || ''}
+                  onChange={(e) => handleInputChange('observacoes', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              </div>
             </div>
           </div>
 
