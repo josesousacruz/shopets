@@ -4,179 +4,60 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\Venda;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class RelatorioController extends Controller
 {
     public function index()
     {
-        // Dados mockados para vendas
-        $sales = [
-            [
-                'id' => '1',
-                'customerId' => '1',
-                'total' => 150.00,
-                'date' => '2024-01-20',
-                'paymentMethod' => 'credit',
-                'items' => [
-                    [
-                        'product' => [
-                            'id' => '1',
-                            'name' => 'Ração Premium',
-                            'price' => 45.90,
-                            'category' => 'Ração'
-                        ],
-                        'quantity' => 2,
-                        'unitPrice' => 45.90
-                    ],
-                    [
-                        'product' => [
-                            'id' => '3',
-                            'name' => 'Shampoo Pet',
-                            'price' => 24.90,
-                            'category' => 'Higiene'
-                        ],
-                        'quantity' => 1,
-                        'unitPrice' => 24.90
-                    ]
-                ]
-            ],
-            [
-                'id' => '2',
-                'customerId' => '2',
-                'total' => 300.00,
-                'date' => '2024-01-22',
-                'paymentMethod' => 'debit',
-                'items' => [
-                    [
-                        'product' => [
-                            'id' => '1',
-                            'name' => 'Ração Premium',
-                            'price' => 45.90,
-                            'category' => 'Ração'
-                        ],
-                        'quantity' => 4,
-                        'unitPrice' => 45.90
-                    ],
-                    [
-                        'product' => [
-                            'id' => '2',
-                            'name' => 'Bola de Borracha',
-                            'price' => 12.50,
-                            'category' => 'Brinquedos'
-                        ],
-                        'quantity' => 3,
-                        'unitPrice' => 12.50
-                    ]
-                ]
-            ],
-            [
-                'id' => '3',
-                'customerId' => '1',
-                'total' => 89.80,
-                'date' => '2024-01-25',
-                'paymentMethod' => 'pix',
-                'items' => [
-                    [
-                        'product' => [
-                            'id' => '1',
-                            'name' => 'Ração Premium',
-                            'price' => 45.90,
-                            'category' => 'Ração'
-                        ],
-                        'quantity' => 1,
-                        'unitPrice' => 45.90
-                    ],
-                    [
-                        'product' => [
-                            'id' => '3',
-                            'name' => 'Shampoo Pet',
-                            'price' => 24.90,
-                            'category' => 'Higiene'
-                        ],
-                        'quantity' => 1,
-                        'unitPrice' => 24.90
-                    ]
-                ]
-            ],
-            [
-                'id' => '4',
-                'customerId' => '3',
-                'total' => 125.00,
-                'date' => '2024-01-18',
-                'paymentMethod' => 'cash',
-                'items' => [
-                    [
-                        'product' => [
-                            'id' => '2',
-                            'name' => 'Bola de Borracha',
-                            'price' => 12.50,
-                            'category' => 'Brinquedos'
-                        ],
-                        'quantity' => 10,
-                        'unitPrice' => 12.50
-                    ]
-                ]
-            ]
-        ];
+        $hoje = Carbon::today();
+        $inicioDoMes = Carbon::now()->startOfMonth();
+        $vendas_hoje_valor = Venda::whereDate('data_venda', $hoje)->sum('valor_total');
 
-        // Dados mockados para produtos
-        $products = [
-            [
-                'id' => '1',
-                'name' => 'Ração Premium',
-                'price' => 45.90,
-                'purchasePrice' => 30.00,
-                'salePrice' => 45.90,
-                'stock' => 15,
-                'category' => 'Ração',
-                'barcode' => '7891234567890',
-                'description' => 'Ração premium para cães adultos',
-                'unit' => 'kg',
-                'allowFractional' => true,
-                'minQuantity' => 0.5,
-                'stepQuantity' => 0.5,
-                'minStock' => 10,
-                'supplierId' => '1'
-            ],
-            [
-                'id' => '2',
-                'name' => 'Bola de Borracha',
-                'price' => 12.50,
-                'purchasePrice' => 8.00,
-                'salePrice' => 12.50,
-                'stock' => 8,
-                'category' => 'Brinquedos',
-                'barcode' => '7891234567891',
-                'description' => 'Bola de borracha resistente',
-                'unit' => 'un',
-                'allowFractional' => false,
-                'minQuantity' => 1,
-                'stepQuantity' => 1,
-                'minStock' => 5,
-                'supplierId' => '2'
-            ],
-            [
-                'id' => '3',
-                'name' => 'Shampoo Pet',
-                'price' => 24.90,
-                'purchasePrice' => 15.00,
-                'salePrice' => 24.90,
-                'stock' => 3,
-                'category' => 'Higiene',
-                'barcode' => '7891234567892',
-                'description' => 'Shampoo neutro para pets',
-                'unit' => 'ml',
-                'allowFractional' => true,
-                'minQuantity' => 0.1,
-                'stepQuantity' => 0.1,
-                'minStock' => 5,
-                'supplierId' => '1'
-            ]
-        ];
+        $vendas_mes_valor = Venda::whereDate('data_venda', '>=', $inicioDoMes)->sum('valor_total');
 
+        $vendas_hoje_numero = Venda::whereDate('data_venda', $hoje)->count();
+        // 1. Busca os dados já agrupados por dia/mês do ano atual
+        $salesByDay = Venda::select(
+            DB::raw('MONTH(data_venda) as month'),
+            DB::raw('DAY(data_venda) as day'),
+            DB::raw('SUM(valor_total) as total')
+        )
+        ->whereYear('data_venda', Carbon::now()->year) // Apenas ano atual
+        ->groupBy('month', 'day')
+        ->get();
+
+        // 2. Pré-popula os 12 meses com null (igual sua lógica)
+        $vendas_ano_valor = collect(range(1, 12))->mapWithKeys(fn($m) => [$m => null])->all();
+
+        // 3. Pré-popula os dias com 0 para os meses que tiveram vendas
+        $mesesComVendas = $salesByDay->pluck('month')->unique();
+        foreach ($mesesComVendas as $month) {
+            $daysInMonth = Carbon::create()->month($month)->daysInMonth;
+            $vendas_ano_valor[$month] = collect(range(1, $daysInMonth))
+                ->mapWithKeys(fn($d) => [$d => 0])
+                ->all();
+        }
+
+        // 4. Preenche o array com os totais
+        foreach ($salesByDay as $sale) {
+            $vendas_ano_valor[$sale->month][$sale->day] = $sale->total;
+        }
+
+        // Count all products where 'ativa' is true
+        $produtosAtivos = \App\Models\Produto::where('ativo', true)->count();
+
+        // Join produtos ativos com vendas, conta o número de vendas por produto e ordena do maior para o menor
+        $produtosMaisVendidos = [];
         return inertia('Relatorio/Index', [
-            'sales' => $sales,
-            'products' => $products
+            'vendas_hoje_valor' => $vendas_hoje_valor,
+            'vendas_mes_valor' => $vendas_mes_valor,
+            'vendas_hoje_numero' => $vendas_hoje_numero,
+            'vendas_ano_valor' => $vendas_ano_valor,
+            'produtosAtivos' => $produtosAtivos,
+            'produtosMaisVendidos' => $produtosMaisVendidos,
         ]);
     }
 }
