@@ -92,38 +92,55 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
           </div>
 
           <div className="p-6" id="cupom-print-area">
-            <style>{`
-              @page { size: 80mm; margin: 0; }
+            <style>{`  @page { 
+    size: 80mm auto; 
+    margin: 0 !important; 
+  }
 
-              @media print {
+  @media print {
 
-                body * {
-                  visibility: hidden !important;
-                }
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 80mm !important;
+    }
 
-                #print-root, #print-root * {
-                  visibility: visible !important;
-                }
+    body * {
+      visibility: hidden !important;
+    }
 
-                #print-root {
-                  position: absolute;
-                  left: 0;
-                  top: 0;
-                  width: 80mm !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                }
+    #print-root, #print-root * {
+      visibility: visible !important;
+    }
 
-                #modal-overlay {
-                  display: none !important;
-                }
-              }
+    #print-root {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 80mm !important;
+      max-width: 80mm !important;
+      min-width: 80mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+    }
 
-              #cupom-print-area { width: 80mm; margin: 0 auto; }
-              .cupom-line { border-top: 1px dashed #999; margin: 8px 0; }
-              .cupom-section-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
-              .cupom-text { font-size: 12px; line-height: 1.3; }
-              .cupom-small { font-size: 11px; }
+    #modal-overlay {
+      display: none !important;
+    }
+
+    * {
+      word-wrap: break-word;
+      white-space: normal !important;
+      page-break-inside: avoid;
+    }
+  }
+
+  #cupom-print-area { width: 80mm; margin: 0 auto; }
+  .cupom-line { border-top: 1px dashed #999; margin: 8px 0; }
+  .cupom-section-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+  .cupom-text { font-size: 12px; line-height: 1.3; }
+  .cupom-small { font-size: 11px; }
             `}</style>
 
             {/* Cabeçalho */}
