@@ -1,7 +1,7 @@
 export type UnitType = 'un' | 'kg' | 'g' | 'l' | 'ml' | 'cx' | 'm' | 'cm';
 
 export interface Product {
-  id: string | number;
+  id:  number;
   name: string;
   price: number; // Preço por unidade de medida (mantido para compatibilidade)
   purchasePrice?: number; // Preço de compra
@@ -256,5 +256,7 @@ export interface PageProps {
   auth: {
     user: User;
   };
+  name?: string;
+  quote?: { message: string; author: string };
   [key: string]: any;
 }

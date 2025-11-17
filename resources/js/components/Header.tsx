@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Package, BarChart3, Truck, Users, Landmark, User, LogOut, Menu, X, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Operator } from '../types';
+import { usePage } from '@inertiajs/react';
+import { PageProps, Operator } from '../types';
 
 interface HeaderProps {
   currentView: string;
@@ -13,6 +14,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCount, currentOperator, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { name } = usePage<PageProps>().props;
 
   const navigationItems = [
     { id: 'pdv', label: 'PDV', icon: ShoppingCart, color: 'from-green-500 to-emerald-600' },
@@ -36,12 +38,12 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
               transition={{ duration: 0.2 }}
             >
               <div className="relative">
-                <img src="/src/img/logo.png" alt="ShopPet" className="w-10 h-10 rounded-lg shadow-lg" />
+                <img src="/logo.png" alt={name || 'Aplicação'} className="w-10 h-10 rounded-lg shadow-lg" />
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
               </div>
               <div className="flex flex-col min-w-0">
                 <h1 className="text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                  SHOPETS PDV
+                  {name || 'CruzTech PDV'}
                 </h1>
                 {currentOperator && (
                   <div className="flex items-center space-x-2 text-sm text-blue-200">
@@ -50,6 +52,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
                     <span className="px-2 py-0.5 bg-blue-700/50 rounded-full text-xs">
                       {currentOperator.role === 'admin' ? 'Admin' : currentOperator.role === 'manager' ? 'Gerente' : 'Operador'}
                     </span>
+                    {/* <span className="px-2 py-0.5 bg-blue-700/50 rounded-full text-xs">ABAA TECH</span> */}
                   </div>
                 )}
               </div>

@@ -304,9 +304,16 @@ class EstoqueController extends Controller
         return response()->json($entradas);
     }
 
-    public function getLatestStockEntries()
+    public function getLatestStockEntries(Request $request)
     {
+        $productId = $request->query('product_id');
+        
+        if (!$productId) {
+            return response()->json([]);
+        }
+        
         $entradas = \App\Models\EntradaEstoque::with(['fornecedor', 'produto'])
+            ->where('id_produto', $productId)
             ->orderBy('data_entrada', 'desc')
             ->limit(5)
             ->get()

@@ -49,8 +49,33 @@ class RelatorioController extends Controller
         // Count all products where 'ativa' is true
         $produtosAtivos = \App\Models\Produto::where('ativo', true)->count();
 
-        // Join produtos ativos com vendas, conta o número de vendas por produto e ordena do maior para o menor
-        $produtosMaisVendidos = [];
+        // Top-selling products: name, total value sold, total quantity sold
+        $produtosMaisVendidos = \App\Models\ItemVenda::select(
+                'produtos.nome',
+                DB::raw('SUM(itens_venda.valor_total_item) as valor_total_itens_vendido'),
+                DB::raw('SUM(itens_venda.quantidade) as total_itens_vendido')
+            )
+            ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
+            ->join('produtos', 'produtos.id_produto', '=', 'itens_venda.id_produto')
+            ->where('vendas.status', 'finalizada')
+            ->groupBy('produtos.id_produto', 'produtos.nome')
+            ->orderByDesc('valor_total_itens_vendido')
+            ->get();
+
+        // Top-selling categories: name, total value sold, total quantity sold
+        $categoriasMaisVendidas = \App\Models\ItemVenda::select(
+                'categorias.nome',
+                DB::raw('SUM(itens_venda.valor_total_item) as valor_total_itens_vendido'),
+                DB::raw('SUM(itens_venda.quantidade) as total_itens_vendido')
+            )
+            ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
+            ->join('produtos', 'produtos.id_produto', '=', 'itens_venda.id_produto')
+            ->join('categorias', 'categorias.id_categoria', '=', 'produtos.id_categoria')
+            ->where('vendas.status', 'finalizada')
+            ->groupBy('categorias.id_categoria', 'categorias.nome')
+            ->orderByDesc('valor_total_itens_vendido')
+            ->get();
+
         return inertia('Relatorio/Index', [
             'vendas_hoje_valor' => $vendas_hoje_valor,
             'vendas_mes_valor' => $vendas_mes_valor,
@@ -58,6 +83,7 @@ class RelatorioController extends Controller
             'vendas_ano_valor' => $vendas_ano_valor,
             'produtosAtivos' => $produtosAtivos,
             'produtosMaisVendidos' => $produtosMaisVendidos,
+            'categoriasMaisVendidas' => $categoriasMaisVendidas,
         ]);
     }
-}
+}   

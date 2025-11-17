@@ -11,11 +11,13 @@ interface RelatorioIndexProps {
     vendas_ano_valor: Record<string, Record<string, number | null>>;
     produtosAtivos: number;
     produtosMaisVendidos: Record<string, number>;
+    categoriasMaisVendidas: Record<string, number>;
 }
 
-export default function Index({ sales, vendas_hoje_valor, vendas_mes_valor, vendas_hoje_numero, vendas_ano_valor, produtosAtivos, produtosMaisVendidos }: RelatorioIndexProps) {  
+export default function Index({ sales, vendas_hoje_valor, vendas_mes_valor, vendas_hoje_numero, vendas_ano_valor, produtosAtivos, produtosMaisVendidos, categoriasMaisVendidas }: RelatorioIndexProps) {  
      console.log("vendas_ano_valor", vendas_ano_valor);
      console.log("produtosMaisVendidos", produtosMaisVendidos);
+     console.log("categoriasMaisVendidas", categoriasMaisVendidas);
     return (
         <AuthenticatedLayout currentView="relatorios">
             <RelatoriosView
@@ -25,6 +27,8 @@ export default function Index({ sales, vendas_hoje_valor, vendas_mes_valor, vend
                 vendas_hoje_numero={vendas_hoje_numero}
                 vendas_ano_valor={vendas_ano_valor}
                 produtosAtivos={produtosAtivos}
+                produtosMaisVendidos={produtosMaisVendidos}
+                categoriasMaisVendidas={categoriasMaisVendidas}
             />
         </AuthenticatedLayout>
     );

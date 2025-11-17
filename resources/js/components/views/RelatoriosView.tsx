@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, DollarSign, Package, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
+import RelatorioTabela from '../relatorio/RelatorioTabela';
 import { Sale } from '../../types';
 import ReactApexChart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
@@ -12,11 +13,13 @@ interface RelatoriosViewProps {
   vendas_hoje_numero: number;
   vendas_ano_valor: Record<string, Record<string, number | null>>;
   produtosAtivos: number;
+  produtosMaisVendidos: Record<string, number>;
+  categoriasMaisVendidas: Record<string, number>;
 }
 
 type TimeFilter = 'week' | 'month' | 'year';
 
-const RelatoriosView: React.FC<RelatoriosViewProps> = ({ sales, vendas_hoje_valor, vendas_mes_valor, vendas_hoje_numero, vendas_ano_valor, produtosAtivos }) => {
+const RelatoriosView: React.FC<RelatoriosViewProps> = ({ sales, vendas_hoje_valor, vendas_mes_valor, vendas_hoje_numero, vendas_ano_valor, produtosAtivos, produtosMaisVendidos, categoriasMaisVendidas }) => { 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('week');
 
   const stats = useMemo(() => {
@@ -234,27 +237,33 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ sales, vendas_hoje_valo
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Produtos Mais Vendidos</h3>
-          <div className="space-y-3">
-            {/* {stats.produtosMaisVendidos.map((produto, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-sm text-gray-700 truncate pr-4">{produto.name}</span>
-                <span className="font-semibold text-blue-600 flex-shrink-0">{Math.round(produto.quantity)} un.</span>
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+          <RelatorioTabela
+            title="Produtos Mais Vendidos"
+            items={Array.isArray(produtosMaisVendidos) ? produtosMaisVendidos : []}
+            searchPlaceholder="Buscar produto"
+            renderRow={(item, index) => (
+              <div className="grid grid-cols-[1fr_90px_120px] items-center gap-2">
+                <span className="text-sm text-gray-700 truncate pr-2">{item.nome}</span>
+                <span className="text-sm font-semibold text-blue-600 text-right">{Number(item.total_itens_vendido)} un.</span>
+                <span className="text-sm font-semibold text-green-600 text-right">R$ {Number(item.valor_total_itens_vendido).toFixed(2)}</span>
               </div>
-            ))} */}
-          </div>
+            )}
+          />
         </motion.div>
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Vendas por Categoria</h3>
-          <div className="space-y-3">
-            {stats.vendasPorCategoria.map((cat, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">{cat.categoria}</span>
-                <span className="font-semibold text-green-600">R$ {cat.valor.toFixed(2)}</span>
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}>
+          <RelatorioTabela
+            title="Vendas por Categoria"
+            items={Array.isArray(categoriasMaisVendidas) ? categoriasMaisVendidas : []}
+            searchPlaceholder="Buscar categoria"
+            renderRow={(item, index) => (
+              <div className="grid grid-cols-[1fr_90px_120px] items-center gap-2">
+                <span className="text-sm text-gray-700 truncate pr-2">{item.nome}</span>
+                <span className="text-sm font-semibold text-blue-600 text-right">{Number(item.total_itens_vendido)} un.</span>
+                <span className="text-sm font-semibold text-green-600 text-right">R$ {Number(item.valor_total_itens_vendido).toFixed(2)}</span>
               </div>
-            ))}
-          </div>
+            )}
+          />
         </motion.div>
       </div>
     </div>

@@ -166,7 +166,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, onSave, onAd
           </div>
 
           {/* Últimas Entradas de Estoque */}
-          <LatestStockEntries />
+          <LatestStockEntries product_id={product?.id || 0} />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

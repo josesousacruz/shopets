@@ -13,9 +13,10 @@ interface StockEntry {
 
 interface LatestStockEntriesProps {
     className?: string;
+    product_id: number | null;
 }
 
-export default function LatestStockEntries({ className = '' }: LatestStockEntriesProps) {
+export default function LatestStockEntries({ className = '', product_id }: LatestStockEntriesProps) {
     const [entries, setEntries] = useState<StockEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export default function LatestStockEntries({ className = '' }: LatestStockEntrie
     const fetchLatestEntries = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/estoque/latest-entries');
+            const response = await fetch(`/estoque/latest-entries?product_id=${product_id}`);
             
             if (!response.ok) {
                 throw new Error('Erro ao carregar entradas');
