@@ -93,7 +93,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
 
           <div className="p-6" id="cupom-print-area">
             <style>{`  @page { 
-    size: 80mm auto; 
+    size: 72mm auto; 
     margin: 0 !important; 
   }
 
@@ -102,7 +102,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
     html, body {
       margin: 0 !important;
       padding: 0 !important;
-      width: 80mm !important;
+      width: 72mm !important;
     }
 
     body * {
@@ -117,9 +117,9 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
       position: absolute;
       left: 0;
       top: 0;
-      width: 80mm !important;
-      max-width: 80mm !important;
-      min-width: 80mm !important;
+      width: 72mm !important;
+      max-width: 72mm !important;
+      min-width: 72mm !important;
       margin: 0 !important;
       padding: 0 !important;
       overflow: hidden !important;
@@ -136,7 +136,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
     }
   }
 
-  #cupom-print-area { width: 80mm; margin: 0 auto; }
+  #cupom-print-area { width: 72mm; margin: 0 auto; }
   .cupom-line { border-top: 1px dashed #999; margin: 8px 0; }
   .cupom-section-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
   .cupom-text { font-size: 12px; line-height: 1.3; }
