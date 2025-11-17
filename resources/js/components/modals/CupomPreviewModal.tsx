@@ -106,11 +106,12 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
     }
 
     body * {
-      visibility: hidden !important;
+      display: none !important;
     }
 
+
     #print-root, #print-root * {
-      visibility: visible !important;
+      display: block !important;
     }
 
     #print-root {
