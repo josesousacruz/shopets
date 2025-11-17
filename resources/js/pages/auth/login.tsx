@@ -38,7 +38,7 @@ export default function Login({ canResetPassword, status }: LoginProps) {
                     {/* Logo e Título */}
                     <div className="text-center mb-8">
                         <img src="/logo.png" alt="PDV" className="w-16 h-16 mx-auto mb-4" />
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">ABBA TECH</h1>
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">ABAA TECH</h1>
                         <span className="text-1xl font-bold text-gray-800 mb-2">CruzTech PDV</span>
                         <p className="text-gray-600">Faça login para continuar</p>
                     </div>
