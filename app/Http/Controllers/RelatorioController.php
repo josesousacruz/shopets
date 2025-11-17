@@ -14,11 +14,11 @@ class RelatorioController extends Controller
     {
         $hoje = Carbon::today();
         $inicioDoMes = Carbon::now()->startOfMonth();
-        $vendas_hoje_valor = Venda::whereDate('data_venda', $hoje)->sum('valor_total');
+        $vendas_hoje_valor = Venda::whereDate('data_venda', $hoje)->where('status','finalizada')->sum('valor_total');
 
-        $vendas_mes_valor = Venda::whereDate('data_venda', '>=', $inicioDoMes)->sum('valor_total');
+        $vendas_mes_valor = Venda::whereDate('data_venda', '>=', $inicioDoMes)->where('status','finalizada')->sum('valor_total');
 
-        $vendas_hoje_numero = Venda::whereDate('data_venda', $hoje)->count();
+        $vendas_hoje_numero = Venda::whereDate('data_venda', $hoje)->where('status','finalizada')->count();
         // 1. Busca os dados já agrupados por dia/mês do ano atual
         $salesByDay = Venda::select(
             DB::raw('MONTH(data_venda) as month'),
@@ -26,6 +26,7 @@ class RelatorioController extends Controller
             DB::raw('SUM(valor_total) as total')
         )
         ->whereYear('data_venda', Carbon::now()->year) // Apenas ano atual
+        ->where('status', 'finalizada')
         ->groupBy('month', 'day')
         ->get();
 
