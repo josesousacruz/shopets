@@ -1,6 +1,6 @@
 // resources/js/Pages/PDV.tsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Printer, XCircle } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useMultiCart } from '../../hooks/useMultiCart';
@@ -10,9 +10,10 @@ import CupomPreviewModal from '../../components/modals/CupomPreviewModal';
 import OffCanvas from '../../components/ui/OffCanvas';
 import CancelarVendaModal from '../../components/modals/CancelarVendaModal';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
-import { Product, Category } from '../../types';
+import { Product, Category, Cart } from '../../types';
 import Swal from 'sweetalert2';
 import axios from 'axios';
+import { debounce } from 'lodash';
 
 interface Cliente {
     id_cliente: number;
@@ -40,6 +41,13 @@ interface DadosFinalizacao {
     desconto_valor?: number;
 }
 
+interface VendaEmAberto {
+    id: number;
+    numero: string;
+    valor_total?: number;
+    status?: string;
+}
+
 interface Props {
     products: Product[];
     categories: Category[];
@@ -57,14 +65,8 @@ interface Props {
         success?: string;
         error?: string;
     };
-    venda?: {
-        id_venda: number;
-        numero_venda: string;
-        status: string;
-    };
 }
 
-// A página recebe os dados (produtos, categorias, clientes e formas de pagamento) como props do controller do Laravel
 function PDV({ 
     products, 
     categories, 
@@ -72,13 +74,10 @@ function PDV({
     formasPagamento,
     empresa,
     flash,
-    venda
 }: Props) {
     
-    // O estado do carrinho é local do frontend, então o hook continua útil!
     const { carts, activeCart, ...cartActions } = useMultiCart();
     
-    // Estado para controlar o modal de finalização
     const [isFinalizarModalOpen, setIsFinalizarModalOpen] = useState(false);
     const [isCupomModalOpen, setIsCupomModalOpen] = useState(false);
     const [cupomVendaId, setCupomVendaId] = useState<number | undefined>(undefined);
@@ -87,30 +86,10 @@ function PDV({
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [cancelSaleId, setCancelSaleId] = useState<number | undefined>(undefined);
     const [cancelSaleStatus, setCancelSaleStatus] = useState<string | undefined>(undefined);
-    const [cupomData, setCupomData] = useState<{
-        venda: { numero?: string; valor_total?: number } | null;
-        items: any[];
-        cliente?: Cliente | null;
-        formaPagamentoNome?: string;
-        observacoes?: string;
-        empresa?: typeof empresa;
-    }>({ venda: null, items: [], cliente: null, formaPagamentoNome: undefined, observacoes: undefined, empresa });
     
-    // Estado para controlar se há uma venda em aberto
-    const [vendaEmAberto, setVendaEmAberto] = useState<{ 
-        id: number; 
-        numero: string; 
-        valor_total?: number; 
-        status?: string; 
-    } | null>(null);
-
-    // Estado para valor do desconto calculado no frontend
-    const [descontoValor, setDescontoValor] = useState<number | null>(null);
-
-    // Estado para produtos atualizados
+    const [vendaEmAberto, setVendaEmAberto] = useState<VendaEmAberto | null>(null);
     const [currentProducts, setCurrentProducts] = useState<Product[]>(products);
 
-    // Função para recarregar produtos do servidor
     const reloadProducts = async () => {
         try {
             const response = await axios.get('/pdv/products');
@@ -122,113 +101,77 @@ function PDV({
         }
     };
 
-    // Verificar se há uma venda criada nos props
-    useEffect(() => {
-        if (venda) {
-            setVendaEmAberto({
-                id: venda.id_venda,
-                numero: venda.numero_venda
-            });
-            setIsFinalizarModalOpen(true);
-        }
-    }, [venda]);
-
-    // Função para abrir o modal de finalização
-    const handleCheckout = async (descontoInfo: { value: number; type: 'fixed' | 'percent' }) => {
-        if (!activeCart || activeCart.items.length === 0) return;
-        // Calcula o desconto somado por item e define para o modal
-        const descontoItens = activeCart.items.reduce((s: number, it: any) => s + (Number(it.desconto_item) || 0), 0);
-        setDescontoValor(descontoItens);
-
-        // Se já existe uma venda em aberto, apenas abre o modal
-        if (vendaEmAberto) {
-            setIsFinalizarModalOpen(true);
+    const handleCheckout = async () => {
+        if (!activeCart || activeCart.items.length === 0) {
+            Swal.fire('Atenção!', 'Adicione itens ao carrinho antes de finalizar a venda.', 'warning');
             return;
         }
 
-        // Cria uma nova venda em aberto
-        const saleData = {
-            items: activeCart.items.map((it: any) => ({
-                product: it.product,
-                quantity: it.quantity,
-                desconto_item: it.desconto_item ?? it.discount ?? 0,
-            })),
-            total: activeCart.total,
-            paymentMethod: 'pendente' // Será definido na finalização
-        };
-
         try {
-            // Faz requisição em segundo plano para criar a venda
-            const response = await axios.post('/sales', saleData);
-            console.log('Resposta da criação da venda:', response.data);
-            
-            if (response.data.success && response.data.venda) {
-                // Armazena os dados da venda temporariamente
-                setVendaEmAberto({
+            let currentVenda = vendaEmAberto;
+
+            // 1. Se não houver venda em aberto, crie uma nova
+            if (!currentVenda) {
+                const response = await axios.post('/sales');
+                if (!response.data.success || !response.data.venda) {
+                    throw new Error('Falha ao criar o cabeçalho da venda.');
+                }
+                currentVenda = {
                     id: response.data.venda.id_venda,
                     numero: response.data.venda.numero_venda,
-                    valor_total: response.data.venda.valor_total,
-                    status: response.data.venda.status
-                });
-                
-                // Abre o modal de finalização
-                setIsFinalizarModalOpen(true);
-            } else {
-                console.error('Venda não encontrada na resposta:', response.data);
-                Swal.fire('Erro!', 'Não foi possível obter os dados da venda criada.', 'error');
+                    status: response.data.venda.status,
+                };
+                setVendaEmAberto(currentVenda);
             }
+
+            // Abre o modal de finalização
+            setIsFinalizarModalOpen(true);
+
         } catch (error) {
-            console.error('Erro ao criar venda:', error);
-            Swal.fire('Erro!', 'Não foi possível criar a venda.', 'error');
+            console.error('Erro no processo de checkout:', error);
+            Swal.fire('Erro!', 'Não foi possível iniciar o processo de venda.', 'error');
         }
     };
 
-    // Função para finalizar a venda
     const handleFinalizarVenda = async (dados: DadosFinalizacao) => {
-        if (!activeCart || activeCart.items.length === 0) return;
-        
-        // Verificar se temos uma venda em aberto
-        if (!vendaEmAberto || !vendaEmAberto.id) {
-            console.error('Nenhuma venda em aberto encontrada:', vendaEmAberto);
-            Swal.fire('Erro!', 'Nenhuma venda em aberto encontrada. Tente novamente.', 'error');
+        if (!vendaEmAberto || !activeCart) {
+            Swal.fire('Erro!', 'Nenhuma venda em aberto ou carrinho ativo.', 'error');
             return;
         }
 
-        const saleData = {
+        // Monta o payload único com todos os dados necessários
+        const finalSaleData = {
             id_venda: vendaEmAberto.id,
-            id_forma_pagamento: dados.id_forma_pagamento,
             id_cliente: dados.id_cliente,
-            pontos_fidelidade_utilizados: dados.pontos_fidelidade_utilizados,
+            id_forma_pagamento: dados.id_forma_pagamento,
             observacoes: dados.observacoes,
-            desconto_valor: dados.desconto_valor ?? descontoValor ?? 0
+            items: activeCart.items.map((it: any) => ({
+                product: it.product,
+                quantity: it.quantity,
+                desconto_item: it.desconto_item ?? 0,
+            })),
         };
 
-        console.log('Dados enviados para finalização:', saleData);
-
         try {
-            const response = await axios.post('/sales/finalizar', saleData);
+            // Faz a chamada única para a rota de finalização
+            const response = await axios.post('/sales/finalizar', finalSaleData);
             
             if (response.data.success) {
-                const acaoPos = dados.acao_pos || 'finalizar';
-                if (acaoPos === 'cupom') {
+                if (dados.acao_pos === 'cupom') {
                     setCupomVendaId(vendaEmAberto.id);
                     setIsCupomModalOpen(true);
-                } else if (acaoPos === 'nfe') {
-                    await Swal.fire('NFe', 'Emissão de NFe ainda não implementada.', 'info');
                 }
+                
                 setIsFinalizarModalOpen(false);
                 setVendaEmAberto(null);
-                cartActions.removeCart(activeCart!.id);
+                cartActions.removeCart(activeCart.id);
                 
-                // Recarregar produtos após finalizar venda
                 await reloadProducts();
-                
                 Swal.fire('Venda Finalizada!', response.data.message, 'success');
             } else {
                 Swal.fire('Erro!', response.data.message || 'Não foi possível finalizar a venda.', 'error');
             }
         } catch (error: any) {
-            console.error('Erro ao finalizar venda:', error);
             const errorMessage = error.response?.data?.message || 'Não foi possível finalizar a venda.';
             Swal.fire('Erro!', errorMessage, 'error');
         }
@@ -262,15 +205,12 @@ function PDV({
         }
     };
 
-    // Removido: abertura de nova janela para imprimir cupom
-
-    // Função para cancelar a venda
     const handleCancelarVenda = () => {
         if (!vendaEmAberto) return;
 
         Swal.fire({
             title: 'Cancelar Venda?',
-            text: 'Esta ação não pode ser desfeita.',
+            text: 'Esta ação irá cancelar a venda em aberto.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -282,23 +222,21 @@ function PDV({
                 try {
                     const response = await axios.post('/sales/cancelar', {
                         id_venda: vendaEmAberto.id,
-                        motivo: 'Cancelada pelo usuário no PDV'
+                        motivo: 'Cancelada pelo usuário no PDV antes de finalizar'
                     });
 
                     if (response.data.success) {
                         setIsFinalizarModalOpen(false);
                         setVendaEmAberto(null);
-                        cartActions.removeCart(activeCart!.id);
-                        
-                        // Recarregar produtos após cancelar venda
+                        if (activeCart) {
+                            cartActions.removeCart(activeCart.id);
+                        }
                         await reloadProducts();
-                        
                         Swal.fire('Cancelada!', response.data.message, 'success');
                     } else {
                         Swal.fire('Erro!', response.data.message || 'Não foi possível cancelar a venda.', 'error');
                     }
                 } catch (error: any) {
-                    console.error('Erro ao cancelar venda:', error);
                     const errorMessage = error.response?.data?.message || 'Não foi possível cancelar a venda.';
                     Swal.fire('Erro!', errorMessage, 'error');
                 }
@@ -306,48 +244,46 @@ function PDV({
         });
     };
 
-    // Função para fechar o modal sem finalizar (mantém a venda em aberto)
     const handleCloseModal = () => {
         setIsFinalizarModalOpen(false);
-        // NÃO limpa vendaEmAberto - mantém a venda em aberto para reutilização
     };
 
     return (
         <>
-      <PDVView
-        products={currentProducts}
-        categories={categories}
-        carts={carts}
-        activeCart={activeCart}
-        onCheckout={handleCheckout}
-        onAddCart={cartActions.addCart}
-        onRemoveCart={cartActions.removeCart}
-        onRenameCart={cartActions.renameCart}
-        onSelectCart={cartActions.setActiveCart}
-        onAddToCart={cartActions.addItemToActiveCart}
-        onUpdateQuantity={cartActions.updateActiveCartItemQuantity}
-        onRemoveItem={cartActions.removeActiveCartItem}
-        vendaEmAberto={vendaEmAberto}
-        onCancelarVenda={handleCancelarVenda}
-        onOpenHistory={openHistory}
-        onUpdateItemDiscount={cartActions.updateActiveCartItemDiscount}
-      />
+            <PDVView
+                products={currentProducts}
+                categories={categories}
+                carts={carts}
+                activeCart={activeCart}
+                onCheckout={handleCheckout}
+                onAddCart={cartActions.addCart}
+                onRemoveCart={cartActions.removeCart}
+                onRenameCart={cartActions.renameCart}
+                onSelectCart={cartActions.setActiveCart}
+                onAddToCart={cartActions.addItemToActiveCart}
+                onUpdateQuantity={cartActions.updateActiveCartItemQuantity}
+                onRemoveItem={cartActions.removeActiveCartItem}
+                vendaEmAberto={vendaEmAberto}
+                onCancelarVenda={handleCancelarVenda}
+                onOpenHistory={openHistory}
+                onUpdateItemDiscount={cartActions.updateActiveCartItemDiscount}
+            />
             
             {(() => {
                 const subtotalBrutoCart = activeCart ? activeCart.items.reduce((s: number, it: any) => s + ((Number(it.product.price) || 0) * (Number(it.quantity) || 0)), 0) : 0;
                 const descontoItensCart = activeCart ? activeCart.items.reduce((s: number, it: any) => s + (Number(it.desconto_item) || 0), 0) : 0;
                 return (
-            <FinalizarVendaModal
-                isOpen={isFinalizarModalOpen}
-                onClose={handleCloseModal}
-                onConfirm={handleFinalizarVenda}
-                onCancel={handleCancelarVenda}
-                valorTotal={subtotalBrutoCart}
-                numeroVenda={vendaEmAberto?.numero}
-                clientes={clientes}
-                formasPagamento={formasPagamento}
-                descontoValor={descontoItensCart}
-            />
+                    <FinalizarVendaModal
+                        isOpen={isFinalizarModalOpen}
+                        onClose={handleCloseModal}
+                        onConfirm={handleFinalizarVenda}
+                        onCancel={handleCancelarVenda}
+                        valorTotal={subtotalBrutoCart}
+                        numeroVenda={vendaEmAberto?.numero}
+                        clientes={clientes}
+                        formasPagamento={formasPagamento}
+                        descontoValor={descontoItensCart}
+                    />
                 );
             })()}
 
@@ -425,7 +361,6 @@ function PDV({
     );
 }
 
-// Diz ao Inertia para usar o AuthenticatedLayout para esta página
 PDV.layout = (page) => <AuthenticatedLayout children={page} currentView="pdv" />;
 
 export default PDV;

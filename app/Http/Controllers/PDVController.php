@@ -231,39 +231,14 @@ class PDVController extends Controller
     }
 
     /**
-     * Store a new sale.
+     * Store a new sale header.
      */
     public function storeSale(Request $request)
     {
-        // Log dos dados recebidos para debug
-        \Log::info('PDV Sale Request Data:', [
-            'all_data' => $request->all(),
-            'items' => $request->input('items'),
-            'total' => $request->input('total'),
-            'paymentMethod' => $request->input('paymentMethod'),
-        ]);
-
         try {
-            // Validação dos dados recebidos
-            $validated = $request->validate([
-                'items' => 'required|array|min:1',
-                'items.*.product' => 'required',
-                'items.*.product.id' => 'required',
-                'items.*.product.price' => 'required|numeric|min:0',
-                'items.*.quantity' => 'required|numeric|min:0.01',
-                'items.*.desconto_item' => 'nullable|numeric|min:0',
-                'total' => 'required|numeric|min:0',
-                'paymentMethod' => 'required|string|in:dinheiro,cartao_credito,cartao_debito,pix,transferencia,cheque,pendente',
-                'customer' => 'nullable|string',
-                'discount' => 'nullable|numeric|min:0',
-            ]);
-
-            \Log::info('PDV Sale Validation Passed:', $validated);
-
-            // Implementar a lógica real de salvamento da venda
             \DB::beginTransaction();
             
-            // Gerar número da venda manualmente (já que a trigger não está funcionando)
+            // Gerar número da venda
             $anoAtual = date('Y');
             $ultimaVenda = Venda::where('numero_venda', 'like', $anoAtual . '%')
                 ->orderBy('numero_venda', 'desc')
@@ -276,111 +251,39 @@ class PDVController extends Controller
             }
             
             $numeroVenda = $anoAtual . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
-            
-            // Calcular subtotal bruto, desconto total de itens e total líquido
-            $valorSubtotal = 0.0;
-            $valorDescontoItens = 0.0;
-            foreach ($validated['items'] as $it) {
-                $valorSubtotal += ((float)$it['product']['price']) * ((float)$it['quantity']);
-                $valorDescontoItens += isset($it['desconto_item']) ? (float)$it['desconto_item'] : 0.0;
-            }
-            $valorTotal = max(0.0, $valorSubtotal - $valorDescontoItens);
 
-            // Criar a venda com status 'aberta'
+            // Criar a venda com status 'aberta' e valores zerados
             $venda = Venda::create([
                 'numero_venda' => $numeroVenda,
-                'id_cliente' => null, // Será definido no modal de finalização
                 'id_usuario' => auth()->id(),
-                'id_pdv' => 1, // Por enquanto PDV fixo
-                'valor_subtotal' => $valorSubtotal,
-                'valor_desconto' => $valorDescontoItens,
+                'id_pdv' => 1, // Fixo por enquanto
+                'valor_subtotal' => 0,
+                'valor_desconto' => 0,
                 'valor_acrescimo' => 0,
-                'valor_total' => $valorTotal,
-                'pontos_fidelidade_utilizados' => 0,
-                'pontos_fidelidade_gerados' => 0,
+                'valor_total' => 0,
                 'status' => 'aberta',
-                'observacoes' => null,
                 'data_venda' => now(),
             ]);
             
-            \Log::info('Venda criada:', ['venda_id' => $venda->id_venda, 'numero_venda' => $venda->numero_venda]);
-            
-            // Criar os itens da venda
-            foreach ($validated['items'] as $item) {
-                $descontoItem = isset($item['desconto_item']) ? (float) $item['desconto_item'] : 0.0;
-                $valorBrutoItem = (float) $item['product']['price'] * (float) $item['quantity'];
-                $valorTotalItem = max(0, $valorBrutoItem - $descontoItem);
-                
-                ItemVenda::create([
-                    'id_venda' => $venda->id_venda,
-                    'id_produto' => $item['product']['id'],
-                    'quantidade' => $item['quantity'],
-                    'preco_unitario' => $item['product']['price'],
-                    'desconto_item' => $descontoItem,
-                    'valor_total_item' => $valorTotalItem,
-                    'observacoes' => null,
-                ]);
-                
-                \Log::info('Item venda criado:', [
-                    'produto_id' => $item['product']['id'],
-                    'quantidade' => $item['quantity'],
-                    'valor_bruto' => $valorBrutoItem,
-                    'desconto_item' => $descontoItem,
-                    'valor_total' => $valorTotalItem
-                ]);
-            }
-            
             \DB::commit();
             
-            \Log::info('PDV Sale Success:', ['venda_id' => $venda->id_venda, 'numero_venda' => $venda->numero_venda]);
+            \Log::info('Venda header created:', ['venda_id' => $venda->id_venda, 'numero_venda' => $venda->numero_venda]);
             
-            // Retorna resposta JSON com os dados da venda criada
             return response()->json([
                 'success' => true,
-                'message' => "Venda #{$venda->numero_venda} criada com sucesso! Agora finalize a venda no modal.",
-                'venda' => [
-                    'id_venda' => $venda->id_venda,
-                    'numero_venda' => $venda->numero_venda,
-                    'valor_subtotal' => $venda->valor_subtotal,
-                    'valor_desconto' => $venda->valor_desconto,
-                    'valor_acrescimo' => $venda->valor_acrescimo,
-                    'valor_total' => $venda->valor_total,
-                    'status' => $venda->status,
-                    'data_venda' => $venda->data_venda
-                ]
+                'message' => "Venda #{$venda->numero_venda} iniciada com sucesso!",
+                'venda' => $venda->only(['id_venda', 'numero_venda', 'status', 'valor_total'])
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \DB::rollback();
-            
-            \Log::error('PDV Sale Validation Failed:', [
-                'errors' => $e->errors(),
-                'request_data' => $request->all()
-            ]);
-            
-            // Retorna erro compatível com Inertia.js
-            return back()->withErrors([
-                'sale' => 'Dados inválidos para finalizar a venda: ' . implode(', ', Arr::flatten($e->errors()))
-            ]);
-            
         } catch (\Exception $e) {
             \DB::rollback();
-            
-            \Log::error('PDV Sale Error:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-            
-            // Retorna erro compatível com Inertia.js
-            return back()->withErrors([
-                'sale' => 'Erro interno do servidor. Tente novamente.'
-            ]);
+            \Log::error('PDV Store Sale Error:', ['message' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Erro ao iniciar a venda.'], 500);
         }
     }
 
     /**
-     * Finalizar uma venda em aberto
+     * Finalizar uma venda em aberto, incluindo seus itens.
      */
     public function finalizarVenda(Request $request)
     {
@@ -389,26 +292,57 @@ class PDVController extends Controller
                 'id_venda' => 'required|exists:vendas,id_venda',
                 'id_cliente' => 'nullable|exists:clientes,id_cliente',
                 'id_forma_pagamento' => 'required|exists:formas_pagamento,id_forma_pagamento',
-                'pontos_fidelidade_utilizados' => 'nullable|numeric|min:0',
                 'observacoes' => 'nullable|string|max:500',
-                'desconto_valor' => 'nullable|numeric|min:0',
+                'items' => 'required|array|min:1',
+                'items.*.product.id' => 'required|exists:produtos,id_produto',
+                'items.*.product.price' => 'required|numeric|min:0',
+                'items.*.quantity' => 'required|numeric|min:0.01',
+                'items.*.desconto_item' => 'nullable|numeric|min:0',
             ]);
 
             \DB::beginTransaction();
 
-            // Buscar a venda: permitir cancelar 'aberta' ou 'finalizada'
-            $venda = Venda::where('id_venda', $validated['id_venda'])
-                          ->whereIn('status', ['aberta', 'finalizada'])
-                          ->firstOrFail();
+            $venda = Venda::where('id_venda', $validated['id_venda'])->where('status', 'aberta')->firstOrFail();
 
-            // Atualizar a venda para finalizada
+            // Apagar itens antigos para garantir consistência
+            $venda->itens()->delete();
+
+            $valorSubtotal = 0.0;
+            $valorDescontoItens = 0.0;
+
+            // Criar novos itens e calcular totais
+            foreach ($validated['items'] as $item) {
+                $precoUnitario = (float) $item['product']['price'];
+                $quantidade = (float) $item['quantity'];
+                $descontoItem = isset($item['desconto_item']) ? (float) $item['desconto_item'] : 0.0;
+
+                $valorBrutoItem = $precoUnitario * $quantidade;
+                $valorTotalItem = max(0, $valorBrutoItem - $descontoItem);
+
+                ItemVenda::create([
+                    'id_venda' => $venda->id_venda,
+                    'id_produto' => $item['product']['id'],
+                    'quantidade' => $quantidade,
+                    'preco_unitario' => $precoUnitario,
+                    'desconto_item' => $descontoItem,
+                    'valor_total_item' => $valorTotalItem,
+                ]);
+
+                $valorSubtotal += $valorBrutoItem;
+                $valorDescontoItens += $descontoItem;
+            }
+
+            $valorTotal = max(0.0, $valorSubtotal - $valorDescontoItens);
+
+            // Atualizar a venda com os totais e dados de finalização
             $venda->update([
                 'id_cliente' => $validated['id_cliente'] ?? null,
                 'id_forma_pagamento' => $validated['id_forma_pagamento'],
-                'pontos_fidelidade_utilizados' => $validated['pontos_fidelidade_utilizados'] ?? 0,
                 'observacoes' => $validated['observacoes'] ?? null,
-                'valor_desconto' => $validated['desconto_valor'] ?? 0,
-                'status' => 'finalizada', // Mudança de status que ativará os triggers
+                'valor_subtotal' => $valorSubtotal,
+                'valor_desconto' => $valorDescontoItens,
+                'valor_total' => $valorTotal,
+                'status' => 'finalizada', // Triggers de estoque e caixa serão ativados aqui
             ]);
 
             \DB::commit();
@@ -416,7 +350,6 @@ class PDVController extends Controller
             \Log::info('Venda finalizada:', [
                 'venda_id' => $venda->id_venda,
                 'numero_venda' => $venda->numero_venda,
-                'forma_pagamento' => $validated['id_forma_pagamento']
             ]);
 
             return response()->json([
@@ -425,19 +358,14 @@ class PDVController extends Controller
                 'venda' => $venda->fresh()
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \DB::rollback();
+            \Log::error('Erro de validação ao finalizar venda:', ['errors' => $e->errors(), 'request' => $request->all()]);
+            return response()->json(['success' => false, 'message' => 'Dados inválidos: ' . implode(', ', Arr::flatten($e->errors()))], 422);
         } catch (\Exception $e) {
             \DB::rollback();
-            
-            \Log::error('Erro ao finalizar venda:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao finalizar venda: ' . $e->getMessage()
-            ], 500);
+            \Log::error('Erro ao finalizar venda:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Erro interno ao finalizar a venda.'], 500);
         }
     }
 
