@@ -15,7 +15,7 @@ return new class extends Migration
             return;
         }
 
-        // Criar trigger BEFORE UPDATE em vendas para recalcular subtotal/total via SET NEW.*
+        // Criar trigger BEFORE UPDATE em vendas para recalcular subtotal/desconto/total via SET NEW.*
         DB::unprepared('DROP TRIGGER IF EXISTS tr_atualizar_valor_total_venda_before_update');
         DB::unprepared('
             CREATE TRIGGER tr_atualizar_valor_total_venda_before_update
@@ -23,7 +23,12 @@ return new class extends Migration
             FOR EACH ROW
             BEGIN
                 SET NEW.valor_subtotal = (
-                    SELECT COALESCE(SUM(valor_total_item), 0)
+                    SELECT COALESCE(SUM(preco_unitario * quantidade), 0)
+                    FROM itens_venda
+                    WHERE id_venda = NEW.id_venda
+                );
+                SET NEW.valor_desconto = (
+                    SELECT COALESCE(SUM(desconto_item), 0)
                     FROM itens_venda
                     WHERE id_venda = NEW.id_venda
                 );

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Plus, Minus, Edit2, Check, ShoppingBag, X } from 'lucide-react';
+import { Trash2, Plus, Minus, Edit2, Check, ShoppingBag, X, Percent } from 'lucide-react';
 import { Cart as CartType, CartItem, Product } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import CartDesconto from './CartDesconto';
 import { categories } from '../../data/mockData';
+import ItemDescontoModal from '../modals/ItemDescontoModal';
 
 interface CartProps {
   cart: CartType | null;
@@ -13,6 +14,7 @@ interface CartProps {
   onRenameCart: (cartId: string, newName: string) => void;
   vendaEmAberto?: { id: number; numero: string } | null;
   onCancelarVenda?: () => void;
+  onUpdateItemDiscount?: (productId: string, desconto_item: number) => void;
 }
 
 const getUnitLabel = (unit: string): string => {
@@ -31,6 +33,7 @@ const Cart: React.FC<CartProps> = ({
   onRenameCart,
   vendaEmAberto,
   onCancelarVenda,
+  onUpdateItemDiscount,
 }) => {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<string>('');
@@ -38,6 +41,9 @@ const Cart: React.FC<CartProps> = ({
   const [cartName, setCartName] = useState(cart?.name || '');
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
+  const [discountItemModalOpen, setDiscountItemModalOpen] = useState(false);
+  const [discountItemContext, setDiscountItemContext] = useState<{ id: string; name: string; price: number; qty: number } | null>(null);
+  const showCartDiscount = false;
 
   useEffect(() => {
     if (cart) {
@@ -166,8 +172,23 @@ const Cart: React.FC<CartProps> = ({
                       <button onClick={() => onRemoveItem(item.product.id)} className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0 p-1">
                         <Trash2 size={16} />
                       </button>
+                      <button onClick={() => { setDiscountItemContext({ id: item.product.id, name: item.product.name, price: Number(item.product.price) || 0, qty: Number(item.quantity) || 0 }); setDiscountItemModalOpen(true); }} className="text-gray-400 hover:text-blue-600 ml-1 flex-shrink-0 p-1" aria-label="Aplicar desconto">
+                        <Percent size={16} />
+                      </button>
                     </div>
-                    <p className="text-sm font-bold text-green-600 mt-1">R$ {((Number(item.product.price) || 0) * item.quantity).toFixed(2)}</p>
+                    {(() => {
+                      const bruto = (Number(item.product.price) || 0) * (Number(item.quantity) || 0);
+                      const desconto = Number(item.desconto_item || 0);
+                      const liquido = Math.max(0, bruto - desconto);
+                      return (
+                        <div className="mt-1">
+                          {desconto > 0 && (
+                            <div className="text-xs text-gray-500 line-through">R$ {bruto.toFixed(2)}</div>
+                          )}
+                          <div className="text-sm font-bold text-green-600">R$ {liquido.toFixed(2)}</div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex items-center justify-between mt-2">
                       {editingItem === item.product.id ? (
@@ -197,27 +218,29 @@ const Cart: React.FC<CartProps> = ({
         </div>
       )}
       
-      <div className="p-4 border-t border-gray-100 bg-white md:bg-gray-50">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Desconto</span>
-          <CartDesconto
-            onApply={(value, type) => {
-              setDiscountValue(value);
-              setDiscountType(type);
-            }}
-          />
-        </div>
-        {discountValue > 0 && (
-          <div className="mt-2 text-sm text-gray-600">
-            {discountType === 'fixed'
-              ? `Aplicado: R$ ${discountValue.toFixed(2)}`
-              : `Aplicado: ${discountValue}%`}
+      {showCartDiscount && (
+        <div className="p-4 border-t border-gray-100 bg-white md:bg-gray-50">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Desconto</span>
+            <CartDesconto
+              onApply={(value, type) => {
+                setDiscountValue(value);
+                setDiscountType(type);
+              }}
+            />
           </div>
-        )}
-      </div>
+          {discountValue > 0 && (
+            <div className="mt-2 text-sm text-gray-600">
+              {discountType === 'fixed'
+                ? `Aplicado: R$ ${discountValue.toFixed(2)}`
+                : `Aplicado: ${discountValue}%`}
+            </div>
+          )}
+        </div>
+      )}
       
       <div className="p-4 border-t border-gray-200 bg-white rounded-b-xl md:bg-gray-50 flex-shrink-0">
-        {appliedDiscountValue > 0 && (
+        {showCartDiscount && appliedDiscountValue > 0 && (
           <div className="space-y-1 mb-3 text-sm text-gray-700">
             <div className="flex justify-between">
               <span>Sem desconto:</span>
@@ -236,7 +259,7 @@ const Cart: React.FC<CartProps> = ({
         
         <div className="space-y-2">
           <button 
-            onClick={() => onCheckout({ value: discountValue, type: discountType })} 
+            onClick={() => onCheckout({ value: 0, type: 'fixed' })} 
             disabled={items.length === 0} 
             className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
@@ -253,6 +276,24 @@ const Cart: React.FC<CartProps> = ({
           )}
         </div>
       </div>
+
+      <ItemDescontoModal
+        isOpen={discountItemModalOpen}
+        onClose={() => setDiscountItemModalOpen(false)}
+        itemName={discountItemContext?.name}
+        onApply={(value, type) => {
+          if (!discountItemContext) return;
+          const bruto = discountItemContext.price * discountItemContext.qty;
+          let desconto = 0;
+          if (type === 'fixed') {
+            desconto = Math.max(0, Math.min(value, bruto));
+          } else {
+            desconto = Math.max(0, Math.min((bruto * value) / 100, bruto));
+          }
+          onUpdateItemDiscount && onUpdateItemDiscount(discountItemContext.id, desconto);
+          setDiscountItemModalOpen(false);
+        }}
+      />
     </div>
   );
 };

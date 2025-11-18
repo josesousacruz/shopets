@@ -16,6 +16,7 @@ return new class extends Migration
         }
 
         // Trigger 1: Atualizar estoque automaticamente após venda
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_atualizar_estoque_venda');
         DB::unprepared('
             CREATE TRIGGER tr_atualizar_estoque_venda
             AFTER INSERT ON itens_venda
@@ -36,6 +37,7 @@ return new class extends Migration
         ');
 
         // Trigger 2: Calcular pontos de fidelidade automaticamente
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_calcular_pontos_fidelidade');
         DB::unprepared('
             CREATE TRIGGER tr_calcular_pontos_fidelidade
             AFTER UPDATE ON vendas
@@ -50,6 +52,7 @@ return new class extends Migration
         ');
 
         // Trigger 3: Verificar estoque mínimo
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_verificar_estoque_minimo');
         DB::unprepared('
             CREATE TRIGGER tr_verificar_estoque_minimo
             AFTER UPDATE ON produtos
@@ -68,7 +71,8 @@ return new class extends Migration
             END
         ');
 
-        // Trigger 4: Atualizar valor total da venda
+        // Trigger 4: Atualizar valores da venda (subtotal, desconto e total)
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_atualizar_valor_total_venda');
         DB::unprepared('
             CREATE TRIGGER tr_atualizar_valor_total_venda
             AFTER INSERT ON itens_venda
@@ -76,8 +80,13 @@ return new class extends Migration
             BEGIN
                 UPDATE vendas 
                 SET valor_subtotal = (
-                    SELECT COALESCE(SUM(valor_total_item), 0) 
+                    SELECT COALESCE(SUM(preco_unitario * quantidade), 0) 
                     FROM itens_venda 
+                    WHERE id_venda = NEW.id_venda
+                ),
+                valor_desconto = (
+                    SELECT COALESCE(SUM(desconto_item), 0)
+                    FROM itens_venda
                     WHERE id_venda = NEW.id_venda
                 ),
                 valor_total = valor_subtotal + valor_acrescimo - valor_desconto
@@ -86,6 +95,7 @@ return new class extends Migration
         ');
 
         // Trigger 5: Validar limite de crédito do cliente
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_validar_limite_credito');
         DB::unprepared('
             CREATE TRIGGER tr_validar_limite_credito
             BEFORE INSERT ON vendas
@@ -107,6 +117,7 @@ return new class extends Migration
         ');
 
         // Trigger 6: Atualizar crédito utilizado do cliente
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_atualizar_credito_cliente');
         DB::unprepared('
             CREATE TRIGGER tr_atualizar_credito_cliente
             AFTER UPDATE ON vendas
@@ -127,6 +138,7 @@ return new class extends Migration
         ');
 
         // Trigger 7: Gerar número sequencial de venda
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_gerar_numero_venda');
         DB::unprepared('
             CREATE TRIGGER tr_gerar_numero_venda
             BEFORE INSERT ON vendas
@@ -146,6 +158,7 @@ return new class extends Migration
         ');
 
         // Trigger 8: Fluxo de caixa para vendas finalizadas
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_venda');
         DB::unprepared('
             CREATE TRIGGER tr_fluxo_caixa_venda
             AFTER UPDATE ON vendas
@@ -163,6 +176,7 @@ return new class extends Migration
         ');
 
         // Trigger 9: Fluxo de caixa para pagamento de contas a pagar
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_conta_pagar');
         DB::unprepared('
             CREATE TRIGGER tr_fluxo_caixa_conta_pagar
             AFTER UPDATE ON contas_pagar
@@ -180,6 +194,7 @@ return new class extends Migration
         ');
 
         // Trigger 10: Fluxo de caixa para recebimento de contas a receber
+        DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_conta_receber');
         DB::unprepared('
             CREATE TRIGGER tr_fluxo_caixa_conta_receber
             AFTER UPDATE ON contas_receber

@@ -151,6 +151,85 @@ class PDVController extends Controller
         return response()->json(['products' => $products]);
     }
 
+    public function getCupomDados($id)
+    {
+        $venda = Venda::with(['itens.produto', 'cliente', 'formaPagamento'])->findOrFail($id);
+
+        $items = $venda->itens->map(function ($item) {
+            return [
+                'product' => [
+                    'id' => $item->id_produto,
+                    'name' => optional($item->produto)->nome,
+                    'price' => (float) $item->preco_unitario,
+                ],
+                'quantity' => (float) $item->quantidade,
+                'desconto_item' => (float) ($item->desconto_item ?? 0),
+                'valor_total_item' => (float) ($item->valor_total_item ?? ((float)$item->preco_unitario * (float)$item->quantidade)),
+            ];
+        });
+
+        $cliente = $venda->cliente ? [
+            'id_cliente' => $venda->cliente->id_cliente,
+            'nome' => $venda->cliente->nome,
+            'email' => $venda->cliente->email,
+            'telefone' => $venda->cliente->telefone,
+            'pontos_fidelidade' => (float) ($venda->cliente->pontos_fidelidade ?? 0),
+        ] : null;
+
+        $formaPagamentoNome = $venda->formaPagamento ? $venda->formaPagamento->nome : null;
+
+        $empresaModel = ConfiguracaoEmpresa::first();
+        $empresa = $empresaModel ? [
+            'nome_empresa' => $empresaModel->nome_empresa,
+            'razao_social' => $empresaModel->razao_social,
+            'cnpj' => $empresaModel->cnpj,
+            'telefone' => $empresaModel->telefone,
+            'email' => $empresaModel->email,
+            'endereco' => $empresaModel->endereco,
+        ] : null;
+
+        return response()->json([
+            'venda' => [
+                'id_venda' => $venda->id_venda,
+                'numero' => $venda->numero_venda,
+                'valor_liquido' => (float) $venda->valor_total,
+                'valor_bruto' => (float) $venda->valor_subtotal,
+                'valor_desconto' => (float) $venda->valor_desconto,
+                'observacoes' => $venda->observacoes,
+                'data_venda' => $venda->data_venda,
+            ],
+            'items' => $items,
+            'cliente' => $cliente,
+            'formaPagamentoNome' => $formaPagamentoNome,
+            'empresa' => $empresa,
+        ]);
+    }
+
+    public function getRecentSales()
+    {
+        $userId = auth()->id();
+        $vendas = Venda::with(['cliente', 'formaPagamento'])
+            ->where('id_usuario', $userId)
+            ->orderBy('data_venda', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($v) {
+                return [
+                    'id_venda' => $v->id_venda,
+                    'numero_venda' => $v->numero_venda,
+                    'valor_total' => (float) $v->valor_total,
+                    'valor_subtotal' => (float) $v->valor_subtotal,
+                    'valor_desconto' => (float) $v->valor_desconto,
+                    'data_venda' => $v->data_venda,
+                    'status' => $v->status,
+                    'cliente' => $v->cliente ? $v->cliente->nome : null,
+                    'forma_pagamento' => $v->formaPagamento ? $v->formaPagamento->nome : null,
+                ];
+            });
+
+        return response()->json(['vendas' => $vendas]);
+    }
+
     /**
      * Store a new sale.
      */
@@ -172,6 +251,7 @@ class PDVController extends Controller
                 'items.*.product.id' => 'required',
                 'items.*.product.price' => 'required|numeric|min:0',
                 'items.*.quantity' => 'required|numeric|min:0.01',
+                'items.*.desconto_item' => 'nullable|numeric|min:0',
                 'total' => 'required|numeric|min:0',
                 'paymentMethod' => 'required|string|in:dinheiro,cartao_credito,cartao_debito,pix,transferencia,cheque,pendente',
                 'customer' => 'nullable|string',
@@ -197,20 +277,29 @@ class PDVController extends Controller
             
             $numeroVenda = $anoAtual . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
             
+            // Calcular subtotal bruto, desconto total de itens e total líquido
+            $valorSubtotal = 0.0;
+            $valorDescontoItens = 0.0;
+            foreach ($validated['items'] as $it) {
+                $valorSubtotal += ((float)$it['product']['price']) * ((float)$it['quantity']);
+                $valorDescontoItens += isset($it['desconto_item']) ? (float)$it['desconto_item'] : 0.0;
+            }
+            $valorTotal = max(0.0, $valorSubtotal - $valorDescontoItens);
+
             // Criar a venda com status 'aberta'
             $venda = Venda::create([
                 'numero_venda' => $numeroVenda,
                 'id_cliente' => null, // Será definido no modal de finalização
                 'id_usuario' => auth()->id(),
                 'id_pdv' => 1, // Por enquanto PDV fixo
-                'valor_subtotal' => $validated['total'],
-                'valor_desconto' => $validated['discount'] ?? 0,
+                'valor_subtotal' => $valorSubtotal,
+                'valor_desconto' => $valorDescontoItens,
                 'valor_acrescimo' => 0,
-                'valor_total' => $validated['total'],
+                'valor_total' => $valorTotal,
                 'pontos_fidelidade_utilizados' => 0,
                 'pontos_fidelidade_gerados' => 0,
-                'status' => 'aberta', // Mudança aqui: criando como 'aberta' (valor correto do ENUM)
-                'observacoes' => null, // Observações serão definidas na finalização
+                'status' => 'aberta',
+                'observacoes' => null,
                 'data_venda' => now(),
             ]);
             
@@ -218,14 +307,16 @@ class PDVController extends Controller
             
             // Criar os itens da venda
             foreach ($validated['items'] as $item) {
-                $valorTotalItem = $item['product']['price'] * $item['quantity'];
+                $descontoItem = isset($item['desconto_item']) ? (float) $item['desconto_item'] : 0.0;
+                $valorBrutoItem = (float) $item['product']['price'] * (float) $item['quantity'];
+                $valorTotalItem = max(0, $valorBrutoItem - $descontoItem);
                 
                 ItemVenda::create([
                     'id_venda' => $venda->id_venda,
                     'id_produto' => $item['product']['id'],
                     'quantidade' => $item['quantity'],
                     'preco_unitario' => $item['product']['price'],
-                    'desconto_item' => 0,
+                    'desconto_item' => $descontoItem,
                     'valor_total_item' => $valorTotalItem,
                     'observacoes' => null,
                 ]);
@@ -233,6 +324,8 @@ class PDVController extends Controller
                 \Log::info('Item venda criado:', [
                     'produto_id' => $item['product']['id'],
                     'quantidade' => $item['quantity'],
+                    'valor_bruto' => $valorBrutoItem,
+                    'desconto_item' => $descontoItem,
                     'valor_total' => $valorTotalItem
                 ]);
             }
@@ -303,9 +396,9 @@ class PDVController extends Controller
 
             \DB::beginTransaction();
 
-            // Buscar a venda
+            // Buscar a venda: permitir cancelar 'aberta' ou 'finalizada'
             $venda = Venda::where('id_venda', $validated['id_venda'])
-                          ->where('status', 'aberta')
+                          ->whereIn('status', ['aberta', 'finalizada'])
                           ->firstOrFail();
 
             // Atualizar a venda para finalizada
@@ -361,9 +454,9 @@ class PDVController extends Controller
 
             \DB::beginTransaction();
 
-            // Buscar a venda
+            // Buscar a venda: permitir cancelar 'aberta' ou 'finalizada'
             $venda = Venda::where('id_venda', $validated['id_venda'])
-                          ->where('status', 'aberta')
+                          ->whereIn('status', ['aberta', 'finalizada'])
                           ->firstOrFail();
 
             // Atualizar a venda para cancelada

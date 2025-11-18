@@ -39,9 +39,23 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Passo 1: Expandir temporariamente o enum para permitir valores atuais antes de reduzir
         Schema::table('contas_receber', function (Blueprint $table) {
-            // Reverter para os valores originais
+            $table->enum('categoria', ['venda', 'venda_prazo', 'servico', 'outros'])->change();
+        });
+
+        // Passo 2: Converter dados atuais para valores compatíveis com o enum original
+        DB::table('contas_receber')
+            ->where('categoria', 'venda')
+            ->update(['categoria' => 'venda_prazo']);
+
+        // Passo 3: Reduzir o enum para o conjunto original
+        Schema::table('contas_receber', function (Blueprint $table) {
             $table->enum('categoria', ['venda_prazo', 'servico', 'outros'])->change();
+        });
+
+        // Tipo de documento pode ser revertido diretamente para o conjunto original
+        Schema::table('contas_receber', function (Blueprint $table) {
             $table->enum('tipo_documento', ['duplicata', 'promissoria', 'cheque', 'boleto', 'outros'])->change();
         });
     }

@@ -16,7 +16,12 @@ export const useMultiCart = () => {
   const [activeCartId, setActiveCartId] = useState<string | null>(carts[0]?.id || null);
 
   const updateCartCalculations = (cart: Cart): Cart => {
-    const total = cart.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    const total = cart.items.reduce((sum, item) => {
+      const bruto = (Number(item.product.price) || 0) * (Number(item.quantity) || 0);
+      const desconto = Number(item.desconto_item || 0);
+      const liquido = Math.max(0, bruto - desconto);
+      return sum + liquido;
+    }, 0);
     const itemCount = cart.items.length;
     return { ...cart, total, itemCount };
   };
@@ -107,6 +112,15 @@ export const useMultiCart = () => {
     });
   };
 
+  const updateActiveCartItemDiscount = (productId: string, desconto_item: number) => {
+    modifyActiveCart(cart => {
+      const newItems = cart.items.map(i =>
+        i.product.id === productId ? { ...i, desconto_item } : i
+      );
+      return { ...cart, items: newItems };
+    });
+  };
+
   const clearActiveCart = () => {
     modifyActiveCart(cart => ({ ...cart, items: [] }));
   };
@@ -126,6 +140,7 @@ export const useMultiCart = () => {
     addItemToActiveCart,
     removeActiveCartItem,
     updateActiveCartItemQuantity,
+    updateActiveCartItemDiscount,
     clearActiveCart,
   };
 };

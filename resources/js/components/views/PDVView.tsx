@@ -25,6 +25,8 @@ interface PDVViewProps {
   onCheckout: (desconto: { value: number; type: 'fixed' | 'percent' }) => void;
   vendaEmAberto?: { id: number; numero: string } | null;
   onCancelarVenda?: () => void;
+  onOpenHistory?: () => void;
+  onUpdateItemDiscount?: (productId: string, desconto_item: number) => void;
 }
 
 const PDVView: React.FC<PDVViewProps> = ({
@@ -42,6 +44,8 @@ const PDVView: React.FC<PDVViewProps> = ({
   onCheckout,
   vendaEmAberto,
   onCancelarVenda,
+  onOpenHistory,
+  onUpdateItemDiscount,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -84,6 +88,7 @@ const PDVView: React.FC<PDVViewProps> = ({
     onRenameCart,
     vendaEmAberto,
     onCancelarVenda,
+    onUpdateItemDiscount,
   };
 
   return (
@@ -95,6 +100,7 @@ const PDVView: React.FC<PDVViewProps> = ({
         onAddCart={onAddCart}
         onRemoveCart={onRemoveCart}
         onActiveTabClick={() => setIsCartOpen(true)}
+        onOpenHistory={onOpenHistory}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">

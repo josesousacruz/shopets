@@ -26,6 +26,7 @@ export interface Product {
 export interface CartItem {
   product: Product;
   quantity: number; // Pode ser fracionário agora (ex: 2.5kg)
+  desconto_item?: number;
 }
 
 export interface Cart {

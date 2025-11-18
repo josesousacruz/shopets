@@ -12,6 +12,7 @@ interface CartModalProps {
   onRemoveItem: (productId: string) => void;
   onCheckout: () => void;
   onRenameCart: (cartId: string, newName: string) => void;
+  onUpdateItemDiscount?: (productId: string, desconto_item: number) => void;
 }
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, ...cartProps }) => {

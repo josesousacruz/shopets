@@ -139,8 +139,11 @@ return new class extends Migration
      */
     private function listStockTriggers(): array
     {
-        $triggers = DB::select("SHOW TRIGGERS WHERE `Trigger` LIKE '%estoque%' OR `Trigger` LIKE '%venda%'");
-        return array_column($triggers, 'Trigger');
+        $rows = DB::select("SHOW TRIGGERS");
+        $names = array_column($rows, 'Trigger');
+        return array_values(array_filter($names, function ($t) {
+            return str_contains($t, 'estoque') || str_contains($t, 'venda');
+        }));
     }
 
     /**

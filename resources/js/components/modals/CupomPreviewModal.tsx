@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 interface EmpresaInfo {
   nome_empresa: string;
@@ -20,12 +21,13 @@ interface ClienteInfo {
 interface CupomPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  venda: { numero?: string; valor_total?: number } | null;
+  venda: any | null;
   items: any[];
   cliente?: ClienteInfo;
   formaPagamentoNome?: string;
   observacoes?: string;
   empresa?: EmpresaInfo;
+  id_venda?: number;
 }
 
 const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
@@ -36,9 +38,36 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   cliente,
   formaPagamentoNome,
   observacoes,
-  empresa
+  empresa,
+  id_venda
 }) => {
   if (!isOpen) return null;
+
+  const [stateVenda, setStateVenda] = useState<any | null>(null);
+  const [stateItems, setStateItems] = useState<any[]>([]);
+  const [stateCliente, setStateCliente] = useState<ClienteInfo | undefined>(undefined);
+  const [stateForma, setStateForma] = useState<string | undefined>(undefined);
+  const [stateObs, setStateObs] = useState<string | undefined>(undefined);
+  const [stateEmpresa, setStateEmpresa] = useState<EmpresaInfo | undefined>(undefined);
+
+  // Carrega 100% dos dados do cupom a partir do id_venda
+
+  useEffect(() => {
+    const fetchCupom = async () => {
+      if (!id_venda || !isOpen) return;
+      try {
+        const { data } = await axios.get(`/pdv/cupom/${id_venda}`);
+        setStateVenda(data.venda);
+        setStateItems(data.items || []);
+        setStateCliente(data.cliente);
+        setStateForma(data.formaPagamentoNome);
+        setStateObs(data.venda?.observacoes);
+        setStateEmpresa(data.empresa);
+      } catch (e) {
+      }
+    };
+    fetchCupom();
+  }, [id_venda, isOpen]);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -60,7 +89,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
     printRoot.style.display = "none";
   };
 
-  const rows = (items || []).map((it: any, idx: number) => {
+  const rows = (stateItems || []).map((it: any, idx: number) => {
     const name = it.product?.name || it.product?.nome || "Item";
     const qty = it.quantity || 0;
     const price = it.product?.price || 0;
@@ -146,17 +175,17 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
 
             {/* Cabeçalho */}
             <div className="cupom-text text-center">
-              <div className="font-semibold">{empresa?.nome_empresa || "Sua Empresa"}</div>
-              {empresa?.cnpj && <div>CNPJ: {empresa.cnpj}</div>}
-              {empresa?.telefone && <div>Telefone: {empresa.telefone}</div>}
-              {empresa?.endereco && <div>Endereço: {empresa.endereco}</div>}
+              <div className="font-semibold">{stateEmpresa?.nome_empresa || "Sua Empresa"}</div>
+              {stateEmpresa?.cnpj && <div>CNPJ: {stateEmpresa.cnpj}</div>}
+              {stateEmpresa?.telefone && <div>Telefone: {stateEmpresa.telefone}</div>}
+              {stateEmpresa?.endereco && <div>Endereço: {stateEmpresa.endereco}</div>}
             </div>
 
             <div className="cupom-line" />
 
             {/* Pedido */}
             <div className="cupom-text">
-              <div>Pedido: {venda?.numero || "-"}</div>
+              <div>Pedido: {stateVenda?.numero || "-"}</div>
               <div>Data: {new Date().toLocaleString("pt-BR")}</div>
             </div>
 
@@ -164,8 +193,8 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
 
             {/* Cliente */}
             <div className="cupom-text">
-              <div>Cliente: {cliente?.nome || "CONSUMIDOR"}</div>
-              {cliente?.telefone && <div>Telefone: {cliente.telefone}</div>}
+              <div>Cliente: {stateCliente?.nome || "CONSUMIDOR"}</div>
+              {stateCliente?.telefone && <div>Telefone: {stateCliente.telefone}</div>}
               <div>CPF/CNPJ: -</div>
               <div>Cidade: -</div>
               <div>CEP: -</div>
@@ -192,9 +221,9 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
             {/* Entrega */}
             <div className="cupom-text">
               <div className="cupom-section-title">Entrega</div>
-              <div>Nome: {cliente?.nome || "CONSUMIDOR"}</div>
+              <div>Nome: {stateCliente?.nome || "CONSUMIDOR"}</div>
               <div>Cidade: -</div>
-              <div>Avisos: {observacoes || "SEM OBSERVAÇÕES"}</div>
+              <div>Avisos: {stateObs || "SEM OBSERVAÇÕES"}</div>
               <div>Endereço: -</div>
             </div>
 
@@ -203,8 +232,8 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
             {/* Pagamento */}
             <div className="cupom-text">
               <div className="cupom-section-title">Forma de registro</div>
-              <div>{formaPagamentoNome || "-"}</div>
-              <div>Recebida: {formatCurrency(venda?.valor_total ?? 0)}</div>
+              <div>{stateForma || "-"}</div>
+              <div>Recebida: {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (Number(it.valor_total_item) || (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0)) - (Number(it.desconto_item) || 0))), 0))}</div>
             </div>
 
             <div className="cupom-line" />
@@ -213,26 +242,20 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
             <div className="cupom-text">
               <div>
                 Total de itens:{" "}
-                {(items || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0)}
+                {(stateItems || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0)}
               </div>
               <div>Peso bruto: 0,00</div>
               <div>Peso líquido: 0,00</div>
               <div>Garantia: 0,00</div>
               <div>
                 Total bruto:{" "}
-                {formatCurrency(
-                  (items || []).reduce(
-                    (s: number, it: any) =>
-                      s + (it.quantity || 0) * (it.product?.price || 0),
-                    0
-                  )
-                )}
+                {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0))), 0))}
               </div>
               <div>(+) Frete: 0,00</div>
               <div>(+) Despesas: 0,00</div>
-              <div>(-) Desconto: {formatCurrency(0)}</div>
+              <div>(-) Desconto: {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (Number(it.desconto_item) || 0), 0))}</div>
               <div className="font-bold">
-                Total líquido: {formatCurrency(venda?.valor_total ?? 0)}
+                Total líquido: {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (Number(it.valor_total_item) || (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0)) - (Number(it.desconto_item) || 0))), 0))}
               </div>
             </div>
 

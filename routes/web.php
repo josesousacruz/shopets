@@ -21,6 +21,8 @@ Route::middleware('auth')->group(function () {
     // PDV - Ponto de Venda
     Route::get('/pdv', [PDVController::class, 'index'])->name('pdv');
     Route::get('/pdv/products', [PDVController::class, 'getProducts'])->name('pdv.products');
+    Route::get('/pdv/cupom/{id}', [PDVController::class, 'getCupomDados'])->name('pdv.cupom');
+    Route::get('/pdv/vendas/recentes', [PDVController::class, 'getRecentSales'])->name('pdv.vendas.recentes');
     Route::post('/sales', [PDVController::class, 'storeSale'])->name('sales.store');
     Route::post('/sales/finalizar', [PDVController::class, 'finalizarVenda'])->name('sales.finalizar');
     Route::post('/sales/cancelar', [PDVController::class, 'cancelarVenda'])->name('sales.cancelar');

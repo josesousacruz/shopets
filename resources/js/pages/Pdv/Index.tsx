@@ -1,11 +1,14 @@
 // resources/js/Pages/PDV.tsx
 
 import { useState, useEffect } from 'react';
+import { Printer, XCircle } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { useMultiCart } from '../../hooks/useMultiCart';
 import PDVView from '../../components/views/PDVView';
 import FinalizarVendaModal from '../../components/modals/FinalizarVendaModal';
 import CupomPreviewModal from '../../components/modals/CupomPreviewModal';
+import OffCanvas from '../../components/ui/OffCanvas';
+import CancelarVendaModal from '../../components/modals/CancelarVendaModal';
 import AuthenticatedLayout from '../../layouts/AuthenticatedLayout';
 import { Product, Category } from '../../types';
 import Swal from 'sweetalert2';
@@ -78,6 +81,12 @@ function PDV({
     // Estado para controlar o modal de finalização
     const [isFinalizarModalOpen, setIsFinalizarModalOpen] = useState(false);
     const [isCupomModalOpen, setIsCupomModalOpen] = useState(false);
+    const [cupomVendaId, setCupomVendaId] = useState<number | undefined>(undefined);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [recentSales, setRecentSales] = useState<any[]>([]);
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [cancelSaleId, setCancelSaleId] = useState<number | undefined>(undefined);
+    const [cancelSaleStatus, setCancelSaleStatus] = useState<string | undefined>(undefined);
     const [cupomData, setCupomData] = useState<{
         venda: { numero?: string; valor_total?: number } | null;
         items: any[];
@@ -127,13 +136,9 @@ function PDV({
     // Função para abrir o modal de finalização
     const handleCheckout = async (descontoInfo: { value: number; type: 'fixed' | 'percent' }) => {
         if (!activeCart || activeCart.items.length === 0) return;
-
-        // Calcula o valor do desconto (aplicado) no frontend
-        const bruto = descontoInfo.type === 'fixed'
-            ? descontoInfo.value
-            : (activeCart.total * (descontoInfo.value / 100));
-        const aplicado = Math.max(0, Math.min(activeCart.total, isNaN(bruto) ? 0 : bruto));
-        setDescontoValor(aplicado);
+        // Calcula o desconto somado por item e define para o modal
+        const descontoItens = activeCart.items.reduce((s: number, it: any) => s + (Number(it.desconto_item) || 0), 0);
+        setDescontoValor(descontoItens);
 
         // Se já existe uma venda em aberto, apenas abre o modal
         if (vendaEmAberto) {
@@ -143,7 +148,11 @@ function PDV({
 
         // Cria uma nova venda em aberto
         const saleData = {
-            items: activeCart.items,
+            items: activeCart.items.map((it: any) => ({
+                product: it.product,
+                quantity: it.quantity,
+                desconto_item: it.desconto_item ?? it.discount ?? 0,
+            })),
             total: activeCart.total,
             paymentMethod: 'pendente' // Será definido na finalização
         };
@@ -202,17 +211,7 @@ function PDV({
             if (response.data.success) {
                 const acaoPos = dados.acao_pos || 'finalizar';
                 if (acaoPos === 'cupom') {
-                    const formaSel = formasPagamento.find(fp => fp.id_forma_pagamento === dados.id_forma_pagamento);
-                    const clienteSel = dados.id_cliente ? clientes.find(c => c.id_cliente === dados.id_cliente) : null;
-                    // Abrir visualização em modal e usar window.print no botão
-                    setCupomData({
-                        venda: { numero: vendaEmAberto?.numero, valor_total: vendaEmAberto?.valor_total ?? activeCart?.total },
-                        items: [...activeCart.items],
-                        cliente: clienteSel || null,
-                        formaPagamentoNome: formaSel?.nome,
-                        observacoes: dados.observacoes,
-                        empresa
-                    });
+                    setCupomVendaId(vendaEmAberto.id);
                     setIsCupomModalOpen(true);
                 } else if (acaoPos === 'nfe') {
                     await Swal.fire('NFe', 'Emissão de NFe ainda não implementada.', 'info');
@@ -231,6 +230,34 @@ function PDV({
         } catch (error: any) {
             console.error('Erro ao finalizar venda:', error);
             const errorMessage = error.response?.data?.message || 'Não foi possível finalizar a venda.';
+            Swal.fire('Erro!', errorMessage, 'error');
+        }
+    };
+
+    const openHistory = async () => {
+        setIsHistoryOpen(true);
+        try {
+            const { data } = await axios.get('/pdv/vendas/recentes');
+            setRecentSales(data.vendas || []);
+        } catch (e) {
+            console.error('Erro ao carregar histórico de vendas', e);
+        }
+    };
+
+    const handleConfirmCancel = async (motivo: string) => {
+        if (!cancelSaleId) return;
+        try {
+            const response = await axios.post('/sales/cancelar', { id_venda: cancelSaleId, motivo });
+            if (response.data.success) {
+                setIsCancelModalOpen(false);
+                setCancelSaleId(undefined);
+                await openHistory();
+                Swal.fire('Cancelada!', response.data.message, 'success');
+            } else {
+                Swal.fire('Erro!', response.data.message || 'Não foi possível cancelar a venda.', 'error');
+            }
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || 'Não foi possível cancelar a venda.';
             Swal.fire('Erro!', errorMessage, 'error');
         }
     };
@@ -287,44 +314,112 @@ function PDV({
 
     return (
         <>
-            <PDVView
-                products={currentProducts}
-                categories={categories}
-                carts={carts}
-                activeCart={activeCart}
-                onCheckout={handleCheckout}
-                onAddCart={cartActions.addCart}
-                onRemoveCart={cartActions.removeCart}
-                onRenameCart={cartActions.renameCart}
-                onSelectCart={cartActions.setActiveCart}
-                onAddToCart={cartActions.addItemToActiveCart}
-                onUpdateQuantity={cartActions.updateActiveCartItemQuantity}
-                onRemoveItem={cartActions.removeActiveCartItem}
-                vendaEmAberto={vendaEmAberto}
-                onCancelarVenda={handleCancelarVenda}
-            />
+      <PDVView
+        products={currentProducts}
+        categories={categories}
+        carts={carts}
+        activeCart={activeCart}
+        onCheckout={handleCheckout}
+        onAddCart={cartActions.addCart}
+        onRemoveCart={cartActions.removeCart}
+        onRenameCart={cartActions.renameCart}
+        onSelectCart={cartActions.setActiveCart}
+        onAddToCart={cartActions.addItemToActiveCart}
+        onUpdateQuantity={cartActions.updateActiveCartItemQuantity}
+        onRemoveItem={cartActions.removeActiveCartItem}
+        vendaEmAberto={vendaEmAberto}
+        onCancelarVenda={handleCancelarVenda}
+        onOpenHistory={openHistory}
+        onUpdateItemDiscount={cartActions.updateActiveCartItemDiscount}
+      />
             
+            {(() => {
+                const subtotalBrutoCart = activeCart ? activeCart.items.reduce((s: number, it: any) => s + ((Number(it.product.price) || 0) * (Number(it.quantity) || 0)), 0) : 0;
+                const descontoItensCart = activeCart ? activeCart.items.reduce((s: number, it: any) => s + (Number(it.desconto_item) || 0), 0) : 0;
+                return (
             <FinalizarVendaModal
                 isOpen={isFinalizarModalOpen}
                 onClose={handleCloseModal}
                 onConfirm={handleFinalizarVenda}
                 onCancel={handleCancelarVenda}
-                valorTotal={vendaEmAberto?.valor_total || activeCart?.total || 0}
+                valorTotal={subtotalBrutoCart}
                 numeroVenda={vendaEmAberto?.numero}
                 clientes={clientes}
                 formasPagamento={formasPagamento}
-                descontoValor={descontoValor ?? undefined}
+                descontoValor={descontoItensCart}
             />
+                );
+            })()}
 
             <CupomPreviewModal
                 isOpen={isCupomModalOpen}
                 onClose={() => setIsCupomModalOpen(false)}
-                venda={cupomData.venda}
-                items={cupomData.items}
-                cliente={cupomData.cliente || undefined}
-                formaPagamentoNome={cupomData.formaPagamentoNome}
-                observacoes={cupomData.observacoes}
-                empresa={empresa || undefined}
+                id_venda={cupomVendaId}
+            />
+
+            <OffCanvas
+                isOpen={isHistoryOpen}
+                onClose={() => setIsHistoryOpen(false)}
+                position="end"
+                title="Histórico de Vendas"
+            >
+                <div className="space-y-3">
+                    {recentSales.map((v) => (
+                        <div key={v.id_venda} className={`flex items-center justify-between border-b pb-2 ${v.status === 'cancelada' ? 'opacity-60' : ''}`}>
+                            <div>
+                                <div className="text-sm font-semibold text-gray-800">#{v.numero_venda}</div>
+                                <div className="text-xs text-gray-500">{new Date(v.data_venda).toLocaleString('pt-BR')}</div>
+                                <div className="text-xs text-gray-600">{v.cliente || 'CONSUMIDOR'} · {v.forma_pagamento || '-'}</div>
+                                {v.status === 'cancelada' && (
+                                  <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-700">Cancelada</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    {v.valor_desconto > 0 && (
+                                        <div className="text-xs text-gray-500 line-through">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.valor_subtotal || 0)}
+                                        </div>
+                                    )}
+                                    <div className="text-sm font-bold text-green-600">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.valor_total || 0)}
+                                    </div>
+                                </div>
+                                <button
+                                    className="p-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                    onClick={() => {
+                                        setCupomVendaId(v.id_venda);
+                                        setIsCupomModalOpen(true);
+                                    }}
+                                    aria-label="Imprimir Cupom Não Fiscal"
+                                >
+                                    <Printer size={18} />
+                                </button>
+                                <button
+                                    className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200"
+                                    onClick={() => {
+                                        setCancelSaleId(v.id_venda);
+                                        setCancelSaleStatus(v.status);
+                                        setIsCancelModalOpen(true);
+                                    }}
+                                    aria-label="Cancelar Venda"
+                                >
+                                    <XCircle size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {recentSales.length === 0 && (
+                        <div className="text-sm text-gray-500">Nenhuma venda encontrada.</div>
+                    )}
+                </div>
+            </OffCanvas>
+
+            <CancelarVendaModal
+                isOpen={isCancelModalOpen}
+                onClose={() => setIsCancelModalOpen(false)}
+                onConfirm={handleConfirmCancel}
+                isFinalizada={cancelSaleStatus === 'finalizada'}
             />
         </>
     );

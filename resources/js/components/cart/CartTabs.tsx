@@ -12,6 +12,7 @@ interface CartTabsProps {
   onAddCart: () => void;
   onRemoveCart: (cartId: string) => void;
   onActiveTabClick?: () => void;
+  onOpenHistory?: () => void;
 }
 
 const CartTabs: React.FC<CartTabsProps> = ({
@@ -21,6 +22,7 @@ const CartTabs: React.FC<CartTabsProps> = ({
   onAddCart,
   onRemoveCart,
   onActiveTabClick,
+  onOpenHistory,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
@@ -63,18 +65,30 @@ const CartTabs: React.FC<CartTabsProps> = ({
 
   return (
     <div className="border-b border-gray-200 pb-2 space-y-3">
-      {/* Top Row: New Cart Button */}
-      <div className="flex justify-start">
-        <button
-          onClick={onAddCart}
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-100 text-green-800 hover:bg-green-200 transition-colors shadow-sm text-sm font-semibold"
-          aria-label="Adicionar novo carrinho"
-        >
-          <Plus size={16} />
-          <span>Novo Carrinho</span>
-        </button>
-      </div>
+      <div className="flex justify-between items-center">
+        {/* Top Row: New Cart Button */}
+        <div className="flex justify-start">
+          <button
+            onClick={onAddCart}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-100 text-green-800 hover:bg-green-200 transition-colors shadow-sm text-sm font-semibold"
+            aria-label="Adicionar novo carrinho"
+          >
+            <Plus size={16} />
+            <span>Novo Carrinho</span>
+          </button>
+        </div>
 
+        <div className="flex justify-start">
+          <button
+            onClick={onOpenHistory}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors shadow-sm text-sm font-semibold"
+            aria-label="Abrir histórico de vendas"
+          >
+            <Plus size={16} />
+            <span>Histórico de Vendas</span>
+          </button>
+        </div>
+      </div>
       {/* Bottom Row: Cart List and Scrollbar */}
       <div>
         <div
