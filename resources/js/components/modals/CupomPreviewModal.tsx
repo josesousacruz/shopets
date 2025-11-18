@@ -79,20 +79,21 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-  // Cálculos auxiliares baseados na lógica original
+// 1. Calcula o total de quantidade
   const totalQtd = (stateItems || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0);
   
+  // 2. Calcula o Total Bruto (Preço * Quantidade)
   const valorTotalBruto = (stateItems || []).reduce((s: number, it: any) => 
     s + (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0))), 0
   );
 
+  // 3. Calcula o Total de Descontos (Soma dos descontos dos itens)
   const valorDesconto = (stateItems || []).reduce((s: number, it: any) => 
     s + (Number(it.desconto_item) || 0), 0
   );
 
-  const valorTotalLiquido = (stateItems || []).reduce((s: number, it: any) => 
-    s + (Number(it.valor_total_item) || (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0)) - (Number(it.desconto_item) || 0))), 0
-  );
+  // Isso garante que a conta visual no cupom sempre bata exata.
+  const valorTotalLiquido = valorTotalBruto - valorDesconto;
 
   const rows = (stateItems || []).map((it: any, idx: number) => {
     const name = it.product?.name || it.product?.nome || "Item";
