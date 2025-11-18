@@ -121,13 +121,12 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
           </div>
 
           <div className="p-6" id="cupom-print-area">
-            <style>{`  @page { 
+<style>{`  @page { 
     size: 72mm auto; 
     margin: 0 !important; 
   }
 
-  @media print {
-
+@@ -102,7 +102,7 @@
     html, body {
       margin: 0 !important;
       padding: 0 !important;
@@ -135,15 +134,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
     }
 
     body * {
-      display: none !important;
-    }
-
-
-    #print-root, #print-root * {
-      display: block !important;
-    }
-
-    #print-root {
+@@ -117,9 +117,9 @@
       position: absolute;
       left: 0;
       top: 0;
@@ -153,16 +144,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
       margin: 0 !important;
       padding: 0 !important;
       overflow: hidden !important;
-    }
-
-    #modal-overlay {
-      display: none !important;
-    }
-
-    * {
-      word-wrap: break-word;
-      white-space: normal !important;
-      page-break-inside: avoid;
+@@ -136,28 +136,28 @@
     }
   }
 
