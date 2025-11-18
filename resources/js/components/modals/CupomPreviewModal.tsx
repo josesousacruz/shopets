@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
+import { useReactToPrint } from 'react-to-print';
 
 interface EmpresaInfo {
   nome_empresa: string;
@@ -41,7 +42,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   empresa,
   id_venda
 }) => {
-  if (!isOpen) return null;
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const [stateVenda, setStateVenda] = useState<any | null>(null);
   const [stateItems, setStateItems] = useState<any[]>([]);
@@ -49,8 +50,6 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   const [stateForma, setStateForma] = useState<string | undefined>(undefined);
   const [stateObs, setStateObs] = useState<string | undefined>(undefined);
   const [stateEmpresa, setStateEmpresa] = useState<EmpresaInfo | undefined>(undefined);
-
-  // Carrega 100% dos dados do cupom a partir do id_venda
 
   useEffect(() => {
     const fetchCupom = async () => {
@@ -64,30 +63,36 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
         setStateObs(data.venda?.observacoes);
         setStateEmpresa(data.empresa);
       } catch (e) {
+        console.error(e);
       }
     };
     fetchCupom();
   }, [id_venda, isOpen]);
 
+  const handlePrint = useReactToPrint({
+    contentRef: contentRef,
+    documentTitle: `Cupom_${id_venda || 'venda'}`,
+  });
+
+  if (!isOpen) return null;
+
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-  const handlePrint = () => {
-    const printRoot = document.getElementById("print-root");
-    const cupom = document.getElementById("cupom-print-area");
+  // Cálculos auxiliares baseados na lógica original
+  const totalQtd = (stateItems || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0);
+  
+  const valorTotalBruto = (stateItems || []).reduce((s: number, it: any) => 
+    s + (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0))), 0
+  );
 
-    if (!printRoot || !cupom) return;
+  const valorDesconto = (stateItems || []).reduce((s: number, it: any) => 
+    s + (Number(it.desconto_item) || 0), 0
+  );
 
-    // copia o cupom para o container de impressão
-    printRoot.innerHTML = cupom.innerHTML;
-    printRoot.style.display = "block";
-
-    window.print();
-
-    // limpa após impressão
-    printRoot.innerHTML = "";
-    printRoot.style.display = "none";
-  };
+  const valorTotalLiquido = (stateItems || []).reduce((s: number, it: any) => 
+    s + (Number(it.valor_total_item) || (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0)) - (Number(it.desconto_item) || 0))), 0
+  );
 
   const rows = (stateItems || []).map((it: any, idx: number) => {
     const name = it.product?.name || it.product?.nome || "Item";
@@ -106,171 +111,167 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   });
 
   return (
-    <>
-      {/* container invisível para impressão */}
-      <div id="print-root" style={{ display: "none" }}></div>
+    <div
+      id="modal-overlay"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative flex flex-col">
+        
+        {/* Cabeçalho do Modal */}
+        <div className="p-6 border-b border-gray-200 flex-shrink-0">
+          <h2 className="text-xl font-semibold text-gray-900">Cupom Não Fiscal</h2>
+          <p className="text-sm text-gray-500">Pré-visualização</p>
+        </div>
 
-      <div
-        id="modal-overlay"
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      >
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Cupom Não Fiscal</h2>
-            <p className="text-sm text-gray-500">Pré-visualização</p>
-          </div>
+        {/* Área de Conteúdo Scrollável */}
+        <div className="p-6 overflow-y-auto flex-grow bg-gray-50 flex justify-center">
+          
+          {/* --- ÁREA DE IMPRESSÃO (Ref) --- */}
+          <div ref={contentRef} className="bg-white p-2 shadow-sm" style={{ width: '72mm', minHeight: '100px' }}>
+            
+            {/* CSS Original Injetado */}
+            <style>{`
+              @page { 
+                size: 72mm auto; 
+                margin: 0 !important; 
+              }
+              @media print {
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                }
+                /* Garante que o conteúdo quebre linha corretamente */
+                * {
+                  word-wrap: break-word;
+                  white-space: normal !important;
+                }
+              }
 
-          <div className="p-6" id="cupom-print-area">
-<style>{`  @page { 
-    size: 72mm auto; 
-    margin: 0 !important; 
-  }
-
-@@ -102,7 +102,7 @@
-    html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      width: 72mm !important;
-    }
-
-    body * {
-@@ -117,9 +117,9 @@
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 72mm !important;
-      max-width: 72mm !important;
-      min-width: 72mm !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: hidden !important;
-@@ -136,28 +136,28 @@
-    }
-  }
-
-  #cupom-print-area { width: 72mm; margin: 0 auto; }
-  .cupom-line { border-top: 1px dashed #999; margin: 8px 0; }
-  .cupom-section-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
-  .cupom-text { font-size: 12px; line-height: 1.3; }
-  .cupom-small { font-size: 11px; }
+              /* Classes originais do seu código */
+              #cupom-print-area { width: 100%; margin: 0 auto; font-family: sans-serif; color: #000; }
+              .cupom-line { border-top: 1px dashed #999; margin: 8px 0; }
+              .cupom-section-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+              .cupom-text { font-size: 12px; line-height: 1.3; }
+              .cupom-small { font-size: 11px; }
+              
+              table { width: 100%; border-collapse: collapse; }
+              th, td { vertical-align: top; }
             `}</style>
 
-            {/* Cabeçalho */}
-            <div className="cupom-text text-center">
-              <div className="font-semibold">{stateEmpresa?.nome_empresa || "Sua Empresa"}</div>
-              {stateEmpresa?.cnpj && <div>CNPJ: {stateEmpresa.cnpj}</div>}
-              {stateEmpresa?.telefone && <div>Telefone: {stateEmpresa.telefone}</div>}
-              {stateEmpresa?.endereco && <div>Endereço: {stateEmpresa.endereco}</div>}
-            </div>
-
-            <div className="cupom-line" />
-
-            {/* Pedido */}
-            <div className="cupom-text">
-              <div>Pedido: {stateVenda?.numero || "-"}</div>
-              <div>Data: {new Date().toLocaleString("pt-BR")}</div>
-            </div>
-
-            <div className="cupom-line" />
-
-            {/* Cliente */}
-            <div className="cupom-text">
-              <div>Cliente: {stateCliente?.nome || "CONSUMIDOR"}</div>
-              {stateCliente?.telefone && <div>Telefone: {stateCliente.telefone}</div>}
-              <div>CPF/CNPJ: -</div>
-              <div>Cidade: -</div>
-              <div>CEP: -</div>
-              <div>Endereço: -</div>
-            </div>
-
-            <div className="cupom-line" />
-
-            {/* Itens */}
-            <table className="w-full border-collapse cupom-small">
-              <thead>
-                <tr>
-                  <th className="text-left border-b py-1">Item</th>
-                  <th className="text-center border-b py-1">Qtd</th>
-                  <th className="text-right border-b py-1">Preço</th>
-                  <th className="text-right border-b py-1">Total</th>
-                </tr>
-              </thead>
-              <tbody>{rows}</tbody>
-            </table>
-
-            <div className="cupom-line" />
-
-            {/* Entrega */}
-            <div className="cupom-text">
-              <div className="cupom-section-title">Entrega</div>
-              <div>Nome: {stateCliente?.nome || "CONSUMIDOR"}</div>
-              <div>Cidade: -</div>
-              <div>Avisos: {stateObs || "SEM OBSERVAÇÕES"}</div>
-              <div>Endereço: -</div>
-            </div>
-
-            <div className="cupom-line" />
-
-            {/* Pagamento */}
-            <div className="cupom-text">
-              <div className="cupom-section-title">Forma de registro</div>
-              <div>{stateForma || "-"}</div>
-              <div>Recebida: {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (Number(it.valor_total_item) || (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0)) - (Number(it.desconto_item) || 0))), 0))}</div>
-            </div>
-
-            <div className="cupom-line" />
-
-            {/* Totais */}
-            <div className="cupom-text">
-              <div>
-                Total de itens:{" "}
-                {(stateItems || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0)}
+            <div id="cupom-print-area">
+              {/* Cabeçalho */}
+              <div className="cupom-text text-center">
+                <div className="font-semibold">{stateEmpresa?.nome_empresa || "Sua Empresa"}</div>
+                {stateEmpresa?.cnpj && <div>CNPJ: {stateEmpresa.cnpj}</div>}
+                {stateEmpresa?.telefone && <div>Telefone: {stateEmpresa.telefone}</div>}
+                {stateEmpresa?.endereco && <div>Endereço: {stateEmpresa.endereco}</div>}
               </div>
-              <div>Peso bruto: 0,00</div>
-              <div>Peso líquido: 0,00</div>
-              <div>Garantia: 0,00</div>
-              <div>
-                Total bruto:{" "}
-                {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0))), 0))}
-              </div>
-              <div>(+) Frete: 0,00</div>
-              <div>(+) Despesas: 0,00</div>
-              <div>(-) Desconto: {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (Number(it.desconto_item) || 0), 0))}</div>
-              <div className="font-bold">
-                Total líquido: {formatCurrency((stateItems || []).reduce((s: number, it: any) => s + (Number(it.valor_total_item) || (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0)) - (Number(it.desconto_item) || 0))), 0))}
-              </div>
-            </div>
 
-            <div className="cupom-line" />
+              <div className="cupom-line" />
 
-            {/* Rodapé */}
-            <div className="cupom-text text-center">
-              <div className="font-semibold">*NÃO ACEITAMOS DEVOLUÇÃO*</div>
-              <div>*TROCA NO MÁXIMO DE 24HRS*</div>
-              <div>***DOCUMENTO NÃO FISCAL***</div>
-              <div className="cupom-small mt-1">
-                {new Date().toLocaleString("pt-BR")}
+              {/* Pedido */}
+              <div className="cupom-text">
+                <div>Pedido: {stateVenda?.numero || "-"}</div>
+                <div>Data: {new Date().toLocaleString("pt-BR")}</div>
+              </div>
+
+              <div className="cupom-line" />
+
+              {/* Cliente */}
+              <div className="cupom-text">
+                <div>Cliente: {stateCliente?.nome || "CONSUMIDOR"}</div>
+                {stateCliente?.telefone && <div>Telefone: {stateCliente.telefone}</div>}
+                <div>CPF/CNPJ: -</div>
+                <div>Cidade: -</div>
+                <div>CEP: -</div>
+                <div>Endereço: -</div>
+              </div>
+
+              <div className="cupom-line" />
+
+              {/* Itens */}
+              <table className="w-full border-collapse cupom-small">
+                <thead>
+                  <tr>
+                    <th className="text-left border-b py-1">Item</th>
+                    <th className="text-center border-b py-1">Qtd</th>
+                    <th className="text-right border-b py-1">Preço</th>
+                    <th className="text-right border-b py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+              </table>
+
+              <div className="cupom-line" />
+
+              {/* Entrega */}
+              <div className="cupom-text">
+                <div className="cupom-section-title">Entrega</div>
+                <div>Nome: {stateCliente?.nome || "CONSUMIDOR"}</div>
+                <div>Cidade: -</div>
+                <div>Avisos: {stateObs || "SEM OBSERVAÇÕES"}</div>
+                <div>Endereço: -</div>
+              </div>
+
+              <div className="cupom-line" />
+
+              {/* Pagamento */}
+              <div className="cupom-text">
+                <div className="cupom-section-title">Forma de registro</div>
+                <div>{stateForma || "-"}</div>
+                <div>Recebida: {formatCurrency(valorTotalLiquido)}</div>
+              </div>
+
+              <div className="cupom-line" />
+
+              {/* Totais Completos (Layout Original) */}
+              <div className="cupom-text">
+                <div>Total de itens: {totalQtd}</div>
+                <div>Peso bruto: 0,00</div>
+                <div>Peso líquido: 0,00</div>
+                <div>Garantia: 0,00</div>
+                <div>Total bruto: {formatCurrency(valorTotalBruto)}</div>
+                <div>(+) Frete: 0,00</div>
+                <div>(+) Despesas: 0,00</div>
+                <div>(-) Desconto: {formatCurrency(valorDesconto)}</div>
+                <div className="font-bold">
+                  Total líquido: {formatCurrency(valorTotalLiquido)}
+                </div>
+              </div>
+
+              <div className="cupom-line" />
+
+              {/* Rodapé */}
+              <div className="cupom-text text-center">
+                <div className="font-semibold">*NÃO ACEITAMOS DEVOLUÇÃO*</div>
+                <div>*TROCA NO MÁXIMO DE 24HRS*</div>
+                <div>***DOCUMENTO NÃO FISCAL***</div>
+                <div className="cupom-small mt-1">
+                  {new Date().toLocaleString("pt-BR")}
+                </div>
               </div>
             </div>
           </div>
+          {/* --- FIM DA ÁREA DE IMPRESSÃO --- */}
 
-          <div className="flex gap-3 p-6 border-t border-gray-200">
-            <button
-              onClick={handlePrint}
-              className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Imprimir
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              Fechar
-            </button>
-          </div>
+        </div>
+
+        <div className="flex gap-3 p-6 border-t border-gray-200 flex-shrink-0">
+          <button
+            onClick={() => handlePrint()}
+            className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Imprimir
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+          >
+            Fechar
+          </button>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
