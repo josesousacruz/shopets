@@ -50,6 +50,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   const [stateForma, setStateForma] = useState<string | undefined>(undefined);
   const [stateObs, setStateObs] = useState<string | undefined>(undefined);
   const [stateEmpresa, setStateEmpresa] = useState<EmpresaInfo | undefined>(undefined);
+  const [statePagamentos, setStatePagamentos] = useState<{ forma_nome: string; valor_pagamento: number; numero_parcelas?: number; valor_parcela?: number; status_pagamento?: string; }[]>([]);
 
   useEffect(() => {
     const fetchCupom = async () => {
@@ -62,6 +63,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
         setStateForma(data.formaPagamentoNome);
         setStateObs(data.venda?.observacoes);
         setStateEmpresa(data.empresa);
+        setStatePagamentos(data.pagamentos || []);
       } catch (e) {
         console.error(e);
       }
@@ -222,6 +224,24 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
                 <div>{stateForma || "-"}</div>
                 <div>Recebida: {formatCurrency(valorTotalLiquido)}</div>
               </div>
+
+              {statePagamentos && statePagamentos.length > 0 && (
+                <>
+                  <div className="cupom-line" />
+                  <div className="cupom-text">
+                    <div className="cupom-section-title">Pagamentos</div>
+                    {statePagamentos.map((p, idx) => (
+                      <div key={idx} className="cupom-small">
+                        <span>{p.forma_nome}</span>
+                        <span> · {formatCurrency(p.valor_pagamento)}</span>
+                        {p.numero_parcelas && p.numero_parcelas > 1 && (
+                          <span> · {p.numero_parcelas}x de {formatCurrency(p.valor_parcela || 0)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <div className="cupom-line" />
 

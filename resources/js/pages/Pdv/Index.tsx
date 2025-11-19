@@ -32,6 +32,12 @@ interface FormaPagamento {
     taxa_juros?: number;
 }
 
+interface PagamentoParcial {
+    id_forma_pagamento: number;
+    valor_pagamento: number;
+    numero_parcelas?: number;
+}
+
 interface DadosFinalizacao {
     id_cliente?: number;
     id_forma_pagamento: number;
@@ -39,6 +45,7 @@ interface DadosFinalizacao {
     observacoes?: string;
     acao_pos?: 'finalizar' | 'cupom' | 'nfe';
     desconto_valor?: number;
+    pagamentos?: PagamentoParcial[];
 }
 
 interface VendaEmAberto {
@@ -143,8 +150,8 @@ function PDV({
         const finalSaleData = {
             id_venda: vendaEmAberto.id,
             id_cliente: dados.id_cliente,
-            id_forma_pagamento: dados.id_forma_pagamento,
             observacoes: dados.observacoes,
+            pagamentos: dados.pagamentos,
             items: activeCart.items.map((it: any) => ({
                 product: it.product,
                 quantity: it.quantity,
