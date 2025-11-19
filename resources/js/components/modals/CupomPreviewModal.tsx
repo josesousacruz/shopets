@@ -81,6 +81,10 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+  const vendaDataStr = stateVenda?.data_venda
+    ? new Date(stateVenda.data_venda).toLocaleString("pt-BR")
+    : "-";
+
 // 1. Calcula o total de quantidade
   const totalQtd = (stateItems || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0);
   
@@ -175,7 +179,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
               {/* Pedido */}
               <div className="cupom-text">
                 <div>Pedido: {stateVenda?.numero || "-"}</div>
-                <div>Data: {new Date().toLocaleString("pt-BR")}</div>
+                <div>Data: {vendaDataStr}</div>
               </div>
 
               <div className="cupom-line" />
@@ -267,9 +271,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
                 <div className="font-semibold">*NÃO ACEITAMOS DEVOLUÇÃO*</div>
                 <div>*TROCA NO MÁXIMO DE 24HRS*</div>
                 <div>***DOCUMENTO NÃO FISCAL***</div>
-                <div className="cupom-small mt-1">
-                  {new Date().toLocaleString("pt-BR")}
-                </div>
+                <div className="cupom-small mt-1">{vendaDataStr}</div>
               </div>
             </div>
           </div>

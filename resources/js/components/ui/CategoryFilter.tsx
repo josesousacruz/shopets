@@ -13,7 +13,15 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
   onCategoryChange,
 }) => {
   return (
-    <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
+    <>
+      <style>{`
+        .category-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        .category-scroll::-webkit-scrollbar { height: 6px; }
+        .category-scroll::-webkit-scrollbar-track { background: transparent; }
+        .category-scroll::-webkit-scrollbar-thumb { background-color: rgba(203,213,225,0.6); border-radius: 9999px; }
+        .category-scroll:hover::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,0.9); }
+      `}</style>
+      <div className="flex space-x-2 overflow-x-auto pb-2 category-scroll">
       <button
         onClick={() => onCategoryChange('all')}
         className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -39,7 +47,8 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
           <span>{category.name}</span>
         </button>
       ))}
-    </div>
+      </div>
+    </>
   );
 };
 
