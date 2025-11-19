@@ -153,7 +153,7 @@ class PDVController extends Controller
 
     public function getCupomDados($id)
     {
-        $venda = Venda::with(['itens.produto', 'cliente', 'formaPagamento'])->findOrFail($id);
+        $venda = Venda::with(['itens.produto', 'cliente'])->findOrFail($id);
 
         $items = $venda->itens->map(function ($item) {
             return [
@@ -176,28 +176,28 @@ class PDVController extends Controller
             'pontos_fidelidade' => (float) ($venda->cliente->pontos_fidelidade ?? 0),
         ] : null;
 
-        $formaPagamentoNome = $venda->formaPagamento ? $venda->formaPagamento->nome : null;
-
-        $pagamentos = \DB::table('pagamentos_venda')
+        $pagamentosRaw = \DB::table('pagamentos_venda')
             ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
             ->where('pagamentos_venda.id_venda', $venda->id_venda)
-            ->select(
-                'formas_pagamento.nome as forma_nome',
-                'pagamentos_venda.valor_pagamento',
-                'pagamentos_venda.numero_parcelas',
-                'pagamentos_venda.valor_parcela',
-                'pagamentos_venda.status_pagamento'
-            )
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'forma_nome' => $p->forma_nome,
-                    'valor_pagamento' => (float) $p->valor_pagamento,
-                    'numero_parcelas' => (int) $p->numero_parcelas,
-                    'valor_parcela' => (float) $p->valor_parcela,
-                    'status_pagamento' => $p->status_pagamento,
-                ];
-            });
+            ->select('formas_pagamento.nome as forma_nome', 'pagamentos_venda.valor_pagamento', 'pagamentos_venda.numero_parcelas', 'pagamentos_venda.valor_parcela', 'pagamentos_venda.status_pagamento')
+            ->get();
+
+        $formaPagamentoNome = null;
+        if ($pagamentosRaw->count() === 1) {
+            $formaPagamentoNome = $pagamentosRaw->first()->forma_nome;
+        } elseif ($pagamentosRaw->count() > 1) {
+            $formaPagamentoNome = 'Múltiplos';
+        }
+
+        $pagamentos = $pagamentosRaw->map(function ($p) {
+            return [
+                'forma_nome' => $p->forma_nome,
+                'valor_pagamento' => (float) $p->valor_pagamento,
+                'numero_parcelas' => (int) $p->numero_parcelas,
+                'valor_parcela' => (float) $p->valor_parcela,
+                'status_pagamento' => $p->status_pagamento,
+            ];
+        });
 
         $empresaModel = ConfiguracaoEmpresa::first();
         $empresa = $empresaModel ? [
@@ -230,12 +230,21 @@ class PDVController extends Controller
     public function getRecentSales()
     {
         $userId = auth()->id();
-        $vendas = Venda::with(['cliente', 'formaPagamento'])
+        $vendas = Venda::with(['cliente'])
             ->where('id_usuario', $userId)
             ->orderBy('data_venda', 'desc')
             ->limit(20)
             ->get()
             ->map(function ($v) {
+                $pgs = \DB::table('pagamentos_venda')
+                    ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
+                    ->where('pagamentos_venda.id_venda', $v->id_venda)
+                    ->select('formas_pagamento.nome')
+                    ->get();
+                $formaNome = null;
+                if ($pgs->count() === 1) { $formaNome = $pgs->first()->nome; }
+                elseif ($pgs->count() > 1) { $formaNome = 'Múltiplos'; }
+
                 return [
                     'id_venda' => $v->id_venda,
                     'numero_venda' => $v->numero_venda,
@@ -245,7 +254,7 @@ class PDVController extends Controller
                     'data_venda' => $v->data_venda,
                     'status' => $v->status,
                     'cliente' => $v->cliente ? $v->cliente->nome : null,
-                    'forma_pagamento' => $v->formaPagamento ? $v->formaPagamento->nome : null,
+                    'forma_pagamento' => $formaNome,
                 ];
             });
 
@@ -374,7 +383,6 @@ class PDVController extends Controller
             // Atualizar a venda com os totais e dados de finalização
             $venda->update([
                 'id_cliente' => $validated['id_cliente'] ?? null,
-                'id_forma_pagamento' => $validated['pagamentos'][0]['id_forma_pagamento'] ?? null,
                 'observacoes' => $validated['observacoes'] ?? null,
                 'valor_subtotal' => $valorSubtotal,
                 'valor_desconto' => $valorDescontoItens,

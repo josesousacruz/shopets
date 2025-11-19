@@ -46,13 +46,7 @@ class FormaPagamento extends Model
             ->dontSubmitEmptyLogs();
     }
 
-    /**
-     * Relacionamento com vendas
-     */
-    public function vendas()
-    {
-        return $this->hasMany(Venda::class, 'id_forma_pagamento', 'id_forma_pagamento');
-    }
+    
 
     /**
      * Relacionamento com pagamentos de venda

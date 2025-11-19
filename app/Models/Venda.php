@@ -19,7 +19,6 @@ class Venda extends Model
         'id_cliente',
         'id_usuario',
         'id_pdv',
-        'id_forma_pagamento',
         'valor_subtotal',
         'valor_desconto',
         'valor_acrescimo',
@@ -76,13 +75,7 @@ class Venda extends Model
         return $this->belongsTo(PontoVenda::class, 'id_pdv', 'id_pdv');
     }
 
-    /**
-     * Relacionamento com forma de pagamento
-     */
-    public function formaPagamento()
-    {
-        return $this->belongsTo(FormaPagamento::class, 'id_forma_pagamento', 'id_forma_pagamento');
-    }
+    
 
     /**
      * Relacionamento com itens da venda
