@@ -15,6 +15,7 @@ use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class PDVController extends Controller
 {
@@ -176,7 +177,7 @@ class PDVController extends Controller
             'pontos_fidelidade' => (float) ($venda->cliente->pontos_fidelidade ?? 0),
         ] : null;
 
-        $pagamentosRaw = \DB::table('pagamentos_venda')
+        $pagamentosRaw = DB::table('pagamentos_venda')
             ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
             ->where('pagamentos_venda.id_venda', $venda->id_venda)
             ->select('formas_pagamento.nome as forma_nome', 'pagamentos_venda.valor_pagamento', 'pagamentos_venda.numero_parcelas', 'pagamentos_venda.valor_parcela', 'pagamentos_venda.status_pagamento')
@@ -236,7 +237,7 @@ class PDVController extends Controller
             ->limit(20)
             ->get()
             ->map(function ($v) {
-                $pgs = \DB::table('pagamentos_venda')
+                $pgs = DB::table('pagamentos_venda')
                     ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
                     ->where('pagamentos_venda.id_venda', $v->id_venda)
                     ->select('formas_pagamento.nome')
@@ -267,7 +268,7 @@ class PDVController extends Controller
     public function storeSale(Request $request)
     {
         try {
-            \DB::beginTransaction();
+            DB::beginTransaction();
             
             // Gerar número da venda
             $anoAtual = date('Y');
@@ -296,9 +297,9 @@ class PDVController extends Controller
                 'data_venda' => now(),
             ]);
             
-            \DB::commit();
+            DB::commit();
             
-            \Log::info('Venda header created:', ['venda_id' => $venda->id_venda, 'numero_venda' => $venda->numero_venda]);
+            Log::info('Venda header created:', ['venda_id' => $venda->id_venda, 'numero_venda' => $venda->numero_venda]);
             
             return response()->json([
                 'success' => true,
@@ -307,8 +308,8 @@ class PDVController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \DB::rollback();
-            \Log::error('PDV Store Sale Error:', ['message' => $e->getMessage()]);
+            DB::rollback();
+            Log::error('PDV Store Sale Error:', ['message' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Erro ao iniciar a venda.'], 500);
         }
     }
@@ -334,7 +335,7 @@ class PDVController extends Controller
                 'items.*.desconto_item' => 'nullable|numeric|min:0',
             ]);
 
-            \DB::beginTransaction();
+            DB::beginTransaction();
 
             $venda = Venda::where('id_venda', $validated['id_venda'])->where('status', 'aberta')->firstOrFail();
 
@@ -373,7 +374,7 @@ class PDVController extends Controller
             });
 
             if (abs($somaPagamentos - $valorTotal) > 0.01) {
-                \DB::rollback();
+               DB::rollback();
                 return response()->json([
                     'success' => false,
                     'message' => 'A soma dos pagamentos difere do total da venda.'
@@ -393,7 +394,7 @@ class PDVController extends Controller
             foreach ($validated['pagamentos'] as $p) {
                 $numeroParcelas = isset($p['numero_parcelas']) ? (int) $p['numero_parcelas'] : 1;
                 $valorParcela = $numeroParcelas > 0 ? ((float)$p['valor_pagamento'] / $numeroParcelas) : (float)$p['valor_pagamento'];
-                \DB::table('pagamentos_venda')->insert([
+               DB::table('pagamentos_venda')->insert([
                     'id_venda' => $venda->id_venda,
                     'id_forma_pagamento' => $p['id_forma_pagamento'],
                     'valor_pagamento' => (float) $p['valor_pagamento'],
@@ -409,9 +410,9 @@ class PDVController extends Controller
                 ]);
             }
 
-            \DB::commit();
+           DB::commit();
 
-            \Log::info('Venda finalizada:', [
+           Log::info('Venda finalizada:', [
                 'venda_id' => $venda->id_venda,
                 'numero_venda' => $venda->numero_venda,
             ]);
@@ -423,12 +424,12 @@ class PDVController extends Controller
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \DB::rollback();
-            \Log::error('Erro de validação ao finalizar venda:', ['errors' => $e->errors(), 'request' => $request->all()]);
+           DB::rollback();
+           Log::error('Erro de validação ao finalizar venda:', ['errors' => $e->errors(), 'request' => $request->all()]);
             return response()->json(['success' => false, 'message' => 'Dados inválidos: ' . implode(', ', Arr::flatten($e->errors()))], 422);
         } catch (\Exception $e) {
-            \DB::rollback();
-            \Log::error('Erro ao finalizar venda:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+           DB::rollback();
+           Log::error('Erro ao finalizar venda:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['success' => false, 'message' => 'Erro interno ao finalizar a venda.'], 500);
         }
     }
@@ -444,7 +445,7 @@ class PDVController extends Controller
                 'motivo' => 'nullable|string|max:500',
             ]);
 
-            \DB::beginTransaction();
+           DB::beginTransaction();
 
             // Buscar a venda: permitir cancelar 'aberta' ou 'finalizada'
             $venda = Venda::where('id_venda', $validated['id_venda'])
@@ -457,9 +458,9 @@ class PDVController extends Controller
                 'observacoes' => 'Venda cancelada. Motivo: ' . ($validated['motivo'] ?? 'Não informado'),
             ]);
 
-            \DB::commit();
+           DB::commit();
 
-            \Log::info('Venda cancelada:', [
+           Log::info('Venda cancelada:', [
                 'venda_id' => $venda->id_venda,
                 'numero_venda' => $venda->numero_venda,
                 'motivo' => $validated['motivo'] ?? 'Não informado'
@@ -471,9 +472,9 @@ class PDVController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \DB::rollback();
+           DB::rollback();
             
-            \Log::error('Erro ao cancelar venda:', [
+           Log::error('Erro ao cancelar venda:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request_data' => $request->all()

@@ -16,13 +16,29 @@ class NfceController extends Controller
 
     public function emitir(Request $request)
     {
-        return response()->json(['message' => 'Teste de emissão NFC-e']);
 
-        
         $dados = $request->validate([
-            'produtos' => 'required|array',  // Dados da venda
-            'cliente' => 'required|array',   // Dados do cliente
-            // Outros dados necessários...
+            'emitente' => 'required|array',
+            'emitente.cnpj' => 'required|string|size:14',
+            'emitente.nome' => 'required|string',
+
+            'destinatario' => 'required|array',
+            'destinatario.cpf' => 'required|string|size:11',
+            'destinatario.nome' => 'required|string',
+
+            'produtos' => 'required|array|min:1',
+            'produtos.*.codigo' => 'required|string',
+            'produtos.*.descricao' => 'required|string',
+            'produtos.*.quantidade' => 'required|numeric|min:0.01',
+            'produtos.*.valor_unitario' => 'required|numeric|min:0.01',
+            'produtos.*.valor_total' => 'required|numeric|min:0.01',
+
+            'pagamento' => 'required|array',
+            'pagamento.metodo' => 'required|string',
+            'pagamento.valor' => 'required|numeric|min:0.01',
+
+            'total' => 'required|array',
+            'total.valor_total' => 'required|numeric|min:0.01',
         ]);
 
         try {
