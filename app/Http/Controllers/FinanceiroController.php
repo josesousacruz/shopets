@@ -110,12 +110,20 @@ class FinanceiroController extends Controller
             ->limit(30)
             ->get()
             ->map(function ($venda) {
+                $pgs = \DB::table('pagamentos_venda')
+                    ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
+                    ->where('pagamentos_venda.id_venda', $venda->id_venda)
+                    ->select('formas_pagamento.nome')
+                    ->get();
+                $formaNome = null;
+                if ($pgs->count() === 1) { $formaNome = $pgs->first()->nome; }
+                elseif ($pgs->count() > 1) { $formaNome = 'Múltiplos'; }
                 return [
                     'id' => $venda->id_venda,
                     'customerId' => $venda->id_cliente,
                     'total' => $venda->valor_total,
                     'created_at' => $venda->data_venda->format('Y-m-d'),
-                    'payment_method' => $venda->tipo_venda
+                    'payment_method' => $formaNome
                 ];
             });
 
