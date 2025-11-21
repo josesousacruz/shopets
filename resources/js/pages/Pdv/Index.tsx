@@ -161,6 +161,11 @@ function PDV({
                     setCupomVendaId(vendaEmAberto.id);
                     setIsCupomModalOpen(true);
                 }
+
+                if (dados.acao_pos === 'nfe') {
+                    // setIsNfeModalOpen(true);
+                    Swal.fire('NFe Gerada!', response.data.message, 'success');
+                }
                 
                 setIsFinalizarModalOpen(false);
                 setVendaEmAberto(null);
