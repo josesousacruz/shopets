@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json vite.config.* tsconfig.* tailwind.config.js postcss.config.js ./
 COPY resources resources
 COPY public ./public
-RUN npm install && npm run build
+RUN npm install --legacy-peer-deps && npm run build
 
 # ===============================
 # Etapa 2: Backend PHP (Laravel)
