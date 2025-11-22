@@ -7,18 +7,17 @@ use Inertia\Inertia;
 use App\Models\Venda;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class RelatorioController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $hoje = Carbon::today();
-        $inicioDoMes = Carbon::now()->startOfMonth();
-        $vendas_hoje_valor = Venda::whereDate('data_venda', $hoje)->where('status','finalizada')->sum('valor_total');
-
-        $vendas_mes_valor = Venda::whereDate('data_venda', '>=', $inicioDoMes)->where('status','finalizada')->sum('valor_total');
-
-        $vendas_hoje_numero = Venda::whereDate('data_venda', $hoje)->where('status','finalizada')->count();
+        $startParam = $request->get('start');
+        $endParam = $request->get('end');
+        $startDate = $startParam ? Carbon::parse($startParam)->startOfDay() : Carbon::now()->subDays(29)->startOfDay();
+        $endDate = $endParam ? Carbon::parse($endParam)->endOfDay() : Carbon::now()->endOfDay();
+    
         // 1. Busca os dados já agrupados por dia/mês do ano atual
         $salesByDay = Venda::select(
             DB::raw('MONTH(data_venda) as month'),
@@ -46,10 +45,6 @@ class RelatorioController extends Controller
         foreach ($salesByDay as $sale) {
             $vendas_ano_valor[$sale->month][$sale->day] = $sale->total;
         }
-
-        // Count all products where 'ativa' is true
-        $produtosAtivos = \App\Models\Produto::where('ativo', true)->count();
-
         // Top-selling products: name, total value sold, total quantity sold
         $produtosMaisVendidos = \App\Models\ItemVenda::select(
                 'produtos.nome',
@@ -59,6 +54,7 @@ class RelatorioController extends Controller
             ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
             ->join('produtos', 'produtos.id_produto', '=', 'itens_venda.id_produto')
             ->where('vendas.status', 'finalizada')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
             ->groupBy('produtos.id_produto', 'produtos.nome')
             ->orderByDesc('valor_total_itens_vendido')
             ->get();
@@ -73,18 +69,222 @@ class RelatorioController extends Controller
             ->join('produtos', 'produtos.id_produto', '=', 'itens_venda.id_produto')
             ->join('categorias', 'categorias.id_categoria', '=', 'produtos.id_categoria')
             ->where('vendas.status', 'finalizada')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
             ->groupBy('categorias.id_categoria', 'categorias.nome')
             ->orderByDesc('valor_total_itens_vendido')
             ->get();
 
+        $formasPagamentoMix = \DB::table('pagamentos_venda')
+            ->join('vendas', 'pagamentos_venda.id_venda', '=', 'vendas.id_venda')
+            ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
+            ->where('vendas.status', 'finalizada')
+            ->whereBetween('pagamentos_venda.data_pagamento', [$startDate, $endDate])
+            ->select('formas_pagamento.nome', \DB::raw('COUNT(DISTINCT vendas.id_venda) as vendas'), \DB::raw('SUM(pagamentos_venda.valor_pagamento) as total'))
+            ->groupBy('formas_pagamento.id_forma_pagamento', 'formas_pagamento.nome')
+            ->orderByDesc('total')
+            ->get();
+
+        $totalVendasFinalizadas = (int) \App\Models\Venda::where('status', 'finalizada')->count();
+        $parceladasCount = (int) \DB::table('pagamentos_venda')
+            ->join('vendas', 'pagamentos_venda.id_venda', '=', 'vendas.id_venda')
+            ->where('vendas.status', 'finalizada')
+            ->whereBetween('pagamentos_venda.data_pagamento', [$startDate, $endDate])
+            ->where('pagamentos_venda.numero_parcelas', '>', 1)
+            ->distinct('vendas.id_venda')
+            ->count('vendas.id_venda');
+        $percentualParceladas = $totalVendasFinalizadas > 0 ? round(($parceladasCount / $totalVendasFinalizadas) * 100, 2) : 0.0;
+
+        $statusPagamentos = \DB::table('pagamentos_venda')
+            ->whereBetween('data_pagamento', [$startDate, $endDate])
+            ->select('status_pagamento', \DB::raw('COUNT(*) as qtd'), \DB::raw('SUM(valor_pagamento) as total'))
+            ->groupBy('status_pagamento')
+            ->get();
+
+        $vendasPorPDV = \DB::table('vendas')
+            ->join('pontos_venda', 'vendas.id_pdv', '=', 'pontos_venda.id_pdv')
+            ->where('vendas.status', 'finalizada')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
+            ->select('pontos_venda.nome_pdv as nome', \DB::raw('COUNT(*) as num'), \DB::raw('SUM(vendas.valor_total) as total'))
+            ->groupBy('vendas.id_pdv', 'pontos_venda.nome_pdv')
+            ->orderByDesc('total')
+            ->get();
+
+        $vendasPorUsuario = \DB::table('vendas')
+            ->join('users', 'vendas.id_usuario', '=', 'users.id')
+            ->where('vendas.status', 'finalizada')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
+            ->select('users.name as nome', \DB::raw('COUNT(*) as num'), \DB::raw('SUM(vendas.valor_total) as total'))
+            ->groupBy('vendas.id_usuario', 'users.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $topClientes = \DB::table('vendas')
+            ->join('clientes', 'vendas.id_cliente', '=', 'clientes.id_cliente')
+            ->where('vendas.status', 'finalizada')
+            ->whereNotNull('vendas.id_cliente')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
+            ->select('clientes.nome as nome', \DB::raw('COUNT(*) as num'), \DB::raw('SUM(vendas.valor_total) as total'))
+            ->groupBy('clientes.id_cliente', 'clientes.nome')
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        $estoqueBaixo = \DB::table('produtos')
+            ->select('nome', 'estoque_atual', 'estoque_minimo')
+            ->where('ativo', true)
+            ->whereColumn('estoque_atual', '<=', 'estoque_minimo')
+            ->orderByRaw('(estoque_minimo - estoque_atual) DESC')
+            ->limit(20)
+            ->get();
+
+        $entradasEstoqueUlt30 = \DB::table('entradas_estoque')
+            ->select(\DB::raw('DATE(data_entrada) as dia'), \DB::raw('SUM(valor_total) as total'))
+            ->whereBetween('data_entrada', [$startDate, $endDate])
+            ->groupBy('dia')
+            ->orderBy('dia')
+            ->get();
+
+        $fluxoEntradas30 = \DB::table('fluxo_caixa')
+            ->where('tipo_operacao', 'entrada')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('valor');
+        $fluxoSaidas30 = \DB::table('fluxo_caixa')
+            ->where('tipo_operacao', 'saida')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('valor');
+        $fluxoSaldo30 = (float) $fluxoEntradas30 - (float) $fluxoSaidas30;
+
+        // Totais no intervalo selecionado
+        $totalLiquidoIntervalo = (float) Venda::where('status','finalizada')
+            ->whereBetween('data_venda', [$startDate, $endDate])
+            ->sum('valor_total');
+
+        $vendasCountIntervalo = (int) Venda::where('status','finalizada')
+            ->whereBetween('data_venda', [$startDate, $endDate])
+            ->count();
+
+        $totalBrutoIntervalo = (float) DB::table('itens_venda')
+            ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
+            ->where('vendas.status', 'finalizada')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
+            ->sum('itens_venda.valor_total_item');
+
+        $totalDescontoIntervalo = (float) DB::table('itens_venda')
+            ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
+            ->where('vendas.status', 'finalizada')
+            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
+            ->sum('itens_venda.desconto_item');
+
+        $contasResumo = [
+            'pagar' => [
+                'pendente' => (float) \App\Models\ContaPagar::where('ativo', true)->where('status', 'pendente')->sum('valor_original'),
+                'vencido' => (float) \App\Models\ContaPagar::where('ativo', true)->where('status', 'vencido')->sum('valor_original'),
+                'pago' => (float) \App\Models\ContaPagar::where('ativo', true)->where('status', 'pago')->sum('valor_pago'),
+            ],
+            'receber' => [
+                'pendente' => (float) \App\Models\ContaReceber::where('ativo', true)->where('status', 'pendente')->sum('valor_original'),
+                'vencido' => (float) \App\Models\ContaReceber::where('ativo', true)->where('status', 'vencido')->sum('valor_original'),
+                'recebido' => (float) \App\Models\ContaReceber::where('ativo', true)->where('status', 'recebido')->sum('valor_recebido'),
+            ],
+        ];
+
+        $sales = Venda::with(['itens.produto'])
+            ->where('status', 'finalizada')
+            ->whereBetween('data_venda', [$startDate, $endDate])
+            ->orderBy('data_venda', 'desc')
+            ->get()
+            ->map(function ($venda) {
+                return [
+                    'id' => $venda->id_venda,
+                    'numero' => $venda->numero_venda,
+                    'date' => optional($venda->data_venda)->toDateTimeString(),
+                    'total' => (float) $venda->valor_total,
+                    'items' => $venda->itens->map(function ($item) {
+                        return [
+                            'product' => [
+                                'id' => $item->produto->id_produto ?? null,
+                                'name' => $item->produto->nome ?? null,
+                                'price' => (float) ($item->preco_unitario ?? 0),
+                                'salePrice' => (float) ($item->preco_unitario ?? 0),
+                            ],
+                            'quantity' => (float) $item->quantidade,
+                            'desconto_item' => (float) ($item->desconto_item ?? 0),
+                            'valor_total_item' => (float) ($item->valor_total_item ?? 0),
+                        ];
+                    }),
+                ];
+            });
+
+        $products = \App\Models\Produto::where('ativo', true)->get();
+
         return inertia('Relatorio/Index', [
-            'vendas_hoje_valor' => $vendas_hoje_valor,
-            'vendas_mes_valor' => $vendas_mes_valor,
-            'vendas_hoje_numero' => $vendas_hoje_numero,
+            'sales' => $sales,
             'vendas_ano_valor' => $vendas_ano_valor,
-            'produtosAtivos' => $produtosAtivos,
             'produtosMaisVendidos' => $produtosMaisVendidos,
             'categoriasMaisVendidas' => $categoriasMaisVendidas,
+            'formasPagamentoMix' => $formasPagamentoMix,
+            'percentualParceladas' => $percentualParceladas,
+            'statusPagamentos' => $statusPagamentos,
+            'contasResumo' => $contasResumo,
+            'totalLiquidoIntervalo' => (float) $totalLiquidoIntervalo,
+            'vendasCountIntervalo' => (int) $vendasCountIntervalo,
+            'totalBrutoIntervalo' => (float) $totalBrutoIntervalo,
+            'totalDescontoIntervalo' => (float) $totalDescontoIntervalo,
+            'products' => $products,
+            'isLoading' => false,
         ]);
     }
-}   
+
+    public function fechamentoDia(Request $request)
+    {
+        $dateParam = $request->get('date');
+        $date = $dateParam ? Carbon::parse($dateParam)->startOfDay() : Carbon::today()->startOfDay();
+
+        $vendas = Venda::with(['itens.produto'])
+            ->where('status', 'finalizada')
+            ->whereDate('data_venda', $date)
+            ->orderBy('data_venda')
+            ->get();
+
+        $produtos = [];
+        $totalItens = 0;
+        $totalLiquido = 0.0;
+        foreach ($vendas as $venda) {
+            foreach ($venda->itens as $item) {
+                $nome = $item->produto->nome ?? ('ID ' . ($item->produto->id_produto ?? ''));
+                $bruto = (float) $item->valor_total_item;
+                $desconto = (float) ($item->desconto_item ?? 0);
+                $liquido = max(0.0, $bruto - $desconto);
+                $totalItens += (int) $item->quantidade;
+                $totalLiquido += $liquido;
+                if (!isset($produtos[$nome])) {
+                    $produtos[$nome] = ['quantidade' => 0, 'bruto' => 0.0, 'desconto' => 0.0, 'liquido' => 0.0];
+                }
+                $produtos[$nome]['quantidade'] += (int) $item->quantidade;
+                $produtos[$nome]['bruto'] += $bruto;
+                $produtos[$nome]['desconto'] += $desconto;
+                $produtos[$nome]['liquido'] += $liquido;
+            }
+        }
+
+        $formas = DB::table('pagamentos_venda')
+            ->join('formas_pagamento', 'pagamentos_venda.id_forma_pagamento', '=', 'formas_pagamento.id_forma_pagamento')
+            ->join('vendas', 'pagamentos_venda.id_venda', '=', 'vendas.id_venda')
+            ->whereDate('vendas.data_venda', $date)
+            ->where('vendas.status', 'finalizada')
+            ->select('formas_pagamento.nome', DB::raw('SUM(pagamentos_venda.valor_pagamento) as total'))
+            ->groupBy('formas_pagamento.id_forma_pagamento', 'formas_pagamento.nome')
+            ->get();
+
+        $data = [
+            'data' => $date->toDateString(),
+            'produtos' => $produtos,
+            'total_itens' => $totalItens,
+            'total_liquido' => $totalLiquido,
+            'formas' => $formas,
+        ];
+
+        $pdf = Pdf::loadView('relatorios.fechamento-dia', $data)->setPaper('a4');
+        return $pdf->download('fechamento_' . $date->format('Y-m-d') . '.pdf');
+    }
+}

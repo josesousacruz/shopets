@@ -86,6 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/fluxo-caixa/dados-grafico', [FluxoCaixaController::class, 'getDadosGrafico'])->name('fluxo-caixa.dados-grafico');
 
     Route::get('/relatorios', [RelatorioController::class, 'index'])->name('relatorios.index');
+    Route::get('/relatorios/fechamento-dia', [RelatorioController::class, 'fechamentoDia'])->name('relatorios.fechamento-dia');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

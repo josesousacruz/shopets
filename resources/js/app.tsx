@@ -1,4 +1,5 @@
 import '../css/app.css';
+import 'react-day-picker/style.css';
 
 // Imports do React e Inertia
 import { createRoot } from 'react-dom/client';
