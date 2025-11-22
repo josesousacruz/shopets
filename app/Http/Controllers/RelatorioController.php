@@ -100,50 +100,6 @@ class RelatorioController extends Controller
             ->groupBy('status_pagamento')
             ->get();
 
-        $vendasPorPDV = \DB::table('vendas')
-            ->join('pontos_venda', 'vendas.id_pdv', '=', 'pontos_venda.id_pdv')
-            ->where('vendas.status', 'finalizada')
-            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
-            ->select('pontos_venda.nome_pdv as nome', \DB::raw('COUNT(*) as num'), \DB::raw('SUM(vendas.valor_total) as total'))
-            ->groupBy('vendas.id_pdv', 'pontos_venda.nome_pdv')
-            ->orderByDesc('total')
-            ->get();
-
-        $vendasPorUsuario = \DB::table('vendas')
-            ->join('users', 'vendas.id_usuario', '=', 'users.id')
-            ->where('vendas.status', 'finalizada')
-            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
-            ->select('users.name as nome', \DB::raw('COUNT(*) as num'), \DB::raw('SUM(vendas.valor_total) as total'))
-            ->groupBy('vendas.id_usuario', 'users.name')
-            ->orderByDesc('total')
-            ->get();
-
-        $topClientes = \DB::table('vendas')
-            ->join('clientes', 'vendas.id_cliente', '=', 'clientes.id_cliente')
-            ->where('vendas.status', 'finalizada')
-            ->whereNotNull('vendas.id_cliente')
-            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
-            ->select('clientes.nome as nome', \DB::raw('COUNT(*) as num'), \DB::raw('SUM(vendas.valor_total) as total'))
-            ->groupBy('clientes.id_cliente', 'clientes.nome')
-            ->orderByDesc('total')
-            ->limit(10)
-            ->get();
-
-        $estoqueBaixo = \DB::table('produtos')
-            ->select('nome', 'estoque_atual', 'estoque_minimo')
-            ->where('ativo', true)
-            ->whereColumn('estoque_atual', '<=', 'estoque_minimo')
-            ->orderByRaw('(estoque_minimo - estoque_atual) DESC')
-            ->limit(20)
-            ->get();
-
-        $entradasEstoqueUlt30 = \DB::table('entradas_estoque')
-            ->select(\DB::raw('DATE(data_entrada) as dia'), \DB::raw('SUM(valor_total) as total'))
-            ->whereBetween('data_entrada', [$startDate, $endDate])
-            ->groupBy('dia')
-            ->orderBy('dia')
-            ->get();
-
         $fluxoEntradas30 = \DB::table('fluxo_caixa')
             ->where('tipo_operacao', 'entrada')
             ->whereBetween('created_at', [$startDate, $endDate])
@@ -152,7 +108,6 @@ class RelatorioController extends Controller
             ->where('tipo_operacao', 'saida')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->sum('valor');
-        $fluxoSaldo30 = (float) $fluxoEntradas30 - (float) $fluxoSaidas30;
 
         // Totais no intervalo selecionado
         $totalLiquidoIntervalo = (float) Venda::where('status','finalizada')
@@ -163,17 +118,13 @@ class RelatorioController extends Controller
             ->whereBetween('data_venda', [$startDate, $endDate])
             ->count();
 
-        $totalBrutoIntervalo = (float) DB::table('itens_venda')
-            ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
-            ->where('vendas.status', 'finalizada')
-            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
-            ->sum('itens_venda.valor_total_item');
+        $totalBrutoIntervalo = (float) Venda::where('status', 'finalizada')
+            ->whereBetween('data_venda', [$startDate, $endDate])
+            ->sum('valor_subtotal');
 
-        $totalDescontoIntervalo = (float) DB::table('itens_venda')
-            ->join('vendas', 'vendas.id_venda', '=', 'itens_venda.id_venda')
-            ->where('vendas.status', 'finalizada')
-            ->whereBetween('vendas.data_venda', [$startDate, $endDate])
-            ->sum('itens_venda.desconto_item');
+        $totalDescontoIntervalo = (float) Venda::where('status', 'finalizada')
+            ->whereBetween('data_venda', [$startDate, $endDate])
+            ->sum('valor_desconto');
 
         $contasResumo = [
             'pagar' => [
