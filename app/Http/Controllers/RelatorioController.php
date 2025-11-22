@@ -203,7 +203,7 @@ class RelatorioController extends Controller
         foreach ($vendas as $venda) {
             foreach ($venda->itens as $item) {
                 $nome = $item->produto->nome ?? ('ID ' . ($item->produto->id_produto ?? ''));
-                $bruto = (float) $item->valor_total_item;
+                $bruto = (float) $item->preco_unitario * (int) $item->quantidade;
                 $desconto = (float) ($item->desconto_item ?? 0);
                 $liquido = max(0.0, $bruto - $desconto);
                 $totalItens += (int) $item->quantidade;
