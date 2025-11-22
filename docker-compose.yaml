@@ -9,6 +9,7 @@ services:
       - "8005:8000"
     environment:
       # Laravel config
+      APP_ENV: local
       APP_DEBUG: true
       APP_KEY: ${APP_KEY}
       APP_URL: http://localhost:8005
