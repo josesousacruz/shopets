@@ -11,6 +11,7 @@ use App\Http\Controllers\RelatorioController;
 use App\Http\Controllers\ContaPagarController;
 use App\Http\Controllers\ContaReceberController;
 use App\Http\Controllers\FluxoCaixaController;
+use App\Http\Controllers\NfceController;
 
 // Redireciona a raiz para o PDV
 Route::get('/', function () {
@@ -26,19 +27,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/sales', [PDVController::class, 'storeSale'])->name('sales.store');
     Route::post('/sales/finalizar', [PDVController::class, 'finalizarVenda'])->name('sales.finalizar');
     Route::post('/sales/cancelar', [PDVController::class, 'cancelarVenda'])->name('sales.cancelar');
-    
+
     Route::get('/estoque', [EstoqueController::class, 'index'])->name('estoque.index');
     Route::post('/estoque', [EstoqueController::class, 'store'])->name('estoque.store');
     Route::put('/estoque/{id}', [EstoqueController::class, 'update'])->name('estoque.update');
     Route::delete('/estoque/{id}', [EstoqueController::class, 'destroy'])->name('estoque.destroy');
     Route::post('/estoque/add-stock', [EstoqueController::class, 'addStock'])->name('estoque.add-stock');
-    
+
     // Rotas para estatísticas de estoque
     Route::get('/estoque/statistics/product/{productId}', [EstoqueController::class, 'getProductStatistics'])->name('estoque.statistics.product');
     Route::get('/estoque/statistics/supplier/{supplierId}', [EstoqueController::class, 'getSupplierStatistics'])->name('estoque.statistics.supplier');
     Route::get('/estoque/history/{productId}', [EstoqueController::class, 'getStockHistory'])->name('estoque.history');
     Route::get('/estoque/latest-entries', [EstoqueController::class, 'getLatestStockEntries'])->name('estoque.latest-entries');
-    
+
     // Rotas para categorias
     Route::post('/estoque/categories', [EstoqueController::class, 'storeCategory'])->name('estoque.categories.store');
     Route::put('/estoque/categories/{id}', [EstoqueController::class, 'updateCategory'])->name('estoque.categories.update');
@@ -59,7 +60,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/clientes/redeem-points', [ClienteController::class, 'redeemLoyaltyPoints'])->name('clientes.redeem-points');
 
     Route::get('/financeiro', [FinanceiroController::class, 'index'])->name('financeiro.index');
-    
+
     // Rotas específicas para Contas a Pagar
     Route::get('/financeiro/contas-pagar', [ContaPagarController::class, 'index'])->name('contas-pagar.index');
     Route::post('/financeiro/contas-pagar', [ContaPagarController::class, 'store'])->name('contas-pagar.store');
@@ -88,6 +89,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/relatorios', [RelatorioController::class, 'index'])->name('relatorios.index');
     Route::get('/relatorios/fechamento-dia', [RelatorioController::class, 'fechamentoDia'])->name('relatorios.fechamento-dia');
 });
+Route::post('/nfce/emitir', [NfceController::class, 'emitir']);
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
@@ -95,5 +97,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';
