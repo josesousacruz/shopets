@@ -14,7 +14,7 @@ class EstoqueController extends Controller
     public function index()
     {
         // Carregar dados reais do banco
-        $produtos = Produto::with('categoria')->get();
+        $produtos = Produto::with('categoria')->where('ativo', true)->get();
         $categorias = Categoria::all();
         $fornecedores = Fornecedor::all();
 
