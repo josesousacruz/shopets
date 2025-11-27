@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { Search, Plus, Edit, Package, AlertTriangle, Tag, Trash2 } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { Search, Plus, Edit, Package, AlertTriangle, Tag, Trash2, History } from 'lucide-react';
 import { Product, Category, Supplier, StockEntry } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductForm from '../forms/ProductForm';
 import CategoryForm from '../forms/CategoryForm';
+import HistoricoVendasModal from '../modals/HistoricoVendasModal';
+import DetalhesVendaModal from '../modals/DetalhesVendaModal';
+import DevolucaoModal from '../modals/DevolucaoModal';
 
 interface EstoqueViewProps {
   products: Product[];
@@ -58,6 +62,12 @@ const EstoqueView: React.FC<EstoqueViewProps> = ({
   const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [editingCategory, setEditingCategory] = useState<Category | undefined>();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyProductId, setHistoryProductId] = useState<string | null>(null);
+  const [detalhesVendaOpen, setDetalhesVendaOpen] = useState(false);
+  const [detalhesVendaId, setDetalhesVendaId] = useState<number | null>(null);
+  const [devolucaoOpen, setDevolucaoOpen] = useState(false);
+  const [devolucaoVendaId, setDevolucaoVendaId] = useState<number | null>(null);
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode?.includes(searchTerm);
@@ -228,6 +238,9 @@ const EstoqueView: React.FC<EstoqueViewProps> = ({
                         <button onClick={() => handleEditProduct(product)} className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100">
                           <Edit size={16} />
                         </button>
+                        <button onClick={() => { setHistoryProductId(product.id); setHistoryOpen(true); }} className="ml-2 text-gray-700 hover:text-gray-900 p-1 rounded-full hover:bg-gray-100">
+                          <History size={16} />
+                        </button>
                       </td>
                     </motion.tr>
                   );
@@ -315,6 +328,32 @@ const EstoqueView: React.FC<EstoqueViewProps> = ({
         </>
       )}
 
+      {historyOpen && historyProductId && (
+        <HistoricoVendasModal
+          isOpen={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          productId={historyProductId}
+          onDetalhes={(id) => { setDetalhesVendaId(id); setDetalhesVendaOpen(true); }}
+          onDevolucao={(id) => { setDevolucaoVendaId(id); setDevolucaoOpen(true); }}
+        />
+      )}
+      {detalhesVendaOpen && (
+        <DetalhesVendaModal
+          isOpen={detalhesVendaOpen}
+          onClose={() => setDetalhesVendaOpen(false)}
+          idVenda={detalhesVendaId}
+        />
+      )}
+      {devolucaoOpen && (
+        <DevolucaoModal
+          isOpen={devolucaoOpen}
+          onClose={() => setDevolucaoOpen(false)}
+          idVenda={devolucaoVendaId}
+          onConcluido={() => {
+            router.visit(window.location.pathname, { replace: true });
+          }}
+        />
+      )}
       <ProductForm isOpen={isProductFormOpen} onClose={() => setIsProductFormOpen(false)} onSave={handleSaveProduct} onAddStock={onAddStock} product={editingProduct} suppliers={suppliers} categories={categories} onSupplierAdded={onAddSupplier} />
       <CategoryForm isOpen={isCategoryFormOpen} onClose={() => setIsCategoryFormOpen(false)} onSave={handleSaveCategory} category={editingCategory} />
     </div>

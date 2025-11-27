@@ -486,4 +486,357 @@ class PDVController extends Controller
             ], 500);
         }
     }
+
+    public function getSalesByProduct($id)
+    {
+        $rows = DB::table('itens_venda as iv')
+            ->join('vendas as v', 'v.id_venda', '=', 'iv.id_venda')
+            ->where('iv.id_produto', $id)
+            ->select('v.id_venda', 'v.numero_venda', 'v.valor_total', 'v.status', 'v.data_venda')
+            ->orderBy('v.data_venda', 'desc')
+            ->get();
+        $data = $rows->map(function ($r) {
+            return [
+                'id_venda' => $r->id_venda,
+                'numero_venda' => $r->numero_venda,
+                'valor_liquido' => (float) $r->valor_total,
+                'status' => $r->status,
+                'data_venda' => $r->data_venda,
+            ];
+        });
+        return response()->json(['vendas' => $data]);
+    }
+
+    public function getSaleItems($id)
+    {
+        $items = DB::table('itens_venda as iv')
+            ->join('produtos as p', 'p.id_produto', '=', 'iv.id_produto')
+            ->where('iv.id_venda', $id)
+            ->select('iv.id_item', 'iv.id_produto', 'p.nome as produto_nome', 'iv.quantidade', 'iv.preco_unitario', 'iv.desconto_item', 'iv.valor_total_item')
+            ->get()
+            ->map(function ($i) {
+                return [
+                    'id_item' => $i->id_item,
+                    'id_produto' => $i->id_produto,
+                    'produto_nome' => $i->produto_nome,
+                    'quantidade' => (float) $i->quantidade,
+                    'preco_unitario' => (float) $i->preco_unitario,
+                    'desconto_item' => (float) ($i->desconto_item ?? 0),
+                    'valor_total_item' => (float) ($i->valor_total_item ?? 0),
+                ];
+            });
+        $venda = Venda::findOrFail($id);
+        return response()->json([
+            'venda' => [
+                'id_venda' => $venda->id_venda,
+                'numero_venda' => $venda->numero_venda,
+                'valor_total' => (float) $venda->valor_total,
+                'status' => $venda->status,
+            ],
+            'items' => $items,
+        ]);
+    }
+
+    public function processDevolucao(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'itens' => 'required|array|min:1',
+            'itens.*' => 'required|exists:itens_venda,id_item',
+        ]);
+        $orig = Venda::with('itens')->findOrFail($id);
+        $idsDevolver = collect($validated['itens'])->map(fn($x) => (int) $x)->all();
+        $itensRestantes = $orig->itens->filter(function ($iv) use ($idsDevolver) {
+            return !in_array($iv->id_item, $idsDevolver);
+        })->map(function ($iv) {
+            return [
+                'id_item' => $iv->id_item,
+                'id_produto' => $iv->id_produto,
+                'quantidade' => (float) $iv->quantidade,
+                'preco_unitario' => (float) $iv->preco_unitario,
+                'desconto_item' => (float) ($iv->desconto_item ?? 0),
+                'valor_total_item' => (float) ($iv->valor_total_item ?? ((float)$iv->preco_unitario * (float)$iv->quantidade)),
+            ];
+        });
+        return response()->json([
+            'success' => true,
+            'venda_original' => [
+                'id_venda' => $orig->id_venda,
+                'numero_venda' => $orig->numero_venda,
+                'valor_total' => (float) $orig->valor_total,
+                'status' => $orig->status,
+            ],
+            'itens_restantes' => $itensRestantes,
+            'ids_devolver' => $idsDevolver,
+        ]);
+    }
+
+    public function finalizarTroca(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'novos_itens' => 'nullable|array',
+                'novos_itens.*.id_produto' => 'required|exists:produtos,id_produto',
+                'novos_itens.*.quantidade' => 'required|numeric|min:0.01',
+                'novos_itens.*.preco_unitario' => 'required|numeric|min:0',
+                'pagamentos' => 'nullable|array',
+                'pagamentos.*.id_forma_pagamento' => 'required|exists:formas_pagamento,id_forma_pagamento',
+                'pagamentos.*.valor_pagamento' => 'required|numeric|min:0.01',
+                'pagamentos.*.numero_parcelas' => 'nullable|integer|min:1',
+                'observacoes' => 'nullable|string|max:500',
+                'valor_venda_anterior' => 'required|numeric|min:0',
+            ]);
+            DB::beginTransaction();
+            $venda = Venda::where('id_venda', $id)->where('status', 'aberta')->firstOrFail();
+            $subtotal = (float) ($venda->valor_subtotal ?? 0);
+            $desconto = (float) ($venda->valor_desconto ?? 0);
+            if (!empty($validated['novos_itens'])) {
+                foreach ($validated['novos_itens'] as $ni) {
+                    $valorBruto = (float) $ni['preco_unitario'] * (float) $ni['quantidade'];
+                    ItemVenda::create([
+                        'id_venda' => $venda->id_venda,
+                        'id_produto' => (int) $ni['id_produto'],
+                        'quantidade' => (float) $ni['quantidade'],
+                        'preco_unitario' => (float) $ni['preco_unitario'],
+                        'desconto_item' => 0,
+                        'valor_total_item' => $valorBruto,
+                    ]);
+                    $subtotal += $valorBruto;
+                }
+            }
+            $total = max(0.0, $subtotal - $desconto);
+            $valorAnterior = (float) ($validated['valor_venda_anterior'] ?? 0);
+            $diferenca = $total - $valorAnterior;
+
+            $somaPagamentos = collect($validated['pagamentos'] ?? [])->sum(function ($p) {
+                return (float) $p['valor_pagamento'];
+            });
+            if ($diferenca > 0) {
+                if (abs($somaPagamentos - $diferenca) > 0.01) {
+                    DB::rollback();
+                    return response()->json(['success' => false, 'message' => 'Pagamentos não fecham a diferença'], 422);
+                }
+            } else {
+                $somaPagamentos = 0.0;
+            }
+            $venda->update([
+                'valor_subtotal' => $subtotal,
+                'valor_total' => $total,
+                'status' => 'finalizada',
+                'observacoes' => $validated['observacoes'] ?? null,
+            ]);
+            if ($diferenca > 0 && !empty($validated['pagamentos'])) {
+                foreach ($validated['pagamentos'] as $p) {
+                    $np = isset($p['numero_parcelas']) ? (int) $p['numero_parcelas'] : 1;
+                    $vp = $np > 0 ? ((float) $p['valor_pagamento'] / $np) : (float) $p['valor_pagamento'];
+                    DB::table('pagamentos_venda')->insert([
+                        'id_venda' => $venda->id_venda,
+                        'id_forma_pagamento' => $p['id_forma_pagamento'],
+                        'valor_pagamento' => (float) $p['valor_pagamento'],
+                        'numero_parcelas' => $np,
+                        'valor_parcela' => $vp,
+                        'numero_transacao' => null,
+                        'numero_autorizacao' => null,
+                        'status_pagamento' => 'aprovado',
+                        'data_pagamento' => now(),
+                        'observacoes' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'venda' => $venda->fresh(),
+                'diferenca' => $diferenca,
+                'valor_restituir' => $diferenca < 0 ? abs($diferenca) : 0.0,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            return response()->json(['success' => false, 'message' => 'Dados inválidos'], 422);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json(['success' => false, 'message' => 'Erro interno'], 500);
+        }
+    }
+
+    public function finalizarDevolucaoTroca(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'itens_devolver' => 'required|array|min:1',
+            'itens_devolver.*' => 'required|exists:itens_venda,id_item',
+            'novos_itens' => 'nullable|array',
+            'novos_itens.*.id_produto' => 'required|exists:produtos,id_produto',
+            'novos_itens.*.quantidade' => 'required|numeric|min:0.01',
+            'novos_itens.*.preco_unitario' => 'required|numeric|min:0',
+            'pagamentos' => 'nullable|array',
+            'pagamentos.*.id_forma_pagamento' => 'required|exists:formas_pagamento,id_forma_pagamento',
+            'pagamentos.*.valor_pagamento' => 'required|numeric|min:0.01',
+            'pagamentos.*.numero_parcelas' => 'nullable|integer|min:1',
+            'observacoes' => 'nullable|string|max:500',
+        ]);
+        DB::beginTransaction();
+        $orig = Venda::with('itens')->findOrFail($id);
+        $idsDev = collect($validated['itens_devolver'])->map(fn($x) => (int) $x)->all();
+        $itensRestantes = $orig->itens->filter(function ($iv) use ($idsDev) {
+            return !in_array($iv->id_item, $idsDev);
+        });
+        $novosItensPayload = $validated['novos_itens'] ?? [];
+
+        if ($itensRestantes->count() === 0 && (empty($novosItensPayload) || count($novosItensPayload) === 0)) {
+            $orig->update(['status' => 'devolvida']);
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'venda_original' => [
+                    'id_venda' => $orig->id_venda,
+                    'numero_venda' => $orig->numero_venda,
+                    'valor_total' => (float) $orig->valor_total,
+                    'status' => 'devolvida',
+                ],
+                'nova_venda' => null,
+                'diferenca' => -(float) ($orig->valor_total ?? 0),
+                'valor_restituir' => (float) ($orig->valor_total ?? 0),
+            ]);
+        }
+
+        $anoAtual = date('Y');
+        $ultimaVenda = Venda::where('numero_venda', 'like', $anoAtual . '%')
+            ->orderBy('numero_venda', 'desc')
+            ->first();
+        $proximoNumero = 1;
+        if ($ultimaVenda && $ultimaVenda->numero_venda) {
+            $ultimoNumero = (int) substr($ultimaVenda->numero_venda, 4);
+            $proximoNumero = $ultimoNumero + 1;
+        }
+        $numeroVendaNova = $anoAtual . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
+
+        $nova = Venda::create([
+            'numero_venda' => $numeroVendaNova,
+            'id_usuario' => $orig->id_usuario,
+            'id_pdv' => $orig->id_pdv,
+            'id_cliente' => $orig->id_cliente,
+            'valor_subtotal' => 0,
+            'valor_desconto' => 0,
+            'valor_acrescimo' => 0,
+            'valor_total' => 0,
+            'status' => 'aberta',
+            'data_venda' => now(),
+        ]);
+        $subtotal = 0.0;
+        $desconto = 0.0;
+        foreach ($itensRestantes as $iv) {
+            ItemVenda::create([
+                'id_venda' => $nova->id_venda,
+                'id_produto' => $iv->id_produto,
+                'quantidade' => $iv->quantidade,
+                'preco_unitario' => $iv->preco_unitario,
+                'desconto_item' => $iv->desconto_item,
+                'valor_total_item' => $iv->valor_total_item,
+            ]);
+            $subtotal += (float) $iv->preco_unitario * (float) $iv->quantidade;
+            $desconto += (float) ($iv->desconto_item ?? 0);
+        }
+        if (!empty($novosItensPayload)) {
+            foreach ($novosItensPayload as $ni) {
+                $valorBruto = (float) $ni['preco_unitario'] * (float) $ni['quantidade'];
+                ItemVenda::create([
+                    'id_venda' => $nova->id_venda,
+                    'id_produto' => (int) $ni['id_produto'],
+                    'quantidade' => (float) $ni['quantidade'],
+                    'preco_unitario' => (float) $ni['preco_unitario'],
+                    'desconto_item' => 0,
+                    'valor_total_item' => $valorBruto,
+                ]);
+                $subtotal += $valorBruto;
+            }
+        }
+        $total = max(0.0, $subtotal - $desconto);
+        $valorAnterior = (float) ($orig->valor_total ?? 0);
+        $diferenca = $total - $valorAnterior;
+        $somaPagamentos = collect($validated['pagamentos'] ?? [])->sum(function ($p) {
+            return (float) $p['valor_pagamento'];
+        });
+        if ($diferenca > 0) {
+            if (abs($somaPagamentos - $diferenca) > 0.01) {
+                DB::rollback();
+                return response()->json(['success' => false, 'message' => 'Pagamentos não fecham a diferença'], 422);
+            }
+        } else {
+            $somaPagamentos = 0.0;
+        }
+        $nova->update([
+            'valor_subtotal' => $subtotal,
+            'valor_desconto' => $desconto,
+            'valor_total' => $total,
+            'status' => 'finalizada',
+            'observacoes' => $validated['observacoes'] ?? null,
+        ]);
+        if ($diferenca > 0 && !empty($validated['pagamentos'])) {
+            foreach ($validated['pagamentos'] as $p) {
+                $np = isset($p['numero_parcelas']) ? (int) $p['numero_parcelas'] : 1;
+                $vp = $np > 0 ? ((float) $p['valor_pagamento'] / $np) : (float) $p['valor_pagamento'];
+                DB::table('pagamentos_venda')->insert([
+                    'id_venda' => $nova->id_venda,
+                    'id_forma_pagamento' => $p['id_forma_pagamento'],
+                    'valor_pagamento' => (float) $p['valor_pagamento'],
+                    'numero_parcelas' => $np,
+                    'valor_parcela' => $vp,
+                    'numero_transacao' => null,
+                    'numero_autorizacao' => null,
+                    'status_pagamento' => 'aprovado',
+                    'data_pagamento' => now(),
+                    'observacoes' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+        $orig->update(['status' => 'devolvida']);
+        DB::table('vendas_devolucao')->insert([
+            'id_origem_venda' => $orig->id_venda,
+            'id_nova_venda' => $nova->id_venda,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::commit();
+        return response()->json([
+            'success' => true,
+            'venda_original' => [
+                'id_venda' => $orig->id_venda,
+                'numero_venda' => $orig->numero_venda,
+                'valor_total' => (float) $orig->valor_total,
+                'status' => $orig->status,
+            ],
+            'nova_venda' => [
+                'id_venda' => $nova->id_venda,
+                'numero_venda' => $nova->numero_venda,
+                'valor_total' => (float) $nova->valor_total,
+                'status' => $nova->status,
+            ],
+            'diferenca' => $diferenca,
+            'valor_restituir' => $diferenca < 0 ? abs($diferenca) : 0.0,
+        ]);
+    }
+
+    public function getActiveFormasPagamento()
+    {
+        $rows = FormaPagamento::where('ativo', true)
+            ->orderBy('ordem_exibicao')
+            ->orderBy('nome')
+            ->get()
+            ->map(function ($f) {
+                return [
+                    'id_forma_pagamento' => $f->id_forma_pagamento,
+                    'nome' => $f->nome,
+                    'tipo' => $f->tipo,
+                ];
+            });
+        return response()->json(['formas_pagamento' => $rows]);
+    }
+
+    public function getCsrfToken()
+    {
+        return response()->json(['csrf_token' => csrf_token()]);
+    }
 }

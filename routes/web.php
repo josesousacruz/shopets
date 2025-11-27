@@ -24,6 +24,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/pdv/products', [PDVController::class, 'getProducts'])->name('pdv.products');
     Route::get('/pdv/cupom/{id}', [PDVController::class, 'getCupomDados'])->name('pdv.cupom');
     Route::get('/pdv/vendas/recentes', [PDVController::class, 'getRecentSales'])->name('pdv.vendas.recentes');
+    Route::get('/estoque/produto/{id}/vendas', [PDVController::class, 'getSalesByProduct'])->name('estoque.produto.vendas');
+    Route::get('/vendas/{id}/itens', [PDVController::class, 'getSaleItems'])->name('vendas.itens');
+    Route::post('/vendas/{id}/devolucao', [PDVController::class, 'processDevolucao'])->name('vendas.devolucao');
+    Route::post('/vendas/{id}/devolucao/finalizar', [PDVController::class, 'finalizarDevolucaoTroca'])->name('vendas.devolucao.finalizar');
+    Route::post('/vendas/{id}/troca/finalizar', [PDVController::class, 'finalizarTroca'])->name('vendas.troca.finalizar');
+    Route::get('/formas-pagamento/ativas', [PDVController::class, 'getActiveFormasPagamento'])->name('formas-pagamento.ativas');
+    Route::get('/csrf-token', [PDVController::class, 'getCsrfToken'])->name('csrf-token');
     Route::post('/sales', [PDVController::class, 'storeSale'])->name('sales.store');
     Route::post('/sales/finalizar', [PDVController::class, 'finalizarVenda'])->name('sales.finalizar');
     Route::post('/sales/cancelar', [PDVController::class, 'cancelarVenda'])->name('sales.cancelar');
