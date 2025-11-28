@@ -313,13 +313,13 @@ function PDV({
             >
                 <div className="space-y-3">
                     {recentSales.map((v) => (
-                        <div key={v.id_venda} className={`flex items-center justify-between border-b pb-2 ${v.status === 'cancelada' ? 'opacity-60' : ''}`}>
+                        <div key={v.id_venda} className={`flex items-center justify-between border-b pb-2 ${(v.status === 'cancelada' || v.status === 'devolvida') ? 'opacity-60' : ''}`}>
                             <div>
                                 <div className="text-sm font-semibold text-gray-800">#{v.numero_venda}</div>
                                 <div className="text-xs text-gray-500">{new Date(v.data_venda).toLocaleString('pt-BR')}</div>
                                 <div className="text-xs text-gray-600">{v.cliente || 'CONSUMIDOR'} · {v.forma_pagamento || '-'}</div>
-                                {v.status === 'cancelada' && (
-                                  <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-700">Cancelada</span>
+                                {(v.status === 'cancelada' || v.status === 'devolvida') && (
+                                  <span className="ml-2 inline-block px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-700">{v.status === 'cancelada' ? 'Cancelada' : 'Devolvida'}</span>
                                 )}
                             </div>
                             <div className="flex items-center gap-3">

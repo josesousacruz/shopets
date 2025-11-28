@@ -148,7 +148,7 @@ const PDVView: React.FC<PDVViewProps> = ({
         {/* Desktop Cart */}
         <div className="hidden md:block md:col-span-1 lg:col-span-1">
           <div className="sticky top-24">
-             <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col h-full max-h-[calc(100vh-120px)]">
+             <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex flex-col h-full max-h-[calc(100vh-120px)] overflow-y-auto">
                 <Cart {...cartProps} />
              </div>
           </div>
