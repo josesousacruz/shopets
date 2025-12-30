@@ -81,20 +81,27 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+  const formatCNPJ = (value: string | undefined) => {
+    if (!value) return "";
+    const cnpj = value.replace(/\D/g, '');
+    if (cnpj.length !== 14) return value;
+    return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  };
+
   const vendaDataStr = stateVenda?.data_venda
     ? new Date(stateVenda.data_venda).toLocaleString("pt-BR")
     : "-";
 
-// 1. Calcula o total de quantidade
+  // 1. Calcula o total de quantidade
   const totalQtd = (stateItems || []).reduce((s: number, it: any) => s + (it.quantity || 0), 0);
-  
+
   // 2. Calcula o Total Bruto (Preço * Quantidade)
-  const valorTotalBruto = (stateItems || []).reduce((s: number, it: any) => 
+  const valorTotalBruto = (stateItems || []).reduce((s: number, it: any) =>
     s + (((Number(it.product?.price) || 0) * (Number(it.quantity) || 0))), 0
   );
 
   // 3. Calcula o Total de Descontos (Soma dos descontos dos itens)
-  const valorDesconto = (stateItems || []).reduce((s: number, it: any) => 
+  const valorDesconto = (stateItems || []).reduce((s: number, it: any) =>
     s + (Number(it.desconto_item) || 0), 0
   );
 
@@ -123,7 +130,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     >
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative flex flex-col">
-        
+
         {/* Cabeçalho do Modal */}
         <div className="p-6 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-xl font-semibold text-gray-900">Cupom Não Fiscal</h2>
@@ -132,10 +139,10 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
 
         {/* Área de Conteúdo Scrollável */}
         <div className="p-6 overflow-y-auto flex-grow bg-gray-50 flex justify-center">
-          
+
           {/* --- ÁREA DE IMPRESSÃO (Ref) --- */}
           <div ref={contentRef} className="bg-white p-2 shadow-sm" style={{ width: '72mm', minHeight: '100px' }}>
-            
+
             {/* CSS Original Injetado */}
             <style>{`
               @page { 
@@ -169,7 +176,7 @@ const CupomPreviewModal: React.FC<CupomPreviewModalProps> = ({
               {/* Cabeçalho */}
               <div className="cupom-text text-center">
                 <div className="font-semibold">{stateEmpresa?.nome_empresa || "Sua Empresa"}</div>
-                {stateEmpresa?.cnpj && <div>CNPJ: {stateEmpresa.cnpj}</div>}
+                {stateEmpresa?.cnpj && <div>CNPJ: {formatCNPJ(stateEmpresa.cnpj)}</div>}
                 {stateEmpresa?.telefone && <div>Telefone: {stateEmpresa.telefone}</div>}
                 {stateEmpresa?.endereco && <div>Endereço: {stateEmpresa.endereco}</div>}
               </div>
