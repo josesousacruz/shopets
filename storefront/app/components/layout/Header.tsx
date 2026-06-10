@@ -2,6 +2,8 @@ import { Link, Form, useLocation, useRouteLoaderData } from "@remix-run/react";
 import { ShoppingCart, Menu } from "lucide-react";
 import { useState } from "react";
 import { MobileNav } from "./MobileNav";
+import { useCart } from "~/components/cart/CartContext";
+import { formatBRL } from "~/lib/format";
 import type { Cliente } from "~/types/api";
 
 const CATEGORIES = [
@@ -19,9 +21,14 @@ const CATEGORIES = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
-  const root = useRouteLoaderData("root") as { cliente?: Cliente | null } | undefined;
+  const root = useRouteLoaderData("root") as
+    | { cliente?: Cliente | null; cartCount?: number; cartSubtotal?: number }
+    | undefined;
   const cliente = root?.cliente ?? null;
   const primeiroNome = cliente?.nome?.trim().split(/\s+/)[0] ?? "";
+  const cartCount = root?.cartCount ?? 0;
+  const cartSubtotal = root?.cartSubtotal ?? 0;
+  const { openCart } = useCart();
 
   return (
     <>
@@ -121,14 +128,19 @@ export function Header() {
                 )}
               </span>
             </Link>
-            <Link className="fc-icon-btn fc-cart" to="/carrinho" aria-label="Carrinho">
+            <button
+              type="button"
+              className="fc-icon-btn fc-cart"
+              onClick={openCart}
+              aria-label={`Carrinho${cartCount > 0 ? `, ${cartCount} ${cartCount === 1 ? "item" : "itens"}` : " vazio"}`}
+            >
               <ShoppingCart className="size-5" />
               <span className="stack label">
                 <small>Carrinho</small>
-                R$ 0,00
+                {formatBRL(cartSubtotal)}
               </span>
-              <span className="count">0</span>
-            </Link>
+              {cartCount > 0 && <span className="count">{cartCount}</span>}
+            </button>
           </div>
         </div>
       </header>

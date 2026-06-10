@@ -86,3 +86,73 @@ export interface AuthResposta {
   cliente: Cliente;
   token: string;
 }
+
+/* ── Carrinho ─────────────────────────────────────────── */
+
+export interface CarrinhoItem {
+  id: number;
+  id_produto: number;
+  id_variacao: number | null;
+  nome: string | null;
+  slug: string | null;
+  imagem: string | null;
+  variacao: { id: number; nome: string | null; sku: string | null; atributos: Record<string, string> | null } | null;
+  preco_unit: number;
+  quantidade: number;
+  subtotal: number;
+}
+
+export interface Carrinho {
+  id: number;
+  token: string;
+  id_cliente: number | null;
+  itens: CarrinhoItem[];
+  subtotal: number;
+  quantidade_total: number;
+}
+
+/* ── Frete ────────────────────────────────────────────── */
+
+export interface FreteOpcao {
+  servico: string;
+  transportadora: string | null;
+  preco: number;
+  prazo_dias: number;
+}
+
+/* ── Pedidos ──────────────────────────────────────────── */
+
+export interface PedidoItem {
+  id: number;
+  id_produto: number;
+  id_variacao: number | null;
+  nome: string;
+  sku: string | null;
+  preco_unit: number;
+  quantidade: number;
+  subtotal: number;
+}
+
+export type PedidoStatus =
+  | "aguardando_pagamento"
+  | "pago"
+  | "em_separacao"
+  | "enviado"
+  | "entregue"
+  | "cancelado";
+
+export interface Pedido {
+  numero: string;
+  status: PedidoStatus | string;
+  modalidade: "entrega" | "retirada" | string;
+  subtotal: number;
+  frete: number;
+  desconto: number;
+  total: number;
+  frete_servico: string | null;
+  prazo_entrega_dias: number | null;
+  codigo_rastreio: string | null;
+  itens?: PedidoItem[];
+  endereco_entrega?: Endereco | null;
+  criado_em: string | null;
+}

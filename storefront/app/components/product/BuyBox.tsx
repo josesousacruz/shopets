@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useFetcher } from "@remix-run/react";
 import { ShoppingCart, Heart, Truck, RefreshCw, ShieldCheck } from "lucide-react";
 import { formatBRL } from "~/lib/format";
+import { useCart } from "~/components/cart/CartContext";
 import type { ProdutoDetalhe, Variacao } from "~/types/api";
 
 interface Props {
@@ -12,6 +14,23 @@ interface Props {
 
 export function BuyBox({ produto, variacaoSelecionada, children }: Props) {
   const temVariacoes = produto.variacoes.length > 0;
+  const { openCart, showToast } = useCart();
+  const fetcher = useFetcher<{ ok: boolean; message?: string }>();
+  const submittedRef = useRef(false);
+  const adicionando = fetcher.state !== "idle";
+
+  // Após sucesso: abre drawer + toast; senão mostra mensagem de erro.
+  useEffect(() => {
+    if (fetcher.state === "idle" && submittedRef.current && fetcher.data) {
+      submittedRef.current = false;
+      if (fetcher.data.ok) {
+        openCart();
+        showToast("Produto adicionado ao carrinho");
+      } else {
+        showToast(fetcher.data.message ?? "Não foi possível adicionar.");
+      }
+    }
+  }, [fetcher.state, fetcher.data, openCart, showToast]);
 
   const precoVenda = variacaoSelecionada?.preco_venda ?? produto.preco_venda;
   const precoPromocional =
@@ -46,23 +65,41 @@ export function BuyBox({ produto, variacaoSelecionada, children }: Props) {
 
       {children}
 
-      <div className="pdp-cta">
-        <button
-          type="button"
-          className="add"
-          disabled
-          title="Em breve — carrinho na próxima etapa"
-        >
-          <ShoppingCart />
-          {indisponivel ? "Esgotado" : "Adicionar ao carrinho"}
-        </button>
-        <button type="button" className="wish" title="Favoritar" aria-label="Favoritar">
-          <Heart />
-        </button>
-      </div>
-      <p className="pdp-cta-note">
-        Carrinho disponível em breve. Por enquanto, é só uma vitrine.
-      </p>
+      {(() => {
+        // Exige escolher variação quando o produto tem variações.
+        const precisaEscolher = temVariacoes && !variacaoSelecionada;
+        const desabilitado = indisponivel || precisaEscolher || adicionando;
+        const label = indisponivel
+          ? "Esgotado"
+          : precisaEscolher
+            ? "Escolha uma opção"
+            : adicionando
+              ? "Adicionando..."
+              : "Adicionar ao carrinho";
+
+        return (
+          <fetcher.Form method="post" action="/api/carrinho" className="pdp-cta">
+            <input type="hidden" name="intent" value="add" />
+            <input type="hidden" name="id_produto" value={produto.id} />
+            {variacaoSelecionada && (
+              <input type="hidden" name="id_variacao" value={variacaoSelecionada.id} />
+            )}
+            <input type="hidden" name="quantidade" value="1" />
+            <button
+              type="submit"
+              className="add"
+              disabled={desabilitado}
+              onClick={() => { submittedRef.current = true; }}
+            >
+              <ShoppingCart />
+              {label}
+            </button>
+            <button type="button" className="wish" title="Favoritar" aria-label="Favoritar">
+              <Heart />
+            </button>
+          </fetcher.Form>
+        );
+      })()}
 
       <div className="pdp-trust">
         <div>

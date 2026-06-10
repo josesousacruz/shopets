@@ -1,15 +1,36 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { Header } from "~/components/layout/Header";
 import { Footer } from "~/components/layout/Footer";
+import { CartProvider } from "~/components/cart/CartContext";
+import { CartDrawer } from "~/components/cart/CartDrawer";
 import { AnalyticsScripts } from "~/lib/tracking";
 import { env } from "~/lib/env.server";
 import { getCliente } from "~/lib/session.server";
+import { fetchCarrinho } from "~/lib/cart.server";
 import tailwind from "~/tailwind.css?url";
 
 export async function loader({ request }: { request: Request }) {
   const cliente = await getCliente(request);
-  return { ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente };
+
+  // Resumo do carrinho para o Header (contagem + total). Tolerante a falhas.
+  let cartCount = 0;
+  let cartSubtotal = 0;
+  let setCookie: string | undefined;
+  try {
+    const { carrinho, setCookie: sc } = await fetchCarrinho(request);
+    cartCount = carrinho.quantidade_total;
+    cartSubtotal = carrinho.subtotal;
+    setCookie = sc;
+  } catch {
+    // carrinho indisponível — Header mostra 0
+  }
+
+  return data(
+    { ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente, cartCount, cartSubtotal },
+    setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
+  );
 }
 
 export const links: LinksFunction = () => [
@@ -42,9 +63,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AnalyticsScripts ga4={data?.ga4Id} pixel={data?.metaPixelId} />
       </head>
       <body className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <CartProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <CartDrawer />
+        </CartProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
