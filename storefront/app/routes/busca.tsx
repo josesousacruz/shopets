@@ -1,8 +1,12 @@
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { api } from "~/lib/api.server";
 import { ProductGrid } from "~/components/catalog/ProductGrid";
+import { SortBar } from "~/components/catalog/SortBar";
+import catalogStyles from "~/styles/catalog.css?url";
 import type { ProdutoLista } from "~/types/api";
+
+export const links: LinksFunction = () => [{ rel: "stylesheet", href: catalogStyles }];
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
   { title: data?.termo ? `Busca: ${data.termo} — Shopets` : "Busca — Shopets" },
@@ -23,18 +27,45 @@ export default function Busca() {
   const { termo, produtos, meta } = useLoaderData<typeof loader>();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 lg:px-8 py-8">
-      <h1 className="font-display font-extrabold text-3xl mb-2">
-        {termo ? `Resultados para "${termo}"` : "Buscar produtos"}
-      </h1>
-      {meta && <p className="text-sm text-slate-500 mb-6">{meta.total} produtos encontrados</p>}
-      {termo === "" ? (
-        <p className="text-slate-500 py-16 text-center">
-          Use o campo de busca no topo da página para procurar produtos.
-        </p>
-      ) : (
-        <ProductGrid produtos={produtos} />
-      )}
-    </div>
+    <>
+      <section className="cat-hero">
+        <div className="row">
+          <div>
+            <nav className="crumb" aria-label="Trilha de navegação">
+              <span className="current">Busca</span>
+            </nav>
+            <h1>{termo ? <>Resultados para <em>“{termo}”</em></> : "Buscar produtos"}</h1>
+            {meta && (
+              <p>
+                {meta.total} {meta.total === 1 ? "produto encontrado" : "produtos encontrados"}.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="cat-main">
+        <div className="row" style={{ gridTemplateColumns: "1fr" }}>
+          <div>
+            {termo === "" ? (
+              <div className="cat-empty">
+                <h3>O que você procura?</h3>
+                <p>Use o campo de busca no topo da página para encontrar produtos.</p>
+              </div>
+            ) : produtos.length === 0 ? (
+              <div className="cat-empty">
+                <h3>Nada encontrado para “{termo}”</h3>
+                <p>Tente outras palavras ou explore o catálogo completo.</p>
+              </div>
+            ) : (
+              <>
+                {meta && <SortBar total={meta.total} action="/busca" />}
+                <ProductGrid produtos={produtos} />
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

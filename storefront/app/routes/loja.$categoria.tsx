@@ -1,8 +1,10 @@
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
 import { api } from "~/lib/api.server";
-import { CategoryFilters } from "~/components/catalog/CategoryFilters";
-import { ProductGrid } from "~/components/catalog/ProductGrid";
+import { CatalogLayout } from "~/components/catalog/CatalogLayout";
+import catalogStyles from "~/styles/catalog.css?url";
+
+export const links: LinksFunction = () => [{ rel: "stylesheet", href: catalogStyles }];
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const cat = data?.categoriaAtiva;
@@ -21,6 +23,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     api.produtos.list({
       categoria: slug,
       ordem: url.searchParams.get("ordem") ?? undefined,
+      em_promocao: url.searchParams.get("em_promocao") ?? undefined,
+      preco_min: url.searchParams.get("preco_min") ?? undefined,
+      preco_max: url.searchParams.get("preco_max") ?? undefined,
       page: url.searchParams.get("page") ?? undefined,
       por_pagina: 24,
     }),
@@ -36,19 +41,19 @@ export default function LojaCategoria() {
   const { categorias, categoriaAtiva, produtos, meta } = useLoaderData<typeof loader>();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 lg:px-8 py-8">
-      <nav className="text-sm text-slate-500 mb-2">
-        <Link to="/loja" className="hover:underline">Loja</Link> / {categoriaAtiva.nome}
-      </nav>
-      <h1 className="font-display font-extrabold text-3xl mb-6">{categoriaAtiva.nome}</h1>
-      {categoriaAtiva.descricao && <p className="text-slate-600 mb-6 max-w-prose">{categoriaAtiva.descricao}</p>}
-      <div className="grid lg:grid-cols-[240px_1fr] gap-8">
-        <CategoryFilters categorias={categorias} ativaSlug={categoriaAtiva.slug} />
-        <div>
-          <p className="text-sm text-slate-500 mb-4">{meta.total} produtos</p>
-          <ProductGrid produtos={produtos} />
-        </div>
-      </div>
-    </div>
+    <CatalogLayout
+      titulo={categoriaAtiva.nome}
+      descricao={categoriaAtiva.descricao}
+      crumbs={[
+        { label: "Início", to: "/" },
+        { label: "Loja", to: "/loja" },
+        { label: categoriaAtiva.nome },
+      ]}
+      categorias={categorias}
+      ativaSlug={categoriaAtiva.slug}
+      produtos={produtos}
+      meta={meta}
+      formAction={`/loja/${categoriaAtiva.slug}`}
+    />
   );
 }

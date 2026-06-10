@@ -1,14 +1,17 @@
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
+import { ChevronRight, Star } from "lucide-react";
 import { api } from "~/lib/api.server";
 import { env } from "~/lib/env.server";
 import { jsonLdProduct } from "~/lib/seo";
 import { Gallery } from "~/components/product/Gallery";
 import { VariationPicker } from "~/components/product/VariationPicker";
 import { BuyBox } from "~/components/product/BuyBox";
-import { Badges } from "~/components/catalog/Badges";
+import catalogStyles from "~/styles/catalog.css?url";
 import type { Variacao } from "~/types/api";
+
+export const links: LinksFunction = () => [{ rel: "stylesheet", href: catalogStyles }];
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   if (!data) return [{ title: "Produto não encontrado" }];
@@ -39,87 +42,97 @@ export default function ProdutoDetalhe() {
   const { produto, siteUrl } = useLoaderData<typeof loader>();
   const [selecionada, setSelecionada] = useState<Variacao | null>(null);
 
+  const temEspecificacoes =
+    produto.peso_gramas !== null ||
+    produto.dimensoes_cm.altura !== null ||
+    produto.dimensoes_cm.largura !== null ||
+    produto.dimensoes_cm.comprimento !== null;
+
   return (
-    <article className="mx-auto max-w-7xl px-4 lg:px-8 py-8">
+    <article className="pdp">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdProduct(produto, siteUrl)) }}
       />
-      <nav className="text-sm text-slate-500 mb-4">
-        <Link to="/" className="hover:underline">Início</Link>
-        {" / "}
-        <Link to="/loja" className="hover:underline">Loja</Link>
+
+      <nav className="crumb" aria-label="Trilha de navegação">
+        <Link to="/">Início</Link>
+        <ChevronRight />
+        <Link to="/loja">Loja</Link>
         {produto.categoria && (
           <>
-            {" / "}
-            <Link to={`/loja/${produto.categoria.slug}`} className="hover:underline">
-              {produto.categoria.nome}
-            </Link>
+            <ChevronRight />
+            <Link to={`/loja/${produto.categoria.slug}`}>{produto.categoria.nome}</Link>
           </>
         )}
-        {" / "}
-        <span className="text-slate-700">{produto.nome}</span>
+        <ChevronRight />
+        <span className="current">{produto.nome}</span>
       </nav>
 
-      <div className="grid lg:grid-cols-[1fr_400px] gap-8 lg:gap-12">
-        <div>
-          <Gallery imagens={produto.galeria} nome={produto.nome} />
-        </div>
+      <div className="layout">
+        <Gallery imagens={produto.galeria} nome={produto.nome} />
 
-        <div className="space-y-6">
-          <div>
-            <Badges
-              novo={produto.novo}
-              emPromocao={produto.em_promocao}
-              destaque={produto.destaque}
-              className="mb-3"
-            />
-            <h1 className="font-display font-extrabold text-3xl tracking-tight">{produto.nome}</h1>
-            {produto.descricao_curta && (
-              <p className="mt-2 text-slate-600">{produto.descricao_curta}</p>
-            )}
+        <div className="pdp-buy">
+          {produto.categoria && <div className="eyebrow">{produto.categoria.nome}</div>}
+          <h1>{produto.nome}</h1>
+
+          {/* rating estático — apenas visual */}
+          <div className="rating" aria-hidden="true">
+            <span className="stars">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} fill="currentColor" strokeWidth={0} />
+              ))}
+            </span>
+            4,9 · (128 avaliações)
           </div>
 
-          {produto.variacoes.length > 0 && (
-            <VariationPicker
-              variacoes={produto.variacoes}
-              selecionada={selecionada}
-              onSelecionar={setSelecionada}
-            />
-          )}
+          {produto.descricao_curta && <p className="short">{produto.descricao_curta}</p>}
 
-          <BuyBox produto={produto} variacaoSelecionada={selecionada} />
+          <BuyBox produto={produto} variacaoSelecionada={selecionada}>
+            {produto.variacoes.length > 0 && (
+              <VariationPicker
+                variacoes={produto.variacoes}
+                selecionada={selecionada}
+                onSelecionar={setSelecionada}
+              />
+            )}
+          </BuyBox>
         </div>
       </div>
 
-      {produto.descricao_longa && (
-        <section className="mt-12 prose max-w-3xl">
-          <h2 className="font-display font-extrabold text-xl mb-4">Descrição</h2>
-          <div className="text-slate-700 whitespace-pre-line">{produto.descricao_longa}</div>
-        </section>
-      )}
+      <div className="pdp-sections">
+        {produto.descricao_longa && (
+          <section>
+            <h2>Descrição</h2>
+            <div className="desc">{produto.descricao_longa}</div>
+          </section>
+        )}
 
-      {(produto.peso_gramas !== null || produto.dimensoes_cm.altura !== null) && (
-        <section className="mt-12">
-          <h2 className="font-display font-extrabold text-xl mb-4">Especificações</h2>
-          <dl className="grid sm:grid-cols-2 gap-3 max-w-2xl">
-            {produto.peso_gramas !== null && (
-              <div className="flex justify-between border-b border-slate-200 py-2">
-                <dt className="text-slate-500 text-sm">Peso</dt>
-                <dd className="font-medium text-sm">{produto.peso_gramas} g</dd>
-              </div>
-            )}
-            {produto.dimensoes_cm.altura !== null && (
-              <div className="flex justify-between border-b border-slate-200 py-2">
-                <dt className="text-slate-500 text-sm">Dimensões (A × L × P)</dt>
-                <dd className="font-medium text-sm">
-                  {produto.dimensoes_cm.altura} × {produto.dimensoes_cm.largura} × {produto.dimensoes_cm.comprimento} cm
-                </dd>
-              </div>
-            )}
-          </dl>
-        </section>
-      )}
+        {temEspecificacoes && (
+          <section>
+            <h2>Especificações</h2>
+            <dl className="pdp-specs">
+              {produto.peso_gramas !== null && (
+                <div>
+                  <dt>Peso</dt>
+                  <dd>{produto.peso_gramas} g</dd>
+                </div>
+              )}
+              {(produto.dimensoes_cm.altura !== null ||
+                produto.dimensoes_cm.largura !== null ||
+                produto.dimensoes_cm.comprimento !== null) && (
+                <div>
+                  <dt>Dimensões (A × L × C)</dt>
+                  <dd>
+                    {produto.dimensoes_cm.altura ?? "—"} × {produto.dimensoes_cm.largura ?? "—"} ×{" "}
+                    {produto.dimensoes_cm.comprimento ?? "—"} cm
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </section>
+        )}
+      </div>
     </article>
   );
 }
