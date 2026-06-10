@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { data } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import {
   adicionarItem,
   atualizarItem,
@@ -13,12 +13,12 @@ import type { Carrinho } from "~/types/api";
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const { carrinho, setCookie } = await fetchCarrinho(request);
-    return data(
+    return json(
       { ok: true as const, carrinho },
       setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
     );
   } catch {
-    return data({ ok: false as const, carrinho: null });
+    return json({ ok: false as const, carrinho: null });
   }
 }
 
@@ -49,10 +49,10 @@ export async function action({ request }: ActionFunctionArgs) {
       const id = Number(form.get("id"));
       res = await removerItem(request, id);
     } else {
-      return data({ ok: false as const, message: "Ação inválida." }, { status: 400 });
+      return json({ ok: false as const, message: "Ação inválida." }, { status: 400 });
     }
 
-    return data({ ok: true as const, intent, carrinho: res.data });
+    return json({ ok: true as const, intent, carrinho: res.data });
   } catch (err) {
     if (err instanceof ApiValidationError) {
       const message =
@@ -60,7 +60,7 @@ export async function action({ request }: ActionFunctionArgs) {
         err.errors.id_produto?.[0] ??
         err.message ??
         "Não foi possível atualizar o carrinho.";
-      return data(
+      return json(
         { ok: false as const, intent, message, errors: err.errors },
         { status: err.status === 422 ? 422 : 400 },
       );

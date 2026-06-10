@@ -1,5 +1,5 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
-import { data } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { Header } from "~/components/layout/Header";
 import { Footer } from "~/components/layout/Footer";
@@ -27,7 +27,7 @@ export async function loader({ request }: { request: Request }) {
     // carrinho indisponível — Header mostra 0
   }
 
-  return data(
+  return json(
     { ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente, cartCount, cartSubtotal },
     setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
   );
