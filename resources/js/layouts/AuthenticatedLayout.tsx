@@ -9,7 +9,7 @@ import { PageProps, Operator } from '@/types'; // Seus tipos podem estar aqui
 interface Props {
     children: ReactNode;
     // Você pode passar o nome da view atual se precisar
-    currentView: 'pdv' | 'estoque' | 'relatorios' | 'fornecedores' | 'clientes' | 'financeiro';
+    currentView: 'pdv' | 'estoque' | 'relatorios' | 'fornecedores' | 'clientes' | 'financeiro' | 'loja';
 }
 
 export default function AuthenticatedLayout({ children, currentView }: Props) {
@@ -41,7 +41,8 @@ export default function AuthenticatedLayout({ children, currentView }: Props) {
             'relatorios': '/relatorios',
             'fornecedores': '/fornecedores',
             'clientes': '/clientes',
-            'financeiro': '/financeiro'
+            'financeiro': '/financeiro',
+            'loja': '/admin/loja/pedidos'
         };
         router.get(routes[view] || '/pdv', {}, {
             preserveScroll: true,

@@ -63,10 +63,19 @@ export default function PedidoDetalhe() {
         <p>{pedido.criado_em ? `Feito em ${formatData(pedido.criado_em)}` : "Detalhes do pedido"}</p>
       </div>
 
-      <div style={{ marginBottom: 22 }}>
+      <div style={{ marginBottom: 22, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <span className={`co-status s-${pedido.status}`}>
           <span className="d" /> {STATUS_LABEL[pedido.status] ?? pedido.status}
         </span>
+        {pedido.status === "aguardando_pagamento" && (
+          <Link
+            to={`/checkout/pagamento/${encodeURIComponent(pedido.numero)}`}
+            className="ct-btn ct-btn--mint"
+            style={{ width: "auto" }}
+          >
+            Pagar agora
+          </Link>
+        )}
       </div>
 
       <div className="co-detail">

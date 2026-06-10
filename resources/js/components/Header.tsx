@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Package, BarChart3, Truck, Users, Landmark, User, LogOut, Menu, X, Home } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, Truck, Users, Landmark, User, LogOut, Menu, X, Home, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePage } from '@inertiajs/react';
 import { PageProps, Operator } from '../types';
 
 interface HeaderProps {
   currentView: string;
-  onViewChange: (view: 'pdv' | 'estoque' | 'relatorios' | 'fornecedores' | 'clientes' | 'financeiro') => void;
+  onViewChange: (view: 'pdv' | 'estoque' | 'relatorios' | 'fornecedores' | 'clientes' | 'financeiro' | 'loja') => void;
   cartItemCount: number;
   currentOperator?: Operator | null;
   onLogout?: () => void;
@@ -23,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, cartItemCoun
     { id: 'fornecedores', label: 'Fornecedores', icon: Truck, color: 'from-orange-500 to-orange-600' },
     { id: 'clientes', label: 'Clientes', icon: Users, color: 'from-pink-500 to-pink-600' },
     { id: 'financeiro', label: 'Financeiro', icon: Landmark, color: 'from-yellow-500 to-yellow-600' },
+    { id: 'loja', label: 'Loja / Pedidos', icon: Store, color: 'from-teal-500 to-cyan-600' },
   ];
 
   return (

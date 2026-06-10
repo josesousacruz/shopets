@@ -83,7 +83,7 @@ export async function action({ request }: ActionFunctionArgs) {
         frete_servico,
         cep,
       });
-      return redirect(`/checkout/sucesso/${encodeURIComponent(pedido.numero)}`);
+      return redirect(`/checkout/pagamento/${encodeURIComponent(pedido.numero)}`);
     } catch (err) {
       if (err instanceof ApiValidationError) {
         const message =
@@ -357,8 +357,8 @@ export default function Checkout() {
                   </div>
 
                   <div className="co-note" style={{ marginTop: 18 }}>
-                    O pagamento será habilitado na próxima etapa. Seu pedido será criado com status
-                    "Aguardando pagamento".
+                    Na próxima etapa você pagará via Pix. Seu pedido será criado com status
+                    "Aguardando pagamento" e confirmado assim que o pagamento for aprovado.
                   </div>
 
                   {erro && actionData?.intent === "confirmar" && (

@@ -12,6 +12,7 @@ use App\Http\Controllers\ContaPagarController;
 use App\Http\Controllers\ContaReceberController;
 use App\Http\Controllers\FluxoCaixaController;
 use App\Http\Controllers\NfceController;
+use App\Http\Controllers\Admin\LojaPedidoController;
 
 // Redireciona a raiz para o PDV
 Route::get('/', function () {
@@ -95,6 +96,16 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/relatorios', [RelatorioController::class, 'index'])->name('relatorios.index');
     Route::get('/relatorios/fechamento-dia', [RelatorioController::class, 'fechamentoDia'])->name('relatorios.fechamento-dia');
+
+    // Loja / Pedidos do ecommerce (painel do lojista)
+    Route::prefix('admin/loja')->name('admin.loja.')->group(function () {
+        Route::get('/pedidos', [LojaPedidoController::class, 'index'])->name('pedidos.index');
+        Route::get('/pedidos/{pedido:numero}', [LojaPedidoController::class, 'show'])->name('pedidos.show');
+        Route::put('/pedidos/{pedido:numero}/separacao', [LojaPedidoController::class, 'marcarEmSeparacao'])->name('pedidos.separacao');
+        Route::put('/pedidos/{pedido:numero}/enviar', [LojaPedidoController::class, 'marcarEnviado'])->name('pedidos.enviar');
+        Route::put('/pedidos/{pedido:numero}/entregar', [LojaPedidoController::class, 'marcarEntregue'])->name('pedidos.entregar');
+        Route::put('/pedidos/{pedido:numero}/cancelar', [LojaPedidoController::class, 'cancelar'])->name('pedidos.cancelar');
+    });
 });
 Route::post('/nfce/emitir', [NfceController::class, 'emitir']);
 

@@ -1,11 +1,12 @@
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { Check, Package, ShoppingBag } from "lucide-react";
+import { Check, Clock, Package, ShoppingBag } from "lucide-react";
 import { requireToken } from "~/lib/session.server";
 import { obterPedido } from "~/lib/cart.server";
 import { ApiValidationError } from "~/lib/auth.server";
 import { formatBRL } from "~/lib/format";
+import { STATUS_LABEL } from "~/lib/pedido";
 import type { Pedido } from "~/types/api";
 import checkoutStyles from "~/styles/checkout.css?url";
 
@@ -30,14 +31,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export default function CheckoutSucesso() {
   const { numero, pedido } = useLoaderData<typeof loader>();
 
+  const pago = pedido != null && pedido.status !== "aguardando_pagamento" && pedido.status !== "cancelado";
+  const pendente = !pedido || pedido.status === "aguardando_pagamento";
+  const statusLabel = pedido ? STATUS_LABEL[pedido.status] ?? pedido.status : "Aguardando pagamento";
+
   return (
     <div className="co-success">
-      <div className="seal">
-        <Check />
+      <div className="seal" style={pendente ? { background: "var(--mint)" } : undefined}>
+        {pendente ? <Clock /> : <Check />}
       </div>
-      <h1>Pedido criado!</h1>
+      <h1>{pago ? "Pagamento confirmado!" : "Pedido criado!"}</h1>
       <p className="lead">
-        Recebemos seu pedido com sucesso. Anote o número abaixo para acompanhar.
+        {pago
+          ? "Seu pagamento foi aprovado e seu pedido já está a caminho."
+          : "Recebemos seu pedido. Conclua o pagamento para que ele seja processado."}
       </p>
 
       <div className="numero">
@@ -45,14 +52,19 @@ export default function CheckoutSucesso() {
       </div>
       <div>
         <span className="status-pill">
-          <span className="d" /> Aguardando pagamento
+          <span className="d" /> {statusLabel}
         </span>
       </div>
 
-      <div className="co-note" style={{ maxWidth: 460, margin: "20px auto 0", textAlign: "left" }}>
-        O pagamento será habilitado na próxima etapa. Assim que estiver disponível, você poderá
-        concluir a compra a partir dos seus pedidos.
-      </div>
+      {pendente && (
+        <div className="co-note" style={{ maxWidth: 460, margin: "20px auto 0", textAlign: "left" }}>
+          Ainda não recebemos o pagamento.{" "}
+          <Link to={`/checkout/pagamento/${encodeURIComponent(numero)}`} style={{ color: "var(--mint-deep)", fontWeight: 700 }}>
+            Pagar agora
+          </Link>
+          .
+        </div>
+      )}
 
       {pedido && (
         <div className="panel">

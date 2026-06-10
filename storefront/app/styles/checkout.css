@@ -244,3 +244,40 @@
   .co-line .thumb{width:64px;height:64px;}
   .co-line .end{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;}
 }
+
+/* ─── Etapa de pagamento (Pix) ─────────────────────────── */
+.co-pay{max-width:560px;margin:0 auto;padding:48px 20px 80px;}
+.co-pay .ct-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:13px 20px;font-weight:700;font-size:14px;cursor:pointer;transition:.15s;width:100%;}
+.co-pay .ct-btn--mint{background:var(--mint);color:var(--ink);}
+.co-pay .ct-btn--mint:hover{background:var(--mint-deep);color:#fff;}
+.co-pay .ct-btn--mint:disabled{opacity:.55;cursor:not-allowed;}
+.co-pay .ct-btn--ghost{border:1px solid var(--line);color:var(--ink);background:var(--paper);}
+.co-pay .ct-btn--ghost:hover{border-color:var(--ink);}
+.co-pay .ct-alert{padding:12px 15px;border-radius:11px;font-size:13.5px;font-weight:600;margin:14px 0;}
+.co-pay .ct-alert--err{background:rgba(225,29,72,.08);color:var(--tag-promo,#e11d48);border:1px solid rgba(225,29,72,.35);}
+.co-pay-card{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:34px 30px;box-shadow:0 24px 48px -28px rgba(4,3,30,.35);}
+.co-pay-head{text-align:center;}
+.co-pay-head .pix-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(136,226,202,.16);color:var(--mint-deep);border:1px solid rgba(136,226,202,.45);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:800;}
+.co-pay-head h1{font-family:'Manrope',sans-serif;font-weight:800;font-size:24px;letter-spacing:-0.02em;color:var(--ink);margin-top:14px;}
+.co-pay-head .lead{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.55;}
+.co-pay-head .lead .mint,.mint{color:var(--mint-deep);font-weight:800;}
+.co-pay-start{margin-top:24px;display:flex;flex-direction:column;gap:14px;}
+.co-pay-body{margin-top:24px;display:flex;flex-direction:column;align-items:center;gap:18px;}
+.co-pay-qr{width:230px;height:230px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;display:grid;place-items:center;}
+.co-pay-qr img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
+.co-pay-valor{font-family:'Manrope',sans-serif;font-weight:800;font-size:28px;letter-spacing:-0.02em;color:var(--mint-deep);}
+.co-pay-copia{width:100%;}
+.co-pay-copia label{display:block;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+.co-pay-copia .codebox{background:var(--line-2,#f4f4f7);border:1px solid var(--line);border-radius:11px;padding:12px 14px;max-height:96px;overflow:auto;}
+.co-pay-copia .codebox code{font-family:'JetBrains Mono','SFMono-Regular',ui-monospace,monospace;font-size:12px;color:var(--ink);word-break:break-all;line-height:1.5;}
+.co-pay-copia .ct-btn{margin-top:12px;}
+.co-pay-wait{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--muted);}
+.co-pay-wait .spin{animation:co-spin 1s linear infinite;color:var(--mint-deep);}
+@keyframes co-spin{to{transform:rotate(360deg);}}
+.co-pay-dev{width:100%;background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:11px;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
+.co-pay-dev:hover{border-color:var(--mint-deep);color:var(--mint-deep);}
+.co-pay-dev:disabled{opacity:.55;cursor:not-allowed;}
+.co-pay-secure{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:24px;font-size:12.5px;font-weight:700;color:var(--muted);}
+.co-pay-secure svg{color:var(--mint);}
+.co-pay-links{text-align:center;margin-top:22px;}
+.co-pay-links a{font-size:13.5px;font-weight:700;color:var(--mint-deep);}

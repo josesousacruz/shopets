@@ -2,7 +2,7 @@ import { createCookie } from "@remix-run/node";
 import { env } from "./env.server";
 import { getToken } from "./session.server";
 import { ApiValidationError } from "./auth.server";
-import type { Carrinho, FreteOpcao, Pedido } from "~/types/api";
+import type { Carrinho, FreteOpcao, PagamentoPix, Pedido } from "~/types/api";
 
 /* ──────────────────────────────────────────────────────────
    Cookie httpOnly separado para o token de carrinho convidado.
@@ -183,4 +183,27 @@ export async function listarPedidos(bearer: string): Promise<{ data: Pedido[] }>
 
 export async function obterPedido(bearer: string, numero: string): Promise<{ data: Pedido }> {
   return cartRequest<{ data: Pedido }>(`/pedidos/${encodeURIComponent(numero)}`, { bearer });
+}
+
+/* ── Pagamento ────────────────────────────────────────── */
+
+/** Gera a cobrança Pix do pedido: POST /pedidos/{numero}/pagar {metodo}. */
+export async function pagarPedido(
+  bearer: string,
+  numero: string,
+  metodo: "pix" = "pix",
+): Promise<PagamentoPix> {
+  return cartRequest<PagamentoPix>(`/pedidos/${encodeURIComponent(numero)}/pagar`, {
+    method: "POST",
+    bearer,
+    body: { metodo },
+  });
+}
+
+/** Dev only: simula a aprovação do pagamento no gateway. */
+export async function simularAprovacao(bearer: string, gatewayId: string): Promise<unknown> {
+  return cartRequest<unknown>(`/dev/pagamentos/${encodeURIComponent(gatewayId)}/aprovar`, {
+    method: "POST",
+    bearer,
+  });
 }

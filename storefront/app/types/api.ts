@@ -156,3 +156,14 @@ export interface Pedido {
   endereco_entrega?: Endereco | null;
   criado_em: string | null;
 }
+
+/** Resposta de POST /pedidos/{numero}/pagar (cobrança Pix). */
+export interface PagamentoPix {
+  pedido: Pedido;
+  gateway_id: string;
+  metodo: string;
+  status: string;
+  valor: number;
+  pix_qr: string;
+  pix_copia_cola: string;
+}
