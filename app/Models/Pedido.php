@@ -32,6 +32,8 @@ class Pedido extends Model
         'codigo_rastreio',
         'observacoes',
         'id_venda',
+        'nfe_chave',
+        'nfe_numero',
         'pago_em',
         'enviado_em',
         'entregue_em',

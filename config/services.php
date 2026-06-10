@@ -42,4 +42,12 @@ return [
         ],
     ],
 
+    'payment' => [
+        'driver' => env('PAYMENT_DRIVER', 'fake'),
+        'mercadopago' => [
+            'token' => env('MERCADOPAGO_TOKEN'),
+            'webhook_secret' => env('MERCADOPAGO_WEBHOOK_SECRET'),
+        ],
+    ],
+
 ];

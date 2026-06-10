@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Domain\Payment\FakePaymentGateway;
+use App\Domain\Payment\MercadoPagoGateway;
+use App\Domain\Payment\PaymentGatewayInterface;
 use App\Domain\Shipping\MelhorEnvioService;
 use App\Domain\Shipping\ShippingQuoteInterface;
 use App\Domain\Shipping\StubShippingService;
@@ -22,6 +25,15 @@ class AppServiceProvider extends ServiceProvider
             return match ($driver) {
                 'melhor_envio' => new MelhorEnvioService(config('services.shipping.melhor_envio.token')),
                 default => new StubShippingService(),
+            };
+        });
+
+        $this->app->singleton(PaymentGatewayInterface::class, function ($app) {
+            $driver = config('services.payment.driver', 'fake');
+
+            return match ($driver) {
+                'mercadopago' => new MercadoPagoGateway(config('services.payment.mercadopago.token')),
+                default => new FakePaymentGateway(),
             };
         });
     }

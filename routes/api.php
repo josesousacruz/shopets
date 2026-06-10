@@ -69,6 +69,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     // Cotação de frete (público; usa carrinho se itens omitidos)
     Route::post('/frete/cotar', [\App\Http\Controllers\Api\V1\FreteController::class, 'cotar']);
 
+    // Webhook de pagamento (público — sem auth; valida assinatura quando MP real)
+    Route::post('/webhooks/pagamento', \App\Http\Controllers\Api\V1\WebhookPagamentoController::class)
+        ->name('webhooks.pagamento');
+
+    // DEV: aprovação manual de pagamento (só local ou driver=fake)
+    Route::post('/dev/pagamentos/{gatewayId}/aprovar', [\App\Http\Controllers\Api\V1\PagamentoController::class, 'aprovarDev'])
+        ->name('dev.pagamentos.aprovar');
+
     // Endereços do cliente (escopado por auth:sanctum + garante Cliente)
     Route::middleware(['auth:sanctum', 'cliente'])->group(function () {
         Route::apiResource('enderecos', EnderecoController::class)->except(['show']);
@@ -77,5 +85,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('/checkout/iniciar', [\App\Http\Controllers\Api\V1\CheckoutController::class, 'iniciar']);
         Route::get('/pedidos', [\App\Http\Controllers\Api\V1\PedidoController::class, 'index']);
         Route::get('/pedidos/{numero}', [\App\Http\Controllers\Api\V1\PedidoController::class, 'show']);
+        Route::post('/pedidos/{numero}/pagar', [\App\Http\Controllers\Api\V1\PagamentoController::class, 'pagar']);
     });
 });

@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PermissionSeeder::class,
             UserSeeder::class,
+            FormasPagamentoSeeder::class,
+            EcommerceInfraSeeder::class,
             // ConfiguracaoEmpresaSeeder::class,
             // CategoriaSeeder::class,
             // PontoVendaSeeder::class,
