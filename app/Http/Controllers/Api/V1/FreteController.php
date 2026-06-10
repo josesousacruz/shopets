@@ -61,7 +61,8 @@ class FreteController extends Controller
 
     private function itensDoCarrinho(Request $request): Collection
     {
-        $cliente = $request->user() instanceof Cliente ? $request->user() : null;
+        $usuario = $request->user('sanctum');
+        $cliente = $usuario instanceof Cliente ? $usuario : null;
         $carrinho = $this->carrinhoService->resolver($cliente, $request->header('X-Cart-Token'));
 
         return $carrinho->itens->map(function ($item) {

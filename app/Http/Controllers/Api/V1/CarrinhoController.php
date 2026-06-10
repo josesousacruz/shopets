@@ -68,7 +68,11 @@ class CarrinhoController extends Controller
 
     private function resolver(Request $request)
     {
-        $cliente = $request->user() instanceof Cliente ? $request->user() : null;
+        // As rotas de carrinho não exigem auth (guest), mas se vier um Bearer
+        // token resolvemos o cliente pelo guard sanctum explicitamente — o
+        // guard padrão é 'web'/sessão e não enxerga o Bearer.
+        $usuario = $request->user('sanctum');
+        $cliente = $usuario instanceof Cliente ? $usuario : null;
         $token = $request->header('X-Cart-Token');
 
         return $this->service->resolver($cliente, $token);

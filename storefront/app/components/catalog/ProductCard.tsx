@@ -102,6 +102,21 @@ function CardBuyButton({ produto }: { produto: ProdutoLista }) {
   const { openCart, showToast } = useCart();
   const fetcher = useFetcher<{ ok: boolean; message?: string }>();
   const submittedRef = useRef(false);
+  const busy = fetcher.state !== "idle";
+
+  // Após sucesso: abre drawer + toast (ou mostra erro de estoque).
+  // Hook declarado antes de qualquer return condicional (regras de hooks).
+  useEffect(() => {
+    if (fetcher.state === "idle" && submittedRef.current && fetcher.data) {
+      submittedRef.current = false;
+      if (fetcher.data.ok) {
+        openCart();
+        showToast("Produto adicionado ao carrinho");
+      } else {
+        showToast(fetcher.data.message ?? "Não foi possível adicionar.");
+      }
+    }
+  }, [fetcher.state, fetcher.data, openCart, showToast]);
 
   // Produto indisponível: botão desabilitado.
   if (produto.disponivel === false) {
@@ -122,21 +137,6 @@ function CardBuyButton({ produto }: { produto: ProdutoLista }) {
       </Link>
     );
   }
-
-  const busy = fetcher.state !== "idle";
-
-  // Após sucesso: abre drawer + toast (ou mostra erro de estoque).
-  useEffect(() => {
-    if (fetcher.state === "idle" && submittedRef.current && fetcher.data) {
-      submittedRef.current = false;
-      if (fetcher.data.ok) {
-        openCart();
-        showToast("Produto adicionado ao carrinho");
-      } else {
-        showToast(fetcher.data.message ?? "Não foi possível adicionar.");
-      }
-    }
-  }, [fetcher.state, fetcher.data, openCart, showToast]);
 
   return (
     <fetcher.Form method="post" action="/api/carrinho" style={{ flex: 1 }}>
