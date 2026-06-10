@@ -35,36 +35,37 @@ export function ProductCard({ produto }: { produto: ProdutoLista }) {
 
   return (
     <article className="product-card">
-      <Link
-        to={`/produto/${produto.slug}`}
-        style={{ display: "contents", color: "inherit" }}
-        aria-label={produto.nome}
-      >
-        <div className="thumb">
-          {tag && <span className={`tag ${tag.cls}`}>{tag.label}</span>}
-          {produto.imagem_capa ? (
-            <img
-              className="ppt-img"
-              src={produto.imagem_capa}
-              alt={produto.nome}
-              loading="lazy"
-            />
-          ) : (
-            <div className="ppt-mock">
-              <div>
-                <div className="meta">{produto.categoria?.nome ?? "Shopets"}</div>
-                <div className="title">{produto.nome}</div>
-              </div>
-              <div className="blocks">
-                <i></i>
-                <i></i>
-                <i></i>
-              </div>
+      {/* Link de navegação cobre só a imagem e os textos — NÃO os botões */}
+      <Link to={`/produto/${produto.slug}`} className="thumb" aria-label={produto.nome}>
+        {tag && <span className={`tag ${tag.cls}`}>{tag.label}</span>}
+        {produto.imagem_capa ? (
+          <img
+            className="ppt-img"
+            src={produto.imagem_capa}
+            alt={produto.nome}
+            loading="lazy"
+          />
+        ) : (
+          <div className="ppt-mock">
+            <div>
+              <div className="meta">{produto.categoria?.nome ?? "Shopets"}</div>
+              <div className="title">{produto.nome}</div>
             </div>
-          )}
-        </div>
+            <div className="blocks">
+              <i></i>
+              <i></i>
+              <i></i>
+            </div>
+          </div>
+        )}
+      </Link>
 
-        <div className="body">
+      <div className="body">
+        <Link
+          to={`/produto/${produto.slug}`}
+          style={{ display: "contents", color: "inherit" }}
+          aria-label={produto.nome}
+        >
           {produto.categoria && (
             <div className="crumb">
               <span className="dot"></span>
@@ -80,15 +81,16 @@ export function ProductCard({ produto }: { produto: ProdutoLista }) {
             <PriceNow value={precoEfetivo} />
             <span className="install">ou 10x de {formatBRL(parcela)}</span>
           </div>
+        </Link>
 
-          <div className="actions" onClick={(e) => e.preventDefault()}>
-            <CardBuyButton produto={produto} />
-            <button type="button" className="wish" title="Favoritar" aria-label="Favoritar">
-              <Heart className="size-[18px]" />
-            </button>
-          </div>
+        {/* Ações fora do Link: o form de adicionar funciona normalmente */}
+        <div className="actions">
+          <CardBuyButton produto={produto} />
+          <button type="button" className="wish" title="Favoritar" aria-label="Favoritar">
+            <Heart className="size-[18px]" />
+          </button>
         </div>
-      </Link>
+      </div>
     </article>
   );
 }
