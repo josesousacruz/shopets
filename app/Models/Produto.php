@@ -97,6 +97,26 @@ class Produto extends Model implements HasMedia
         return $this->variacoes()->ativas()->exists();
     }
 
+    public function disponivelParaVenda(): bool
+    {
+        if (! $this->ativo) {
+            return false;
+        }
+
+        if ($this->relationLoaded('variacoes')) {
+            if ($this->variacoes->isNotEmpty()) {
+                return $this->variacoes->contains(fn ($v) => $v->ativo && (float) $v->estoque_atual > 0);
+            }
+            return (float) $this->estoque_atual > 0;
+        }
+
+        if ($this->variacoes()->ativas()->exists()) {
+            return $this->variacoes()->ativas()->where('estoque_atual', '>', 0)->exists();
+        }
+
+        return (float) $this->estoque_atual > 0;
+    }
+
     /**
      * Relacionamento com fornecedores
      */

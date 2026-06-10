@@ -19,6 +19,7 @@ class ProdutoDetalheResource extends JsonResource
             'em_promocao'       => (bool) $this->em_promocao,
             'novo'              => (bool) $this->novo,
             'destaque'          => (bool) $this->destaque,
+            'disponivel'        => $this->disponivelParaVenda(),
             'peso_gramas'       => $this->peso_gramas,
             'dimensoes_cm'      => [
                 'altura'      => $this->altura_cm !== null ? (float) $this->altura_cm : null,

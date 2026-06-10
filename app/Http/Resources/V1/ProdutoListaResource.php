@@ -22,8 +22,9 @@ class ProdutoListaResource extends JsonResource
                 'nome' => $this->categoria->nome,
                 'slug' => $this->categoria->slug,
             ]),
-            'imagem_capa'  => $this->getImageUrl('medium'),
+            'imagem_capa'   => $this->getImageUrl('medium'),
             'tem_variacoes' => $this->relationLoaded('variacoes') ? $this->variacoes->isNotEmpty() : null,
+            'disponivel'    => $this->disponivelParaVenda(),
         ];
     }
 }
