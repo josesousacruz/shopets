@@ -11,6 +11,10 @@ return new class extends Migration {
      */
     public function up(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         // 1. Update the ENUM column to include 'devolucao'
         // Note: Changing ENUMs in Doctrine/Laravel can be tricky, raw SQL is often safer for ENUM modifications to avoid losing data or complex mapping issues.
         DB::statement("ALTER TABLE fluxo_caixa MODIFY COLUMN categoria ENUM('venda', 'compra', 'despesa', 'receita', 'outros', 'devolucao') NOT NULL");
@@ -59,6 +63,10 @@ return new class extends Migration {
      */
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Revert trigger to use 'despesa' instead of 'devolucao'
         if (DB::connection()->getDriverName() === 'mysql') {
             DB::unprepared('DROP TRIGGER IF EXISTS tr_fluxo_caixa_operacoes_venda');

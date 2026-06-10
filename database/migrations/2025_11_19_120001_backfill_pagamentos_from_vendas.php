@@ -7,6 +7,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Backfill pagamentos_venda for vendas that have id_forma_pagamento set and no pagamentos yet
         DB::statement('
             INSERT INTO pagamentos_venda (
