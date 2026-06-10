@@ -203,10 +203,15 @@ class Produto extends Model implements HasMedia
     // Método helper para obter URL da imagem
     public function getImageUrl($conversion = null)
     {
-        $media = $this->getFirstMedia('imagens');
-        
+        $media = $this->getFirstMedia('images');
+
         if (!$media) {
             return null;
+        }
+
+        // Se a conversão ainda não foi gerada, cai pra imagem original
+        if ($conversion && ! $media->hasGeneratedConversion($conversion)) {
+            return $media->getUrl();
         }
 
         return $conversion ? $media->getUrl($conversion) : $media->getUrl();
