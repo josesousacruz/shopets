@@ -4,6 +4,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoriaController;
 use App\Http\Controllers\Api\ProdutoController;
+use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
+use App\Http\Controllers\Api\V1\CepController;
+use App\Http\Controllers\Api\V1\EnderecoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -39,4 +43,25 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->name('categorias.index');
     Route::get('/busca', \App\Http\Controllers\Api\V1\Storefront\BuscaController::class)
         ->name('busca');
+
+    // Autenticação de clientes (token-based / Sanctum)
+    Route::prefix('auth')->group(function () {
+        Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+        Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+        Route::post('/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:4,1');
+        Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
+
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::post('/logout', [AuthController::class, 'logout']);
+            Route::get('/me', [AuthController::class, 'me']);
+        });
+    });
+
+    // ViaCEP (público, server-side)
+    Route::get('/cep/{cep}', CepController::class)->middleware('throttle:30,1');
+
+    // Endereços do cliente (escopado por auth:sanctum)
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::apiResource('enderecos', EnderecoController::class)->except(['show']);
+    });
 });

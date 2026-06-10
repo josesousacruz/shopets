@@ -80,6 +80,22 @@ class Cliente extends Authenticatable
     }
 
     /**
+     * Relacionamento com endereços do cliente
+     */
+    public function enderecos(): HasMany
+    {
+        return $this->hasMany(EnderecoCliente::class, 'id_cliente', 'id_cliente');
+    }
+
+    /**
+     * Usa o broker de senha dos clientes para o link de reset.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
+    }
+
+    /**
      * Scope para clientes ativos
      */
     public function scopeAtivos($query)
