@@ -130,7 +130,7 @@ return new class extends Migration
      */
     private function triggerExists(string $triggerName): bool
     {
-        $result = DB::select("SHOW TRIGGERS LIKE '%{$triggerName}%'");
+        $result = DB::select("SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = ?", [$triggerName]);
         return count($result) > 0;
     }
 
