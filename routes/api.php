@@ -87,4 +87,58 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('/pedidos/{numero}', [\App\Http\Controllers\Api\V1\PedidoController::class, 'show']);
         Route::post('/pedidos/{numero}/pagar', [\App\Http\Controllers\Api\V1\PagamentoController::class, 'pagar']);
     });
+
+    // ----------------------------------------------------------------
+    // Painel do Lojista (admin) — autentica User do PDV via Sanctum
+    // ----------------------------------------------------------------
+    Route::prefix('painel')->name('painel.')->group(function () {
+        Route::prefix('auth')->group(function () {
+            Route::post('/login', [\App\Http\Controllers\Api\V1\Painel\AuthController::class, 'login'])
+                ->middleware('throttle:6,1');
+
+            Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+                Route::post('/logout', [\App\Http\Controllers\Api\V1\Painel\AuthController::class, 'logout']);
+                Route::get('/me', [\App\Http\Controllers\Api\V1\Painel\AuthController::class, 'me']);
+            });
+        });
+
+        Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+            // Pedidos
+            Route::get('/pedidos', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'index']);
+            Route::get('/pedidos/{numero}', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'show']);
+            Route::post('/pedidos/{numero}/separacao', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'separacao']);
+            Route::post('/pedidos/{numero}/enviar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'enviar']);
+            Route::post('/pedidos/{numero}/entregar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'entregar']);
+            Route::post('/pedidos/{numero}/cancelar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'cancelar']);
+
+            // Catálogo — produtos
+            Route::get('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'index']);
+            Route::post('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'store']);
+            Route::get('/produtos/{id}', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'show']);
+            Route::put('/produtos/{id}', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'update']);
+            Route::delete('/produtos/{id}', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'destroy']);
+
+            // Fotos do produto (Spatie MediaLibrary)
+            Route::post('/produtos/{id}/fotos', [\App\Http\Controllers\Api\V1\Painel\ProdutoFotoController::class, 'store']);
+            Route::put('/produtos/{id}/fotos/ordem', [\App\Http\Controllers\Api\V1\Painel\ProdutoFotoController::class, 'ordem']);
+            Route::delete('/produtos/{id}/fotos/{media}', [\App\Http\Controllers\Api\V1\Painel\ProdutoFotoController::class, 'destroy']);
+
+            // Variações do produto
+            Route::get('/produtos/{id}/variacoes', [\App\Http\Controllers\Api\V1\Painel\ProdutoVariacaoController::class, 'index']);
+            Route::post('/produtos/{id}/variacoes', [\App\Http\Controllers\Api\V1\Painel\ProdutoVariacaoController::class, 'store']);
+            Route::put('/produtos/{id}/variacoes/{variacao}', [\App\Http\Controllers\Api\V1\Painel\ProdutoVariacaoController::class, 'update']);
+            Route::delete('/produtos/{id}/variacoes/{variacao}', [\App\Http\Controllers\Api\V1\Painel\ProdutoVariacaoController::class, 'destroy']);
+
+            // Catálogo — categorias
+            Route::get('/categorias', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'index']);
+            Route::post('/categorias', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'store']);
+            Route::get('/categorias/{id}', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'show']);
+            Route::put('/categorias/{id}', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'update']);
+            Route::delete('/categorias/{id}', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'destroy']);
+
+            // Configurações da loja
+            Route::get('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'show']);
+            Route::put('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'update']);
+        });
+    });
 });

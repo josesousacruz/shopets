@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'cliente' => \App\Http\Middleware\EnsureCliente::class,
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
         ]);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);

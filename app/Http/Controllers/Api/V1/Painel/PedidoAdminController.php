@@ -1,21 +1,23 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Api\V1\Painel;
 
 use App\Domain\Order\TransicaoInvalidaException;
 use App\Domain\Order\TransicionarPedidoAction;
 use App\Http\Controllers\Controller;
+use App\Models\PagamentoPedido;
 use App\Models\Pedido;
 use App\Models\Venda;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
-class LojaPedidoController extends Controller
+class PedidoAdminController extends Controller
 {
-    /** Status válidos e suas transições permitidas. */
-    private const TRANSICOES = TransicionarPedidoAction::TRANSICOES;
+    public function __construct(private readonly TransicionarPedidoAction $transicionar)
+    {
+    }
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $status = $request->query('status');
         $busca = trim((string) $request->query('busca', ''));
@@ -25,7 +27,7 @@ class LojaPedidoController extends Controller
             ->withCount('itens')
             ->orderByDesc('created_at');
 
-        if ($status && array_key_exists($status, self::TRANSICOES)) {
+        if ($status && array_key_exists($status, TransicionarPedidoAction::TRANSICOES)) {
             $query->where('status', $status);
         }
 
@@ -39,7 +41,7 @@ class LojaPedidoController extends Controller
             });
         }
 
-        $pedidos = $query->paginate(20)->withQueryString();
+        $pedidos = $query->paginate((int) $request->integer('por_pagina', 20));
 
         $pedidos->getCollection()->transform(fn (Pedido $p) => [
             'numero' => $p->numero,
@@ -52,26 +54,31 @@ class LojaPedidoController extends Controller
             'itens_count' => $p->itens_count,
         ]);
 
-        return Inertia::render('Loja/Pedidos/Index', [
-            'pedidos' => $pedidos,
-            'filtros' => [
-                'status' => $status,
-                'busca' => $busca,
+        return response()->json([
+            'data' => $pedidos->items(),
+            'meta' => [
+                'current_page' => $pedidos->currentPage(),
+                'last_page' => $pedidos->lastPage(),
+                'per_page' => $pedidos->perPage(),
+                'total' => $pedidos->total(),
             ],
-            'statusOptions' => array_keys(self::TRANSICOES),
+            'status_options' => array_keys(TransicionarPedidoAction::TRANSICOES),
         ]);
     }
 
-    public function show(Pedido $pedido)
+    public function show(string $numero): JsonResponse
     {
-        $pedido->load([
-            'cliente:id_cliente,nome,email,telefone,cpf_cnpj',
-            'itens',
-            'enderecoEntrega',
-            'eventos' => fn ($q) => $q->orderByDesc('criado_em'),
-        ]);
+        $pedido = Pedido::query()
+            ->where('numero', $numero)
+            ->with([
+                'cliente:id_cliente,nome,email,telefone,cpf_cnpj',
+                'itens',
+                'enderecoEntrega',
+                'eventos' => fn ($q) => $q->orderByDesc('criado_em'),
+            ])
+            ->firstOrFail();
 
-        $pagamento = \App\Models\PagamentoPedido::where('id_pedido', $pedido->id_pedido)
+        $pagamento = PagamentoPedido::where('id_pedido', $pedido->id_pedido)
             ->orderByDesc('id_pagamento_pedido')
             ->first();
 
@@ -79,8 +86,8 @@ class LojaPedidoController extends Controller
             ? Venda::where('id_venda', $pedido->id_venda)->first(['id_venda', 'numero_venda'])
             : null;
 
-        return Inertia::render('Loja/Pedidos/Show', [
-            'pedido' => [
+        return response()->json([
+            'data' => [
                 'numero' => $pedido->numero,
                 'status' => $pedido->status,
                 'modalidade' => $pedido->modalidade,
@@ -128,9 +135,7 @@ class LojaPedidoController extends Controller
                     'gateway' => $pagamento->gateway,
                     'processado_em' => optional($pagamento->processado_em)->toIso8601String(),
                 ] : null,
-                'venda' => $venda ? [
-                    'numero' => $venda->numero_venda,
-                ] : null,
+                'venda' => $venda ? ['numero' => $venda->numero_venda] : null,
                 'eventos' => $pedido->eventos->map(fn ($e) => [
                     'tipo' => $e->tipo,
                     'descricao' => $e->descricao,
@@ -140,19 +145,17 @@ class LojaPedidoController extends Controller
         ]);
     }
 
-    public function marcarEmSeparacao(Pedido $pedido)
+    public function separacao(string $numero): JsonResponse
     {
-        return $this->transicionar($pedido, 'em_separacao', 'Pedido em separação.');
+        return $this->aplicar($numero, 'em_separacao', 'Pedido em separação.');
     }
 
-    public function marcarEnviado(Request $request, Pedido $pedido)
+    public function enviar(Request $request, string $numero): JsonResponse
     {
-        $request->validate([
-            'codigo_rastreio' => 'nullable|string|max:60',
-        ]);
+        $request->validate(['codigo_rastreio' => 'nullable|string|max:60']);
 
-        return $this->transicionar(
-            $pedido,
+        return $this->aplicar(
+            $numero,
             'enviado',
             'Pedido enviado.' . ($request->codigo_rastreio ? " Rastreio: {$request->codigo_rastreio}." : ''),
             function (Pedido $p) use ($request) {
@@ -161,33 +164,38 @@ class LojaPedidoController extends Controller
         );
     }
 
-    public function marcarEntregue(Pedido $pedido)
+    public function entregar(string $numero): JsonResponse
     {
-        return $this->transicionar($pedido, 'entregue', 'Pedido entregue ao cliente.');
+        return $this->aplicar($numero, 'entregue', 'Pedido entregue ao cliente.');
     }
 
-    public function cancelar(Request $request, Pedido $pedido)
+    public function cancelar(Request $request, string $numero): JsonResponse
     {
-        $request->validate([
-            'motivo' => 'nullable|string|max:255',
-        ]);
+        $request->validate(['motivo' => 'nullable|string|max:255']);
 
-        return $this->transicionar(
-            $pedido,
+        return $this->aplicar(
+            $numero,
             'cancelado',
             'Pedido cancelado.' . ($request->motivo ? " Motivo: {$request->motivo}." : ''),
         );
     }
 
-    /** Aplica a transição via ação compartilhada, traduzindo erros para o fluxo Inertia. */
-    private function transicionar(Pedido $pedido, string $novoStatus, string $descricao, ?callable $extra = null)
+    private function aplicar(string $numero, string $novoStatus, string $descricao, ?callable $extra = null): JsonResponse
     {
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
         try {
-            app(TransicionarPedidoAction::class)->executar($pedido, $novoStatus, $descricao, $extra);
+            $this->transicionar->executar($pedido, $novoStatus, $descricao, $extra);
         } catch (TransicaoInvalidaException $e) {
-            return back()->withErrors(['status' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return back()->with('success', $descricao);
+        return response()->json([
+            'data' => [
+                'numero' => $pedido->numero,
+                'status' => $pedido->status,
+                'codigo_rastreio' => $pedido->codigo_rastreio,
+            ],
+        ]);
     }
 }

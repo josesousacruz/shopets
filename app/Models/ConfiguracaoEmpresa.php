@@ -15,17 +15,18 @@ class ConfiguracaoEmpresa extends Model
 
     protected $fillable = [
         'nome_empresa',
-        'razao_social',
         'cnpj',
         'endereco',
         'telefone',
         'email',
-        'logo',
-        'configuracoes_sistema',
+        'logo_path',
+        'taxa_entrega',
+        'valor_minimo_entrega',
     ];
 
     protected $casts = [
-        'configuracoes_sistema' => 'array',
+        'taxa_entrega' => 'decimal:2',
+        'valor_minimo_entrega' => 'decimal:2',
     ];
 
     /**
@@ -34,7 +35,7 @@ class ConfiguracaoEmpresa extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['nome_empresa', 'razao_social', 'cnpj', 'telefone', 'email', 'configuracoes_sistema'])
+            ->logOnly(['nome_empresa', 'cnpj', 'telefone', 'email', 'taxa_entrega', 'valor_minimo_entrega'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
