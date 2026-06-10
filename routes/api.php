@@ -51,7 +51,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:4,1');
         Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
 
-        Route::middleware('auth:sanctum')->group(function () {
+        Route::middleware(['auth:sanctum', 'cliente'])->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
         });
@@ -60,8 +60,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     // ViaCEP (público, server-side)
     Route::get('/cep/{cep}', CepController::class)->middleware('throttle:30,1');
 
-    // Endereços do cliente (escopado por auth:sanctum)
-    Route::middleware('auth:sanctum')->group(function () {
+    // Endereços do cliente (escopado por auth:sanctum + garante Cliente)
+    Route::middleware(['auth:sanctum', 'cliente'])->group(function () {
         Route::apiResource('enderecos', EnderecoController::class)->except(['show']);
     });
 });

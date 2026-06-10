@@ -2,6 +2,10 @@ import { createCookieSessionStorage, redirect } from "@remix-run/node";
 import { me } from "./auth.server";
 import type { Cliente } from "~/types/api";
 
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET é obrigatório em produção (storefront).");
+}
+
 const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret-shopets-troque-em-producao";
 
 const storage = createCookieSessionStorage({

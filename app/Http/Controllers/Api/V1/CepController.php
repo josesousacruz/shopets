@@ -16,7 +16,7 @@ class CepController extends Controller
             return response()->json(['message' => 'CEP inválido.'], 404);
         }
 
-        $response = Http::get("https://viacep.com.br/ws/{$cep}/json/");
+        $response = Http::timeout(5)->retry(1, 300)->get("https://viacep.com.br/ws/{$cep}/json/");
 
         if ($response->failed() || ($response->json('erro') ?? false)) {
             return response()->json(['message' => 'CEP não encontrado.'], 404);
