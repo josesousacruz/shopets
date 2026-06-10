@@ -12,6 +12,12 @@
 
 **Ajuste de escopo vs spec:** o job `LimparReservasExpiradas` foi movido pra Sprint 3 (onde a tabela `reservas_estoque` é criada). Sprint 0 fica focada em fundação.
 
+**NOTA DE EXECUÇÃO (2026-06-09):**
+- A **Task 1 (Docker Compose) foi deferida** para um plano futuro de deploy. O dev acontece com PHP/MySQL locais (já funcionais no `.env` atual: `DB_HOST=127.0.0.1`, MySQL local rodando). Os artefatos Docker serão criados antes do primeiro deploy.
+- **Todos os comandos `docker compose exec php php artisan ...` no plano abaixo devem ser executados como `php artisan ...`** (direto, sem prefixo Docker).
+- Branch de trabalho: `ecommerce-sprint-0` (criado a partir de `pdv`).
+- Tasks efetivas a executar nesta sprint: **2 a 9** do plano (renumeradas como 1-8 na lista de execução).
+
 **Convenções:**
 - Commands abaixo assumem PowerShell (Windows). Para Git Bash, substituir `;` por `&&` quando aplicável. `php artisan ...` funciona idêntico em ambos.
 - Path raiz do projeto: `C:\Projetos\PDV-Ecomerce\shopets`. Todos os paths de arquivo são relativos a esse diretório.
