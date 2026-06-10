@@ -38,6 +38,21 @@ class Produto extends Model implements HasMedia
         'cest',
         'ativo',
         'id_empresa',
+        'slug',
+        'descricao_curta',
+        'descricao_longa',
+        'peso_gramas',
+        'altura_cm',
+        'largura_cm',
+        'comprimento_cm',
+        'meta_title',
+        'meta_description',
+        'og_image_path',
+        'destaque',
+        'novo',
+        'em_promocao',
+        'preco_promocional',
+        'visivel_ecommerce',
     ];
 
     protected $casts = [
@@ -46,6 +61,11 @@ class Produto extends Model implements HasMedia
         'ativo' => 'boolean',
         'estoque_atual' => 'integer',
         'estoque_minimo' => 'integer',
+        'destaque' => 'boolean',
+        'novo' => 'boolean',
+        'em_promocao' => 'boolean',
+        'visivel_ecommerce' => 'boolean',
+        'preco_promocional' => 'decimal:2',
     ];
 
     /**
