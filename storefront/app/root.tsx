@@ -12,6 +12,12 @@ import { fetchCarrinho } from "~/lib/cart.server";
 import tailwind from "~/tailwind.css?url";
 
 export async function loader({ request }: { request: Request }) {
+  // O painel do lojista (/painel) não usa o chrome do cliente nem o carrinho —
+  // evita buscas desnecessárias (cliente/carrinho) a cada navegação no painel.
+  if (new URL(request.url).pathname.startsWith("/painel")) {
+    return json({ ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente: null, cartCount: 0, cartSubtotal: 0 });
+  }
+
   const cliente = await getCliente(request);
 
   // Resumo do carrinho para o Header (contagem + total). Tolerante a falhas.
