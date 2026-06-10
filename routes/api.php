@@ -35,4 +35,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->name('produtos.index');
     Route::get('/produtos/{slug}', [\App\Http\Controllers\Api\V1\Storefront\ProdutoController::class, 'show'])
         ->name('produtos.show');
+    Route::get('/categorias', [\App\Http\Controllers\Api\V1\Storefront\CategoriaController::class, 'index'])
+        ->name('categorias.index');
+    Route::get('/busca', \App\Http\Controllers\Api\V1\Storefront\BuscaController::class)
+        ->name('busca');
 });
