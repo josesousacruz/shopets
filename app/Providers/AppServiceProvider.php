@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Domain\Shipping\MelhorEnvioService;
+use App\Domain\Shipping\ShippingQuoteInterface;
+use App\Domain\Shipping\StubShippingService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
@@ -13,7 +16,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(ShippingQuoteInterface::class, function ($app) {
+            $driver = config('services.shipping.driver', 'stub');
+
+            return match ($driver) {
+                'melhor_envio' => new MelhorEnvioService(config('services.shipping.melhor_envio.token')),
+                default => new StubShippingService(),
+            };
+        });
     }
 
     /**

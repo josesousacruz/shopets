@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'shipping' => [
+        'driver' => env('SHIPPING_DRIVER', 'stub'),
+        'melhor_envio' => [
+            'token' => env('MELHOR_ENVIO_TOKEN'),
+        ],
+    ],
+
 ];

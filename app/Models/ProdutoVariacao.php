@@ -43,4 +43,14 @@ class ProdutoVariacao extends Model
     {
         return (float) ($this->preco_promocional ?? $this->preco_venda);
     }
+
+    public function getEstoqueDisponivelAttribute(): float
+    {
+        return app(\App\Domain\Order\EstoqueService::class)->disponivel($this);
+    }
+
+    public function getReservadoAttribute(): float
+    {
+        return app(\App\Domain\Order\EstoqueService::class)->reservado($this);
+    }
 }

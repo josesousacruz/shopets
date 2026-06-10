@@ -88,6 +88,22 @@ class Cliente extends Authenticatable
     }
 
     /**
+     * Relacionamento com pedidos do ecommerce
+     */
+    public function pedidos(): HasMany
+    {
+        return $this->hasMany(Pedido::class, 'id_cliente', 'id_cliente');
+    }
+
+    /**
+     * Carrinho ativo do cliente (o mais recente).
+     */
+    public function carrinho(): HasMany
+    {
+        return $this->hasMany(Carrinho::class, 'id_cliente', 'id_cliente');
+    }
+
+    /**
      * Usa o broker de senha dos clientes para o link de reset.
      */
     public function sendPasswordResetNotification($token): void

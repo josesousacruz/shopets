@@ -60,8 +60,22 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     // ViaCEP (público, server-side)
     Route::get('/cep/{cep}', CepController::class)->middleware('throttle:30,1');
 
+    // Carrinho (público — identifica por header X-Cart-Token OU Bearer cliente)
+    Route::get('/carrinho', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'show']);
+    Route::post('/carrinho/itens', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'adicionar']);
+    Route::put('/carrinho/itens/{item}', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'atualizar']);
+    Route::delete('/carrinho/itens/{item}', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'remover']);
+
+    // Cotação de frete (público; usa carrinho se itens omitidos)
+    Route::post('/frete/cotar', [\App\Http\Controllers\Api\V1\FreteController::class, 'cotar']);
+
     // Endereços do cliente (escopado por auth:sanctum + garante Cliente)
     Route::middleware(['auth:sanctum', 'cliente'])->group(function () {
         Route::apiResource('enderecos', EnderecoController::class)->except(['show']);
+
+        // Checkout + pedidos (escopados ao cliente)
+        Route::post('/checkout/iniciar', [\App\Http\Controllers\Api\V1\CheckoutController::class, 'iniciar']);
+        Route::get('/pedidos', [\App\Http\Controllers\Api\V1\PedidoController::class, 'index']);
+        Route::get('/pedidos/{numero}', [\App\Http\Controllers\Api\V1\PedidoController::class, 'show']);
     });
 });

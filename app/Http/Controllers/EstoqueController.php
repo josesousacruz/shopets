@@ -27,6 +27,8 @@ class EstoqueController extends Controller
                 'purchasePrice' => $produto->preco_custo ?? $produto->preco_compra,
                 'salePrice' => $produto->preco_venda,
                 'stock' => $produto->estoque_atual,
+                'estoque_disponivel' => $produto->estoque_disponivel,
+                'reservado' => $produto->reservado,
                 'category' => $produto->categoria->nome ?? 'Sem categoria',
                 'categoryId' => $produto->id_categoria,
                 'barcode' => $produto->codigo_barras,
