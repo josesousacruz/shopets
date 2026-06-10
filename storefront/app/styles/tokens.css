@@ -1,0 +1,10 @@
+:root {
+  /* RGB triplets (Tailwind needs raw) */
+  --color-brand-primary: 124 58 237;   /* violet-600 */
+  --color-brand-accent:  163 230 53;   /* lime-400 */
+  --color-ink:           15 23 42;     /* slate-900 */
+  --color-muted:         241 245 249;  /* slate-100 */
+
+  --radius-card: 16px;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.05);
+}
