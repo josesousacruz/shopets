@@ -22,11 +22,29 @@ class Categoria extends Model
         'icone',
         'ativo',
         'id_empresa',
+        'slug',
+        'descricao_seo',
+        'imagem_path',
+        'ordem',
+        'visivel_ecommerce',
+        'id_categoria_pai',
     ];
 
     protected $casts = [
         'ativo' => 'boolean',
+        'visivel_ecommerce' => 'boolean',
+        'ordem' => 'integer',
     ];
+
+    public function pai()
+    {
+        return $this->belongsTo(self::class, 'id_categoria_pai', 'id_categoria');
+    }
+
+    public function filhas()
+    {
+        return $this->hasMany(self::class, 'id_categoria_pai', 'id_categoria');
+    }
 
     /**
      * Configure activity logging options.
