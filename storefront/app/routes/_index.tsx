@@ -1,7 +1,9 @@
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { ArrowRight } from "lucide-react";
 import { api } from "~/lib/api.server";
+import type { Banner } from "~/types/api";
 import { ProductGrid } from "~/components/catalog/ProductGrid";
 import { Hero } from "~/components/marketing/Hero";
 import { DepartmentGrid } from "~/components/marketing/DepartmentGrid";
@@ -22,12 +24,13 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader(_args: LoaderFunctionArgs) {
-  const [categorias, destaques, novidades, ofertas, geral] = await Promise.all([
+  const [categorias, destaques, novidades, ofertas, geral, banners] = await Promise.all([
     api.categorias.list(),
     api.produtos.list({ destaque: 1, por_pagina: 8 }),
     api.produtos.list({ ordem: "novidades", por_pagina: 4 }),
     api.produtos.list({ em_promocao: 1, por_pagina: 4 }),
     api.produtos.list({ por_pagina: 8 }),
+    api.banners.list().catch(() => ({ data: [] as Banner[] })),
   ]);
 
   // Fallback: se filtros vierem vazios, mostra fatias da lista geral
@@ -36,20 +39,21 @@ export async function loader(_args: LoaderFunctionArgs) {
     novidades.data.length > 0 ? novidades.data : geral.data.slice(0, 4);
   const ofertasData = ofertas.data.length > 0 ? ofertas.data : geral.data.slice(4, 8);
 
-  return {
+  return json({
     categorias: categorias.data,
     destaques: destaques.data.length > 0 ? destaques.data : geral.data.slice(0, 8),
     novidades: novidadesData,
     ofertas: ofertasData,
-  };
+    banners: banners.data,
+  });
 }
 
 export default function Home() {
-  const { categorias, destaques, novidades, ofertas } = useLoaderData<typeof loader>();
+  const { categorias, destaques, novidades, ofertas, banners } = useLoaderData<typeof loader>();
 
   return (
     <div>
-      <Hero />
+      <Hero banners={banners} />
 
       <DepartmentGrid categorias={categorias} />
 

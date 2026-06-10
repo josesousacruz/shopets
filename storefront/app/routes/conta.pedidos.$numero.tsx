@@ -1,7 +1,8 @@
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { ArrowLeft, Check, Package } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Check, Copy, ExternalLink, Truck } from "lucide-react";
 import { requireToken } from "~/lib/session.server";
 import { obterPedido } from "~/lib/cart.server";
 import { ApiValidationError } from "~/lib/auth.server";
@@ -49,12 +50,44 @@ function formatData(iso: string | null): string {
   }
 }
 
+/** URL para acompanhar a entrega: usa a etiqueta/rastreio do pedido quando houver,
+ * senão cai numa busca pública dos Correios pelo código. */
+function trackingUrl(pedido: Pedido): string {
+  if (pedido.etiqueta_url) return pedido.etiqueta_url;
+  const cod = pedido.codigo_rastreio ?? "";
+  return `https://rastreamento.correios.com.br/app/index.php?objetos=${encodeURIComponent(cod)}`;
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <button
+      type="button"
+      className="ct-btn ct-btn--ghost"
+      style={{ width: "auto", padding: "8px 12px", gap: 6 }}
+      onClick={() => {
+        navigator.clipboard?.writeText(value).then(
+          () => {
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 1800);
+          },
+          () => {},
+        );
+      }}
+    >
+      {copiado ? <Check size={14} /> : <Copy size={14} />}
+      {copiado ? "Copiado" : "Copiar"}
+    </button>
+  );
+}
+
 export default function PedidoDetalhe() {
   const { pedido } = useLoaderData<typeof loader>();
   const end = pedido.endereco_entrega;
 
   const cancelado = pedido.status === "cancelado";
   const idxAtual = STATUS_FLUXO.indexOf(pedido.status as (typeof STATUS_FLUXO)[number]);
+  const mostrarRastreio = pedido.status === "enviado" || pedido.status === "entregue" || !!pedido.codigo_rastreio;
 
   return (
     <div className="ct-wrap">
@@ -100,6 +133,63 @@ export default function PedidoDetalhe() {
               ))}
             </div>
           </section>
+
+          {/* Rastreamento */}
+          {mostrarRastreio && (
+            <section className="co-card">
+              <h2>
+                <Truck size={18} style={{ verticalAlign: "-3px", marginRight: 8, color: "var(--mint-deep)" }} />
+                Rastreamento
+              </h2>
+              {pedido.codigo_rastreio ? (
+                <>
+                  <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6 }}>
+                    Seu pedido foi despachado. Use o código abaixo para acompanhar a entrega.
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      flexWrap: "wrap",
+                      marginTop: 14,
+                    }}
+                  >
+                    <code
+                      style={{
+                        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        letterSpacing: ".04em",
+                        color: "var(--ink)",
+                        background: "rgba(136,226,202,.18)",
+                        border: "1px solid rgba(136,226,202,.5)",
+                        borderRadius: 10,
+                        padding: "9px 14px",
+                      }}
+                    >
+                      {pedido.codigo_rastreio}
+                    </code>
+                    <CopyButton value={pedido.codigo_rastreio} />
+                  </div>
+                </>
+              ) : (
+                <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6 }}>
+                  O código de rastreio será disponibilizado em breve.
+                </p>
+              )}
+              <a
+                href={trackingUrl(pedido)}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="ct-btn ct-btn--mint"
+                style={{ width: "auto", marginTop: 16, gap: 8 }}
+              >
+                Acompanhar entrega
+                <ExternalLink size={15} />
+              </a>
+            </section>
+          )}
 
           {/* Status timeline */}
           {!cancelado && (
@@ -161,12 +251,6 @@ export default function PedidoDetalhe() {
             <span>Total</span>
             <b>{formatBRL(pedido.total)}</b>
           </div>
-          {pedido.codigo_rastreio && (
-            <div className="row" style={{ marginTop: 16 }}>
-              <span>Rastreio</span>
-              <b>{pedido.codigo_rastreio}</b>
-            </div>
-          )}
         </aside>
       </div>
 

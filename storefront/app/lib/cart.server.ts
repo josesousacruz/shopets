@@ -2,7 +2,7 @@ import { createCookie } from "@remix-run/node";
 import { env } from "./env.server";
 import { getToken } from "./session.server";
 import { ApiValidationError } from "./auth.server";
-import type { Carrinho, FreteOpcao, PagamentoPix, Pedido } from "~/types/api";
+import type { Carrinho, CupomAplicado, FreteOpcao, PagamentoPix, Pedido } from "~/types/api";
 
 /* ──────────────────────────────────────────────────────────
    Cookie httpOnly separado para o token de carrinho convidado.
@@ -131,6 +131,37 @@ export async function removerItem(request: Request, id: number): Promise<{ data:
   const bearer = await getToken(request);
   const cartToken = await getCartToken(request);
   return cartRequest<{ data: Carrinho }>(`/carrinho/itens/${id}`, {
+    method: "DELETE",
+    bearer,
+    cartToken,
+  });
+}
+
+/* ── Cupom ────────────────────────────────────────────── */
+
+/**
+ * Aplica um cupom ao carrinho atual: POST /carrinho/cupom {codigo}.
+ * Em caso de cupom inválido a API responde 422 — propagamos via ApiValidationError.
+ */
+export async function aplicarCupom(
+  request: Request,
+  codigo: string,
+): Promise<{ data: CupomAplicado }> {
+  const bearer = await getToken(request);
+  const cartToken = await getCartToken(request);
+  return cartRequest<{ data: CupomAplicado }>("/carrinho/cupom", {
+    method: "POST",
+    bearer,
+    cartToken,
+    body: { codigo },
+  });
+}
+
+/** Remove o cupom do carrinho: DELETE /carrinho/cupom. */
+export async function removerCupom(request: Request): Promise<{ data: { codigo: null } }> {
+  const bearer = await getToken(request);
+  const cartToken = await getCartToken(request);
+  return cartRequest<{ data: { codigo: null } }>("/carrinho/cupom", {
     method: "DELETE",
     bearer,
     cartToken,

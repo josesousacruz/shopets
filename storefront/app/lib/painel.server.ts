@@ -194,6 +194,31 @@ export interface CategoriaAdmin {
   id_categoria_pai: number | null;
 }
 
+export interface BannerAdmin {
+  id: number;
+  titulo: string;
+  subtitulo: string | null;
+  imagem_path: string | null;
+  link: string | null;
+  ordem: number;
+  ativo: boolean;
+  vigencia_de: string | null;
+  vigencia_ate: string | null;
+}
+
+export interface CupomAdmin {
+  id: number;
+  codigo: string;
+  tipo: "percentual" | "valor_fixo" | "frete_gratis";
+  valor: number;
+  valor_minimo_pedido: number;
+  valido_de: string | null;
+  valido_ate: string | null;
+  uso_maximo: number | null;
+  usos_atuais: number;
+  ativo: boolean;
+}
+
 export interface ConfiguracoesPainel {
   loja: {
     nome_empresa: string | null;
@@ -308,12 +333,61 @@ export const painel = {
       request<void>(`/painel/categorias/${id}`, { method: "DELETE", token }),
   },
 
+  banners: {
+    list: (token: string) => request<{ data: BannerAdmin[] }>("/painel/banners", { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: BannerAdmin }>("/painel/banners", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: BannerAdmin }>(`/painel/banners/${id}`, { method: "PUT", token, body }),
+    remove: (token: string, id: number | string) =>
+      request<void>(`/painel/banners/${id}`, { method: "DELETE", token }),
+  },
+
+  cupons: {
+    list: (token: string) => request<{ data: CupomAdmin[] }>("/painel/cupons", { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: CupomAdmin }>("/painel/cupons", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: CupomAdmin }>(`/painel/cupons/${id}`, { method: "PUT", token, body }),
+    remove: (token: string, id: number | string) =>
+      request<void>(`/painel/cupons/${id}`, { method: "DELETE", token }),
+  },
+
   configuracoes: {
     show: (token: string) => request<{ data: ConfiguracoesPainel }>("/painel/configuracoes", { token }),
     update: (token: string, body: Json) =>
       request<{ data: ConfiguracoesPainel }>("/painel/configuracoes", { method: "PUT", token, body }),
   },
 };
+
+/**
+ * Upload de imagem de banner (multipart). Cria ou atualiza o banner com o
+ * arquivo `imagem` e os demais campos. PUT via _method override (Laravel).
+ */
+export async function salvarBannerComUpload(
+  token: string,
+  id: number | string | null,
+  campos: Record<string, string>,
+  file: File,
+): Promise<{ data: BannerAdmin }> {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(campos)) fd.append(k, v);
+  fd.append("imagem", file, file.name || "banner.jpg");
+
+  const path = id ? `/painel/banners/${id}` : "/painel/banners";
+  if (id) fd.append("_method", "PUT"); // Laravel method spoofing para multipart
+
+  const res = await fetch(`${env.apiBaseUrl}${path}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: fd,
+  });
+
+  return parse<{ data: BannerAdmin }>(res, path);
+}
 
 /**
  * Upload de foto (multipart). Encaminha o File recebido no action do Remix

@@ -1,10 +1,11 @@
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { useState } from "react";
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
-import { ShoppingBag, Minus, Plus, Trash2, ArrowRight, ShieldCheck } from "lucide-react";
+import { ShoppingBag, Minus, Plus, Trash2, ArrowRight, ShieldCheck, Tag, X, Check } from "lucide-react";
 import { fetchCarrinho } from "~/lib/cart.server";
 import { formatBRL } from "~/lib/format";
-import type { Carrinho, CarrinhoItem } from "~/types/api";
+import type { Carrinho, CarrinhoItem, CupomAplicado } from "~/types/api";
 import checkoutStyles from "~/styles/checkout.css?url";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: checkoutStyles }];
@@ -23,10 +24,76 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
+type CupomFetcher = {
+  ok: boolean;
+  intent?: string;
+  message?: string;
+  cupom?: CupomAplicado | null;
+};
+
+/** Campo de cupom + estado aplicado, reflete o desconto no resumo via onChange. */
+function CouponBox({ onChange }: { onChange: (c: CupomAplicado | null) => void }) {
+  const fetcher = useFetcher<CupomFetcher>();
+  const [aplicado, setAplicado] = useState<CupomAplicado | null>(null);
+  const busy = fetcher.state !== "idle";
+  const erro = fetcher.data && fetcher.data.ok === false ? fetcher.data.message : undefined;
+
+  // Quando a action responde com sucesso, sincroniza o estado aplicado.
+  const data = fetcher.data;
+  if (data?.ok && fetcher.state === "idle") {
+    const novo = data.intent === "cupom_remove" ? null : data.cupom ?? null;
+    const mudou =
+      (novo?.codigo ?? null) !== (aplicado?.codigo ?? null) ||
+      (novo?.desconto ?? 0) !== (aplicado?.desconto ?? 0);
+    if (mudou) {
+      setAplicado(novo);
+      onChange(novo);
+    }
+  }
+
+  if (aplicado) {
+    return (
+      <div className="co-coupon applied">
+        <div className="info">
+          <span className="tag">
+            <Check size={13} /> {aplicado.codigo}
+          </span>
+          <span className="desc">
+            {aplicado.frete_gratis ? "Frete grátis aplicado" : `Desconto de ${formatBRL(aplicado.desconto)}`}
+          </span>
+        </div>
+        <fetcher.Form method="post" action="/api/carrinho">
+          <input type="hidden" name="intent" value="cupom_remove" />
+          <button type="submit" className="rm" aria-label="Remover cupom" disabled={busy}>
+            <X size={15} />
+          </button>
+        </fetcher.Form>
+      </div>
+    );
+  }
+
+  return (
+    <fetcher.Form method="post" action="/api/carrinho" className="co-coupon">
+      <input type="hidden" name="intent" value="cupom_apply" />
+      <div className="field">
+        <Tag size={15} />
+        <input name="codigo" placeholder="Cupom de desconto" autoComplete="off" />
+      </div>
+      <button type="submit" className="apply" disabled={busy}>
+        {busy ? "..." : "Aplicar"}
+      </button>
+      {erro && <div className="err">{erro}</div>}
+    </fetcher.Form>
+  );
+}
+
 export default function CarrinhoPage() {
   const { carrinho } = useLoaderData<typeof loader>();
   const itens = carrinho?.itens ?? [];
   const subtotal = carrinho?.subtotal ?? 0;
+  const [cupom, setCupom] = useState<CupomAplicado | null>(null);
+  const desconto = cupom?.desconto ?? 0;
+  const totalEstimado = Math.max(0, subtotal - desconto);
 
   return (
     <div className="co-wrap">
@@ -75,14 +142,23 @@ export default function CarrinhoPage() {
               <span>Subtotal</span>
               <b>{formatBRL(subtotal)}</b>
             </div>
+            {desconto > 0 && (
+              <div className="row">
+                <span>Desconto{cupom ? ` (${cupom.codigo})` : ""}</span>
+                <b className="free">-{formatBRL(desconto)}</b>
+              </div>
+            )}
             <div className="row">
               <span>Frete</span>
-              <span>Calculado no checkout</span>
+              {cupom?.frete_gratis ? <span className="free">Grátis</span> : <span>Calculado no checkout</span>}
             </div>
+
+            <CouponBox onChange={setCupom} />
+
             <div className="divider" />
             <div className="total">
-              <span>Total</span>
-              <b>{formatBRL(subtotal)}</b>
+              <span>Total estimado</span>
+              <b>{formatBRL(totalEstimado)}</b>
             </div>
             <Link to="/checkout" className="cta">
               Finalizar compra

@@ -1,13 +1,13 @@
 import type { ActionFunctionArgs, LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
+import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
-import { MapPin, Truck, Package, Check, ShieldCheck, ArrowRight, ArrowLeft } from "lucide-react";
+import { MapPin, Truck, Package, Check, ShieldCheck, ArrowRight, ArrowLeft, Tag, X } from "lucide-react";
 import { requireToken } from "~/lib/session.server";
 import { listarEnderecos, ApiValidationError } from "~/lib/auth.server";
 import { fetchCarrinho, cotarFrete, iniciarCheckout } from "~/lib/cart.server";
 import { formatBRL } from "~/lib/format";
-import type { Carrinho, Endereco, FreteOpcao } from "~/types/api";
+import type { Carrinho, CupomAplicado, Endereco, FreteOpcao } from "~/types/api";
 import checkoutStyles from "~/styles/checkout.css?url";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: checkoutStyles }];
@@ -101,8 +101,66 @@ export async function action({ request }: ActionFunctionArgs) {
   return json({ ok: false as const, intent, message: "Ação inválida." }, { status: 400 });
 }
 
+type CupomFetcher = { ok: boolean; intent?: string; message?: string; cupom?: CupomAplicado | null };
+
+/** Cupom no checkout — mesma mecânica do carrinho, reflete no resumo via onChange. */
+function CheckoutCoupon({ onChange }: { onChange: (c: CupomAplicado | null) => void }) {
+  const fetcher = useFetcher<CupomFetcher>();
+  const [aplicado, setAplicado] = useState<CupomAplicado | null>(null);
+  const busy = fetcher.state !== "idle";
+  const erro = fetcher.data && fetcher.data.ok === false ? fetcher.data.message : undefined;
+
+  const data = fetcher.data;
+  if (data?.ok && fetcher.state === "idle") {
+    const novo = data.intent === "cupom_remove" ? null : data.cupom ?? null;
+    const mudou =
+      (novo?.codigo ?? null) !== (aplicado?.codigo ?? null) ||
+      (novo?.desconto ?? 0) !== (aplicado?.desconto ?? 0);
+    if (mudou) {
+      setAplicado(novo);
+      onChange(novo);
+    }
+  }
+
+  if (aplicado) {
+    return (
+      <div className="co-coupon applied">
+        <div className="info">
+          <span className="tag">
+            <Check size={13} /> {aplicado.codigo}
+          </span>
+          <span className="desc">
+            {aplicado.frete_gratis ? "Frete grátis aplicado" : `Desconto de ${formatBRL(aplicado.desconto)}`}
+          </span>
+        </div>
+        <fetcher.Form method="post" action="/api/carrinho">
+          <input type="hidden" name="intent" value="cupom_remove" />
+          <button type="submit" className="rm" aria-label="Remover cupom" disabled={busy}>
+            <X size={15} />
+          </button>
+        </fetcher.Form>
+      </div>
+    );
+  }
+
+  return (
+    <fetcher.Form method="post" action="/api/carrinho" className="co-coupon">
+      <input type="hidden" name="intent" value="cupom_apply" />
+      <div className="field">
+        <Tag size={15} />
+        <input name="codigo" placeholder="Cupom de desconto" autoComplete="off" />
+      </div>
+      <button type="submit" className="apply" disabled={busy}>
+        {busy ? "..." : "Aplicar"}
+      </button>
+      {erro && <div className="err">{erro}</div>}
+    </fetcher.Form>
+  );
+}
+
 export default function Checkout() {
   const { carrinho, enderecos } = useLoaderData<typeof loader>();
+  const [cupom, setCupom] = useState<CupomAplicado | null>(null);
   const [params, setParams] = useSearchParams();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
@@ -408,14 +466,36 @@ export default function Checkout() {
             <span>Subtotal</span>
             <b>{formatBRL(carrinho.subtotal)}</b>
           </div>
+          {cupom && cupom.desconto > 0 && (
+            <div className="row">
+              <span>Desconto ({cupom.codigo})</span>
+              <b className="free">-{formatBRL(cupom.desconto)}</b>
+            </div>
+          )}
           <div className="row">
             <span>Frete</span>
-            {freteSel ? <b>{formatBRL(freteSel.preco)}</b> : <span>—</span>}
+            {cupom?.frete_gratis ? (
+              <b className="free">Grátis</b>
+            ) : freteSel ? (
+              <b>{formatBRL(freteSel.preco)}</b>
+            ) : (
+              <span>—</span>
+            )}
           </div>
+
+          <CheckoutCoupon onChange={setCupom} />
+
           <div className="divider" />
           <div className="total">
             <span>Total</span>
-            <b>{formatBRL(carrinho.subtotal + (freteSel?.preco ?? 0))}</b>
+            <b>
+              {formatBRL(
+                Math.max(
+                  0,
+                  carrinho.subtotal - (cupom?.desconto ?? 0) + (cupom?.frete_gratis ? 0 : freteSel?.preco ?? 0),
+                ),
+              )}
+            </b>
           </div>
           <div className="secure">
             <ShieldCheck /> Pagamento 100% seguro

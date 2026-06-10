@@ -1,5 +1,5 @@
 import { env } from "./env.server";
-import type { Categoria, Paginated, ProdutoDetalhe, ProdutoLista } from "~/types/api";
+import type { Banner, Categoria, Paginated, ProdutoDetalhe, ProdutoLista } from "~/types/api";
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -33,6 +33,9 @@ export const api = {
   },
   categorias: {
     list: () => get<{ data: Categoria[] }>("/categorias"),
+  },
+  banners: {
+    list: () => get<{ data: Banner[] }>("/banners"),
   },
   busca: (params: { q: string; por_pagina?: number }) =>
     get<Paginated<ProdutoLista> & { termo: string }>("/busca", params),

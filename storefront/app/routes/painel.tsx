@@ -7,6 +7,8 @@ import {
   Package,
   Boxes,
   FolderTree,
+  Image,
+  Ticket,
   Settings,
   LogOut,
   Menu,
@@ -31,6 +33,8 @@ const NAV = [
   { to: "/painel/pedidos", label: "Pedidos", icon: Package, end: false },
   { to: "/painel/catalogo", label: "Catálogo", icon: Boxes, end: false },
   { to: "/painel/categorias", label: "Categorias", icon: FolderTree, end: false },
+  { to: "/painel/banners", label: "Banners", icon: Image, end: false },
+  { to: "/painel/cupons", label: "Cupons", icon: Ticket, end: false },
   { to: "/painel/configuracoes", label: "Configurações", icon: Settings, end: false },
 ];
 

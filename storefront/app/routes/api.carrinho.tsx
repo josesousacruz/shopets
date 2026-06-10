@@ -4,10 +4,12 @@ import {
   adicionarItem,
   atualizarItem,
   removerItem,
+  aplicarCupom,
+  removerCupom,
   fetchCarrinho,
 } from "~/lib/cart.server";
 import { ApiValidationError } from "~/lib/auth.server";
-import type { Carrinho } from "~/types/api";
+import type { Carrinho, CupomAplicado } from "~/types/api";
 
 /** GET /api/carrinho — devolve o carrinho atual (para o drawer hidratar). */
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -30,6 +32,36 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
+
+  // ── Cupom: aplicar / remover ──
+  if (intent === "cupom_apply") {
+    const codigo = String(form.get("codigo") ?? "").trim();
+    if (!codigo) {
+      return json({ ok: false as const, intent, message: "Informe um cupom." }, { status: 422 });
+    }
+    try {
+      const { data } = await aplicarCupom(request, codigo);
+      return json({ ok: true as const, intent, cupom: data as CupomAplicado });
+    } catch (err) {
+      if (err instanceof ApiValidationError) {
+        const message = err.errors.codigo?.[0] ?? err.message ?? "Cupom inválido.";
+        return json({ ok: false as const, intent, message }, { status: 422 });
+      }
+      throw err;
+    }
+  }
+
+  if (intent === "cupom_remove") {
+    try {
+      await removerCupom(request);
+      return json({ ok: true as const, intent, cupom: null });
+    } catch (err) {
+      if (err instanceof ApiValidationError) {
+        return json({ ok: false as const, intent, message: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+  }
 
   try {
     let res: { data: Carrinho };

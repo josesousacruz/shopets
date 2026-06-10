@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@remix-run/react";
 import { ArrowRight, ShoppingCart } from "lucide-react";
+import type { Banner } from "~/types/api";
 
 const LABELS = [
   { key: "d", label: "dias" },
@@ -44,8 +45,78 @@ function useCountdown() {
   return parts;
 }
 
-export function Hero() {
+/** Hero alternativo movido por banners gerenciados no painel.
+ * Carrossel leve (auto-rotativo) com fallback embutido no _index. */
+function HeroBanners({ banners }: { banners: Banner[] }) {
+  const [idx, setIdx] = useState(0);
+  const total = banners.length;
+
+  useEffect(() => {
+    if (total <= 1) return;
+    const id = setInterval(() => setIdx((i) => (i + 1) % total), 6000);
+    return () => clearInterval(id);
+  }, [total]);
+
+  const b = banners[Math.min(idx, total - 1)];
+  const conteudo = (
+    <div className="hero-banner-inner">
+      <div className="copy">
+        <h1>{b.titulo}</h1>
+        {b.subtitulo && <p>{b.subtitulo}</p>}
+        {b.link && (
+          <span className="hero-banner-cta">
+            Conferir
+            <ArrowRight className="size-4" />
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="hero-banner">
+      {banners.map((bn, i) => (
+        <div
+          key={i}
+          className={`hero-banner-slide${i === idx ? " active" : ""}`}
+          style={bn.imagem ? { backgroundImage: `url(${bn.imagem})` } : undefined}
+          aria-hidden={i !== idx}
+        />
+      ))}
+      <div className="hero-banner-content">
+        {b.link ? (
+          <Link to={b.link} aria-label={b.titulo}>
+            {conteudo}
+          </Link>
+        ) : (
+          conteudo
+        )}
+      </div>
+      {total > 1 && (
+        <div className="hero-banner-dots" role="tablist" aria-label="Banners">
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={i === idx ? "active" : ""}
+              aria-label={`Banner ${i + 1}`}
+              aria-selected={i === idx}
+              onClick={() => setIdx(i)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function Hero({ banners }: { banners?: Banner[] } = {}) {
   const c = useCountdown();
+
+  if (banners && banners.length > 0) {
+    return <HeroBanners banners={banners} />;
+  }
+
   return (
     <section className="hero-promo">
       <div className="row">

@@ -152,9 +152,30 @@ export interface Pedido {
   frete_servico: string | null;
   prazo_entrega_dias: number | null;
   codigo_rastreio: string | null;
+  etiqueta_url?: string | null;
   itens?: PedidoItem[];
   endereco_entrega?: Endereco | null;
   criado_em: string | null;
+}
+
+/* ── Banners (home) ───────────────────────────────────── */
+
+export interface Banner {
+  titulo: string;
+  subtitulo: string | null;
+  imagem: string | null;
+  link: string | null;
+  ordem: number;
+}
+
+/* ── Cupom ────────────────────────────────────────────── */
+
+export interface CupomAplicado {
+  codigo: string;
+  tipo: "percentual" | "valor_fixo" | "frete_gratis" | string;
+  desconto: number;
+  frete_gratis: boolean;
+  subtotal: number;
 }
 
 /** Resposta de POST /pedidos/{numero}/pagar (cobrança Pix). */

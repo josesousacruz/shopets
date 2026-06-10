@@ -5,6 +5,7 @@ import { Header } from "~/components/layout/Header";
 import { Footer } from "~/components/layout/Footer";
 import { CartProvider } from "~/components/cart/CartContext";
 import { CartDrawer } from "~/components/cart/CartDrawer";
+import { CookieConsent } from "~/components/CookieConsent";
 import { AnalyticsScripts } from "~/lib/tracking";
 import { env } from "~/lib/env.server";
 import { getCliente } from "~/lib/session.server";
@@ -68,7 +69,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#7c3aed" />
         <Meta />
         <Links />
-        <AnalyticsScripts ga4={data?.ga4Id} pixel={data?.metaPixelId} />
       </head>
       <body className="min-h-screen flex flex-col">
         {isPainel ? (
@@ -79,6 +79,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <main className="flex-1">{children}</main>
             <Footer />
             <CartDrawer />
+            <CookieConsent />
+            <AnalyticsScripts ga4={data?.ga4Id} pixel={data?.metaPixelId} />
           </CartProvider>
         )}
         <ScrollRestoration />

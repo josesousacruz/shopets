@@ -354,3 +354,42 @@ section{position:relative;}
   .fc-footer .grid{grid-template-columns:1fr 1fr;gap:32px;}
   .fc-section-head h2{font-size:24px;}
 }
+
+/* ─── Banner LGPD de cookies (discreto, não bloqueante) ─── */
+.cookie-consent{
+  position:fixed;left:16px;right:16px;bottom:16px;z-index:120;
+  max-width:760px;margin:0 auto;
+  display:flex;align-items:center;gap:16px;
+  background:var(--ink);color:#fff;
+  border:1px solid rgba(136,226,202,.28);
+  border-radius:16px;padding:16px 18px;
+  box-shadow:0 26px 60px -24px rgba(4,3,30,.7);
+  animation:cc-up .3s ease;
+}
+@keyframes cc-up{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.cookie-consent .cc-ic{
+  width:40px;height:40px;border-radius:11px;flex-shrink:0;
+  background:rgba(136,226,202,.18);color:var(--mint);display:grid;place-items:center;
+}
+.cookie-consent .cc-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.cookie-consent .cc-text strong{font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;color:#fff;}
+.cookie-consent .cc-text span{font-size:12.5px;line-height:1.45;color:rgba(255,255,255,.74);}
+.cookie-consent .cc-text a{color:var(--mint);font-weight:700;text-decoration:underline;}
+.cookie-consent .cc-actions{display:flex;gap:8px;flex-shrink:0;}
+.cookie-consent .cc-btn{
+  padding:10px 16px;border-radius:11px;font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;
+  transition:background .15s,border-color .15s,color .15s;white-space:nowrap;
+}
+.cookie-consent .cc-btn.mint{background:var(--mint);color:var(--ink);}
+.cookie-consent .cc-btn.mint:hover{background:var(--mint-deep);color:#fff;}
+.cookie-consent .cc-btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.24);}
+.cookie-consent .cc-btn.ghost:hover{border-color:var(--mint);}
+.cookie-consent .cc-close{
+  position:absolute;top:10px;right:12px;color:rgba(255,255,255,.5);
+}
+.cookie-consent .cc-close:hover{color:#fff;}
+@media (max-width:640px){
+  .cookie-consent{flex-wrap:wrap;gap:12px;padding:16px;}
+  .cookie-consent .cc-actions{width:100%;}
+  .cookie-consent .cc-btn{flex:1;}
+}

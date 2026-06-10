@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { useState } from "react";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel, PainelValidationError } from "~/lib/painel.server";
@@ -179,16 +179,26 @@ export default function Configuracoes() {
       )}
 
       {tab === "cupons" && (
-        <div className="pn-soon">
-          <span className="badge">Em breve</span>
-          <div>Cupons de desconto chegam na Sprint 6.</div>
+        <div className="pn-card">
+          <h2>Cupons de desconto</h2>
+          <p className="card-sub">Crie e gerencie cupons percentuais, de valor fixo ou frete grátis.</p>
+          <div style={{ marginTop: 14 }}>
+            <Link to="/painel/cupons" className="pn-btn-sm mint" style={{ display: "inline-flex", width: "auto" }}>
+              Gerenciar cupons
+            </Link>
+          </div>
         </div>
       )}
 
       {tab === "banners" && (
-        <div className="pn-soon">
-          <span className="badge">Em breve</span>
-          <div>Gestão de banners da vitrine chega na Sprint 6.</div>
+        <div className="pn-card">
+          <h2>Banners da vitrine</h2>
+          <p className="card-sub">Gerencie os banners exibidos na home, com ordem e vigência.</p>
+          <div style={{ marginTop: 14 }}>
+            <Link to="/painel/banners" className="pn-btn-sm mint" style={{ display: "inline-flex", width: "auto" }}>
+              Gerenciar banners
+            </Link>
+          </div>
         </div>
       )}
     </div>

@@ -99,6 +99,24 @@
 .co-summary .secure{margin-top:16px;font-size:11.5px;color:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;gap:7px;}
 .co-summary .secure svg{width:14px;height:14px;color:var(--mint);}
 
+/* cupom de desconto (dentro do resumo escuro) */
+.co-coupon{margin-top:14px;}
+.co-coupon .field{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:11px;padding:0 12px;flex:1;}
+.co-coupon .field svg{width:15px;height:15px;color:var(--mint);flex-shrink:0;}
+.co-coupon .field input{flex:1;background:transparent;border:0;outline:0;color:#fff;font-size:13.5px;font-weight:600;padding:11px 0;}
+.co-coupon .field input::placeholder{color:rgba(255,255,255,.45);font-weight:500;}
+.co-coupon:not(.applied){display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;}
+.co-coupon .apply{background:rgba(136,226,202,.16);color:var(--mint);border:1px solid rgba(136,226,202,.4);border-radius:11px;padding:0 16px;font-weight:800;font-size:13px;transition:background .15s,color .15s;}
+.co-coupon .apply:hover{background:var(--mint);color:var(--ink);}
+.co-coupon .apply:disabled{opacity:.6;cursor:not-allowed;}
+.co-coupon .err{width:100%;font-size:12px;font-weight:600;color:#FCA5A5;margin-top:2px;}
+.co-coupon.applied{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(136,226,202,.12);border:1px solid rgba(136,226,202,.4);border-radius:12px;padding:10px 12px;}
+.co-coupon.applied .info{display:flex;flex-direction:column;gap:3px;}
+.co-coupon.applied .tag{display:inline-flex;align-items:center;gap:6px;font-family:'Manrope',sans-serif;font-weight:800;font-size:13px;color:var(--mint);}
+.co-coupon.applied .desc{font-size:11.5px;color:rgba(255,255,255,.72);}
+.co-coupon.applied .rm{color:rgba(255,255,255,.6);padding:4px;}
+.co-coupon.applied .rm:hover{color:#fff;}
+
 /* mini-itens dentro do resumo (checkout) */
 .co-mini{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;}
 .co-mini .it{display:flex;gap:12px;align-items:center;}
