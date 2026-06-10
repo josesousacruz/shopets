@@ -1,48 +1,81 @@
 import { Link } from "@remix-run/react";
 
-const FOOTER_LINKS = [
-  { to: "/institucional/sobre", label: "Sobre" },
+const CATALOGO = [
+  { to: "/loja/capas-para-celular", label: "Capas para Celular" },
+  { to: "/loja/peliculas-e-protetores", label: "Películas e Protetores" },
+  { to: "/loja/carregadores", label: "Carregadores" },
+  { to: "/loja/fones-de-ouvido", label: "Fones de Ouvido" },
+  { to: "/loja/power-banks", label: "Power Banks" },
+];
+
+const SUPORTE = [
   { to: "/institucional/faq", label: "FAQ" },
   { to: "/institucional/trocas", label: "Trocas e devoluções" },
+  { to: "/institucional/sobre", label: "Fale conosco" },
   { to: "/institucional/privacidade", label: "Privacidade" },
-  { to: "/institucional/termos", label: "Termos de uso" },
+  { to: "/institucional/termos", label: "Termos" },
 ];
 
 export function Footer() {
+  const year = new Date().getFullYear();
   return (
-    <footer className="bg-ink text-slate-300 mt-16">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8 py-12 grid gap-8 md:grid-cols-3">
-        <div>
-          <p className="font-display font-extrabold text-white text-xl tracking-tight">
-            shopets<span className="text-brand-accent">.</span>
+    <footer className="fc-footer">
+      <div className="grid">
+        <div className="brand">
+          <Link className="fc-logo" to="/" style={{ color: "#fff" }}>
+            <span className="wordmark" style={{ color: "#fff" }}>
+              shopets<span style={{ color: "var(--mint)" }}>.</span>
+              <small style={{ color: "rgba(255,255,255,.55)" }}>capas e acessórios</small>
+            </span>
+          </Link>
+          <p>
+            Capas, películas, carregadores e fones com entrega rápida em todo o
+            Brasil. Acessórios para o seu celular com a qualidade que você merece.
           </p>
-          <p className="mt-3 text-sm text-slate-400">
-            Capas e acessórios para celular com entrega rápida em todo o Brasil.
-          </p>
+          <div className="pay">
+            <span>PIX</span>
+            <span>VISA</span>
+            <span>MASTER</span>
+            <span>ELO</span>
+            <span>BOLETO</span>
+          </div>
         </div>
 
         <div>
-          <p className="font-semibold text-white mb-3 text-sm uppercase tracking-wider">Atendimento</p>
-          <ul className="space-y-2 text-sm">
-            {FOOTER_LINKS.map((l) => (
+          <h4>Catálogo</h4>
+          <ul>
+            {CATALOGO.map((l) => (
               <li key={l.to}>
-                <Link to={l.to} className="hover:text-white transition-colors">
-                  {l.label}
-                </Link>
+                <Link to={l.to}>{l.label}</Link>
               </li>
             ))}
           </ul>
         </div>
 
         <div>
-          <p className="font-semibold text-white mb-3 text-sm uppercase tracking-wider">Pagamento</p>
-          <p className="text-sm text-slate-400">Pix, cartão de crédito e boleto.</p>
+          <h4>Conta</h4>
+          <ul>
+            <li><a href="#">Entrar</a></li>
+            <li><a href="#">Meus pedidos</a></li>
+            <li><a href="#">Lista de desejos</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>Suporte</h4>
+          <ul>
+            {SUPORTE.map((l) => (
+              <li key={l.to}>
+                <Link to={l.to}>{l.label}</Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
-      <div className="border-t border-slate-800">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8 py-4 text-xs text-slate-500">
-          © {new Date().getFullYear()} Shopets. Todos os direitos reservados.
-        </div>
+
+      <div className="legal">
+        <span>© {year} Shopets · Todos os direitos reservados</span>
+        <span>Termos · Privacidade</span>
       </div>
     </footer>
   );

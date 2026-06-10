@@ -1,68 +1,133 @@
-import { Link, Form } from "@remix-run/react";
-import { Search, ShoppingCart, Menu } from "lucide-react";
+import { Link, Form, useLocation } from "@remix-run/react";
+import { ShoppingCart, Menu } from "lucide-react";
 import { useState } from "react";
 import { MobileNav } from "./MobileNav";
 
-const NAV = [
-  { to: "/loja", label: "Loja" },
-  { to: "/loja/capas-para-celular", label: "Capas" },
-  { to: "/loja/peliculas-e-protetores", label: "Películas" },
+const CATEGORIES = [
+  { to: "/", label: "Início" },
+  { to: "/loja/capas-para-celular", label: "Capas para Celular", pill: "novidades" },
+  { to: "/loja/peliculas-e-protetores", label: "Películas e Protetores" },
   { to: "/loja/carregadores", label: "Carregadores" },
-  { to: "/loja/fones-de-ouvido", label: "Fones" },
+  { to: "/loja/cabos-usb", label: "Cabos USB" },
+  { to: "/loja/fones-de-ouvido", label: "Fones de Ouvido" },
+  { to: "/loja/caixas-de-som-bluetooth", label: "Caixas de Som Bluetooth" },
+  { to: "/loja/suportes-e-acessorios", label: "Suportes e Acessórios" },
+  { to: "/loja/power-banks", label: "Power Banks" },
 ];
 
 export function Header() {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8 h-16 flex items-center gap-4">
-        <button
-          className="lg:hidden p-2 -ml-2"
-          aria-label="Abrir menu"
-          onClick={() => setOpen(true)}
-        >
-          <Menu className="size-5" />
-        </button>
+    <>
+      {/* ── Utility bar ── */}
+      <div className="fc-utility">
+        <div className="row">
+          <div className="perks">
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v9z" />
+              </svg>
+              Frete grátis acima de R$199
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 10h18M7 15h3" />
+              </svg>
+              Pix com 5% OFF
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z" />
+              </svg>
+              Troca em 7 dias
+            </span>
+          </div>
+          <div className="links">
+            <a href="#">Acompanhar pedido</a>
+            <a href="#">Ajuda</a>
+            <a href="#">Entrar / Criar conta</a>
+          </div>
+        </div>
+      </div>
 
-        <Link to="/" className="font-display font-extrabold text-xl tracking-tight">
-          shopets<span className="text-brand-primary">.</span>
-        </Link>
+      {/* ── Header row ── */}
+      <header className="fc-header">
+        <div className="row">
+          <button
+            className="fc-menu-btn fc-icon-btn"
+            aria-label="Abrir menu"
+            onClick={() => setOpen(true)}
+          >
+            <Menu className="size-5" />
+          </button>
 
-        <nav className="hidden lg:flex items-center gap-6 ml-6">
-          {NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="text-sm font-medium text-slate-700 hover:text-brand-primary transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+          <Link className="fc-logo" to="/">
+            <span className="wordmark">
+              shopets<span style={{ color: "var(--mint-deep)" }}>.</span>
+              <small>capas e acessórios</small>
+            </span>
+          </Link>
 
-        <Form action="/busca" method="get" className="flex-1 max-w-md ml-auto hidden md:block">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <Form className="fc-search" action="/busca" method="get">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
             <input
               name="q"
               type="search"
-              placeholder="Buscar produtos..."
-              className="w-full pl-9 pr-3 py-2 rounded-full bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="Buscar capas, películas, carregadores..."
             />
+            <span className="scope">
+              Tudo
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="m3 5 3 3 3-3" />
+              </svg>
+            </span>
+          </Form>
+
+          <div className="fc-actions">
+            <a className="fc-icon-btn" href="#" title="Sua conta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21a8 8 0 0 1 16 0" />
+              </svg>
+              <span className="stack label">
+                <small>Olá!</small>
+                Entrar / Criar conta
+              </span>
+            </a>
+            <Link className="fc-icon-btn fc-cart" to="/carrinho" aria-label="Carrinho">
+              <ShoppingCart className="size-5" />
+              <span className="stack label">
+                <small>Carrinho</small>
+                R$ 0,00
+              </span>
+              <span className="count">0</span>
+            </Link>
           </div>
-        </Form>
+        </div>
+      </header>
 
-        <Link
-          to="/carrinho"
-          aria-label="Carrinho"
-          className="ml-auto md:ml-0 p-2 hover:text-brand-primary transition-colors"
-        >
-          <ShoppingCart className="size-5" />
-        </Link>
-      </div>
+      {/* ── Categories nav ── */}
+      <nav className="fc-cats">
+        <div className="row">
+          {CATEGORIES.map((c) => {
+            const active = c.to === "/" ? pathname === "/" : pathname === c.to;
+            return (
+              <Link key={c.to} to={c.to} className={active ? "active" : undefined}>
+                {c.label}
+                {c.pill && <span className="pill">{c.pill}</span>}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
 
-      <MobileNav open={open} onClose={() => setOpen(false)} items={NAV} />
-    </header>
+      <MobileNav open={open} onClose={() => setOpen(false)} items={CATEGORIES} />
+    </>
   );
 }

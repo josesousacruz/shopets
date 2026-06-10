@@ -1,52 +1,101 @@
 import { Link } from "@remix-run/react";
+import { ShoppingCart, Heart } from "lucide-react";
 import type { ProdutoLista } from "~/types/api";
-import { Badges } from "./Badges";
-import { Price } from "~/components/ui/Price";
+import { formatBRL } from "~/lib/format";
+
+/** Renders a BRL price with the centavos in a smaller font (.now .cents). */
+function PriceNow({ value }: { value: number }) {
+  const formatted = formatBRL(value); // ex: "R$ 39,90"
+  const idx = formatted.lastIndexOf(",");
+  if (idx === -1) return <span className="now">{formatted}</span>;
+  const reais = formatted.slice(0, idx + 1); // "R$ 39,"
+  const cents = formatted.slice(idx + 1); // "90"
+  return (
+    <span className="now">
+      {reais}
+      <span className="cents">{cents}</span>
+    </span>
+  );
+}
 
 export function ProductCard({ produto }: { produto: ProdutoLista }) {
+  const emPromocao = produto.em_promocao && produto.preco_promocional != null;
+  const precoEfetivo = emPromocao ? (produto.preco_promocional as number) : produto.preco_venda;
+  const parcela = precoEfetivo / 10;
+
+  const tag = emPromocao
+    ? { cls: "promo", label: "Promoção" }
+    : produto.novo
+      ? { cls: "new", label: "Novo" }
+      : produto.destaque
+        ? { cls: "best", label: "Destaque" }
+        : null;
+
   return (
-    <Link
-      to={`/produto/${produto.slug}`}
-      className="group block rounded-2xl border border-slate-200 hover:border-brand-primary hover:shadow-card transition-all overflow-hidden bg-white"
-    >
-      <div className="relative aspect-square bg-muted">
-        {produto.imagem_capa ? (
-          <img
-            src={produto.imagem_capa}
-            alt={produto.nome}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-400 text-xs">
-            Sem imagem
-          </div>
-        )}
-        <Badges
-          novo={produto.novo}
-          emPromocao={produto.em_promocao}
-          destaque={produto.destaque}
-          className="absolute top-3 left-3"
-        />
-        {!produto.disponivel && (
-          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-            <span className="text-sm font-bold text-slate-700">Esgotado</span>
-          </div>
-        )}
-      </div>
-      <div className="p-4">
-        {produto.categoria && (
-          <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">
-            {produto.categoria.nome}
-          </p>
-        )}
-        <h3 className="font-medium text-sm text-ink line-clamp-2 group-hover:text-brand-primary transition-colors">
-          {produto.nome}
-        </h3>
-        <div className="mt-3">
-          <Price precoVenda={produto.preco_venda} precoPromocional={produto.preco_promocional} size="md" />
+    <article className="product-card">
+      <Link
+        to={`/produto/${produto.slug}`}
+        style={{ display: "contents", color: "inherit" }}
+        aria-label={produto.nome}
+      >
+        <div className="thumb">
+          {tag && <span className={`tag ${tag.cls}`}>{tag.label}</span>}
+          {produto.imagem_capa ? (
+            <img
+              className="ppt-img"
+              src={produto.imagem_capa}
+              alt={produto.nome}
+              loading="lazy"
+            />
+          ) : (
+            <div className="ppt-mock">
+              <div>
+                <div className="meta">{produto.categoria?.nome ?? "Shopets"}</div>
+                <div className="title">{produto.nome}</div>
+              </div>
+              <div className="blocks">
+                <i></i>
+                <i></i>
+                <i></i>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    </Link>
+
+        <div className="body">
+          {produto.categoria && (
+            <div className="crumb">
+              <span className="dot"></span>
+              {produto.categoria.nome}
+            </div>
+          )}
+          <h3>{produto.nome}</h3>
+          <div className="meta">
+            <span className="pill">{produto.tem_variacoes ? "Com variações" : "Pronta entrega"}</span>
+          </div>
+          <div className="price">
+            {emPromocao && <span className="strike">{formatBRL(produto.preco_venda)}</span>}
+            <PriceNow value={precoEfetivo} />
+            <span className="install">ou 10x de {formatBRL(parcela)}</span>
+          </div>
+
+          <div className="actions" onClick={(e) => e.preventDefault()}>
+            <button
+              type="button"
+              className="buy"
+              disabled
+              title="Em breve"
+              style={{ opacity: 0.55, cursor: "not-allowed" }}
+            >
+              <ShoppingCart className="size-4" />
+              Comprar
+            </button>
+            <button type="button" className="wish" title="Favoritar" aria-label="Favoritar">
+              <Heart className="size-[18px]" />
+            </button>
+          </div>
+        </div>
+      </Link>
+    </article>
   );
 }

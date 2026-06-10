@@ -1,0 +1,170 @@
+/* ─────────────────────────────────────────────────────────────
+   Física Comigo · Design Tokens
+   Sources: brief + loja_fisica_comigo/css + index.php inline styles
+   ───────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;700&display=swap');
+
+:root {
+  /* ── Brand · primary ─────────────────────────────────────── */
+  --fc-primary:        #1E1B4B;   /* roxo-marinho · hero/LP    */
+  --fc-primary-deep:   #04031E;   /* deep navy used in loja    */
+  --fc-primary-hover:  #312E81;
+  --fc-primary-soft:   #2A2567;   /* nav top-border / hover    */
+  --fc-accent:         #4F46E5;   /* indigo accent             */
+  --fc-accent-soft:    #8988E5;   /* desat indigo (cart count) */
+
+  /* ── Mint · secondary CTA (from current loja) ────────────── */
+  --fc-mint:           #88E2CA;
+  --fc-mint-ink:       #04031E;
+
+  /* ── Series colors (1ª / 2ª / 3ª ano) ────────────────────── */
+  --fc-serie-1:        #86EFAC;   /* 1ª · verde                */
+  --fc-serie-2:        #FDE047;   /* 2ª · amarelo              */
+  --fc-serie-3:        #FCA5A5;   /* 3ª · laranja-coral        */
+
+  /* ── Neutrals ────────────────────────────────────────────── */
+  --fc-bg:             #FFFFFF;
+  --fc-surface:        #F3F4F6;
+  --fc-surface-2:      #EFEFEF;   /* card bg in current loja   */
+  --fc-surface-soft:   #E9E9F4;   /* lavender tint, modals     */
+  --fc-text:           #111827;
+  --fc-text-2:         #6B7280;
+  --fc-text-3:         #888888;
+  --fc-border:         #E5E7EB;
+  --fc-border-strong:  #04031E;
+
+  /* ── Semantic ────────────────────────────────────────────── */
+  --fc-success:        #10B981;
+  --fc-promo:          #EF4444;
+  --fc-promo-ink:      #FFFFFF;
+  --fc-free:           #86EFAC;
+  --fc-free-ink:       #04031E;
+  --fc-new:            #4F46E5;
+
+  /* ── Typography ──────────────────────────────────────────── */
+  --fc-font-display:   'Manrope', 'Inter', system-ui, sans-serif;
+  --fc-font-body:      'Inter', system-ui, sans-serif;
+  --fc-font-nav:       'Montserrat', 'Inter', system-ui, sans-serif;
+
+  --fc-fs-h1:          48px;
+  --fc-fs-h2:          36px;
+  --fc-fs-h3:          24px;
+  --fc-fs-h4:          20px;
+  --fc-fs-body:        16px;
+  --fc-fs-small:       14px;
+  --fc-fs-xs:          12px;
+
+  --fc-lh-tight:       1.1;
+  --fc-lh-snug:        1.25;
+  --fc-lh-normal:      1.5;
+
+  --fc-fw-regular:     400;
+  --fc-fw-medium:      500;
+  --fc-fw-semibold:    600;
+  --fc-fw-bold:        700;
+  --fc-fw-black:       800;
+
+  /* ── Spacing scale ───────────────────────────────────────── */
+  --fc-sp-1:  4px;
+  --fc-sp-2:  8px;
+  --fc-sp-3:  12px;
+  --fc-sp-4:  16px;
+  --fc-sp-6:  24px;
+  --fc-sp-8:  32px;
+  --fc-sp-12: 48px;
+  --fc-sp-16: 64px;
+
+  /* ── Radii ───────────────────────────────────────────────── */
+  --fc-r-sm:    8px;
+  --fc-r-md:    12px;   /* card default                       */
+  --fc-r-lg:    20px;   /* big card / modal                    */
+  --fc-r-xl:    30px;   /* product card in loja                */
+  --fc-r-pill:  999px;  /* buttons + badges                    */
+
+  /* ── Shadows ─────────────────────────────────────────────── */
+  --fc-shadow-1:     0 1px 2px rgba(0,0,0,.05);
+  --fc-shadow-2:     0 2px 8px rgba(0,0,0,.08);
+  --fc-shadow-card:  0 1px 2px rgba(0,0,0,.05), inset 0 5px 0 0 var(--fc-primary-deep);
+  --fc-shadow-pop:   0 8px 24px rgba(4,3,30,.18);
+
+  /* ── Motion ──────────────────────────────────────────────── */
+  --fc-ease:      cubic-bezier(.2,.8,.2,1);
+  --fc-dur-fast:  150ms;
+  --fc-dur:       220ms;
+  --fc-dur-slow:  300ms;
+}
+
+/* ─── Semantic element styles (use directly if you want) ─── */
+body.fc-base {
+  font-family: var(--fc-font-body);
+  font-size: var(--fc-fs-body);
+  color: var(--fc-text);
+  background: var(--fc-bg);
+  line-height: var(--fc-lh-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+.fc-h1, .fc-h2, .fc-h3, .fc-h4 {
+  font-family: var(--fc-font-display);
+  color: var(--fc-primary-deep);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.fc-h1 { font-size: var(--fc-fs-h1); font-weight: var(--fc-fw-black); line-height: var(--fc-lh-tight); }
+.fc-h2 { font-size: var(--fc-fs-h2); font-weight: var(--fc-fw-bold);  line-height: var(--fc-lh-snug); }
+.fc-h3 { font-size: var(--fc-fs-h3); font-weight: var(--fc-fw-bold);  line-height: var(--fc-lh-snug); }
+.fc-h4 { font-size: var(--fc-fs-h4); font-weight: var(--fc-fw-semibold); }
+
+.fc-eyebrow {
+  font-family: var(--fc-font-nav);
+  font-size: var(--fc-fs-xs);
+  font-weight: var(--fc-fw-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fc-accent);
+}
+.fc-p     { font-size: var(--fc-fs-body); color: var(--fc-text); line-height: var(--fc-lh-normal); }
+.fc-small { font-size: var(--fc-fs-small); color: var(--fc-text-2); }
+
+/* ─── Button + badge primitives, used by previews + ui kits ─ */
+.fc-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  font-family: var(--fc-font-body);
+  font-size: 15px;
+  font-weight: var(--fc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 12px 24px;
+  border-radius: var(--fc-r-pill);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform var(--fc-dur) var(--fc-ease), background var(--fc-dur) var(--fc-ease);
+}
+.fc-btn:hover { transform: scale(1.04); }
+.fc-btn:active { transform: scale(0.98); }
+.fc-btn--primary { background: var(--fc-primary-deep); color: #fff; }
+.fc-btn--primary:hover { background: var(--fc-primary-soft); }
+.fc-btn--secondary {
+  background: transparent; color: var(--fc-primary-deep);
+  border: 1px solid var(--fc-primary-deep);
+}
+.fc-btn--secondary:hover { background: var(--fc-primary-deep); color: #fff; }
+.fc-btn--mint { background: var(--fc-mint); color: var(--fc-mint-ink); }
+.fc-btn--mint:hover { background: #6ed0b5; }
+
+.fc-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--fc-r-pill);
+  font-family: var(--fc-font-body);
+  font-size: 12px;
+  font-weight: var(--fc-fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.fc-badge--promo { background: var(--fc-promo); color: var(--fc-promo-ink); }
+.fc-badge--free  { background: var(--fc-free);  color: var(--fc-free-ink); }
+.fc-badge--new   { background: var(--fc-new);   color: #fff; }
+.fc-badge--update{ background: var(--fc-surface-soft); color: var(--fc-primary-deep); }
