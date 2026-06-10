@@ -2,6 +2,8 @@ import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { api } from "~/lib/api.server";
+import { env } from "~/lib/env.server";
+import { jsonLdProduct } from "~/lib/seo";
 import { Gallery } from "~/components/product/Gallery";
 import { VariationPicker } from "~/components/product/VariationPicker";
 import { BuyBox } from "~/components/product/BuyBox";
@@ -24,15 +26,19 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export async function loader({ params }: LoaderFunctionArgs) {
   const slug = params.slug!;
   const result = await api.produtos.show(slug);
-  return { produto: result.data };
+  return { produto: result.data, siteUrl: env.siteUrl };
 }
 
 export default function ProdutoDetalhe() {
-  const { produto } = useLoaderData<typeof loader>();
+  const { produto, siteUrl } = useLoaderData<typeof loader>();
   const [selecionada, setSelecionada] = useState<Variacao | null>(null);
 
   return (
     <article className="mx-auto max-w-7xl px-4 lg:px-8 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdProduct(produto, siteUrl)) }}
+      />
       <nav className="text-sm text-slate-500 mb-4">
         <Link to="/" className="hover:underline">Início</Link>
         {" / "}
