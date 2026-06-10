@@ -85,6 +85,7 @@ export default function Catalogo() {
     <div>
       <div className="pn-head">
         <div>
+          <span className="eye">Produtos</span>
           <h1>Catálogo</h1>
           <p>{meta.total} produto(s).</p>
         </div>

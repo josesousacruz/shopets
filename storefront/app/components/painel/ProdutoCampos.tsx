@@ -48,18 +48,8 @@ export function ProdutoCampos({
             id="descricao_longa"
             name="descricao_longa"
             rows={5}
+            className="pn-textarea"
             defaultValue={p.descricao_longa ?? ""}
-            style={{
-              width: "100%",
-              padding: "13px 14px",
-              border: "1px solid var(--line)",
-              borderRadius: 11,
-              background: "var(--canvas)",
-              fontSize: 15,
-              color: "var(--ink)",
-              fontFamily: "inherit",
-              resize: "vertical",
-            }}
           />
           {err("descricao_longa")}
         </div>

@@ -52,6 +52,7 @@ export default function PainelPedidos() {
     <div>
       <div className="pn-head">
         <div>
+          <span className="eye">Atendimento</span>
           <h1>Pedidos</h1>
           <p>{meta.total} pedido(s) no total.</p>
         </div>

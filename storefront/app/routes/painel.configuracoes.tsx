@@ -60,6 +60,7 @@ export default function Configuracoes() {
     <div>
       <div className="pn-head">
         <div>
+          <span className="eye">Loja</span>
           <h1>Configurações</h1>
           <p>Dados da loja e integrações.</p>
         </div>

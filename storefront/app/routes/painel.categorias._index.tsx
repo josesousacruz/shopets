@@ -55,11 +55,7 @@ function LinhaCategoria({ c, todas }: { c: CategoriaAdmin; todas: CategoriaAdmin
     <fetcher.Form method="post" className="pn-var-row" style={{ gridTemplateColumns: "1.4fr 1fr 0.6fr auto auto auto" }}>
       <input type="hidden" name="id" value={c.id} />
       <input name="nome" defaultValue={c.nome} required placeholder="Nome" />
-      <select
-        name="id_categoria_pai"
-        defaultValue={c.id_categoria_pai ?? ""}
-        style={{ padding: "9px 10px", border: "1px solid var(--line)", borderRadius: 9, fontSize: 13, background: "var(--canvas)" }}
-      >
+      <select name="id_categoria_pai" defaultValue={c.id_categoria_pai ?? ""}>
         <option value="">— sem pai —</option>
         {todas
           .filter((o) => o.id !== c.id)
@@ -101,6 +97,7 @@ export default function Categorias() {
     <div>
       <div className="pn-head">
         <div>
+          <span className="eye">Organização</span>
           <h1>Categorias</h1>
           <p>O slug é gerado automaticamente a partir do nome.</p>
         </div>
@@ -147,11 +144,7 @@ export default function Categorias() {
         <Form method="post" className="pn-var-row" style={{ gridTemplateColumns: "1.4fr 1fr 0.6fr auto auto" }}>
           <input type="hidden" name="_intent" value="create" />
           <input name="nome" placeholder="Nome *" required />
-          <select
-            name="id_categoria_pai"
-            defaultValue=""
-            style={{ padding: "9px 10px", border: "1px solid var(--line)", borderRadius: 9, fontSize: 13, background: "var(--canvas)" }}
-          >
+          <select name="id_categoria_pai" defaultValue="">
             <option value="">— sem pai —</option>
             {categorias.map((o) => (
               <option key={o.id} value={o.id}>

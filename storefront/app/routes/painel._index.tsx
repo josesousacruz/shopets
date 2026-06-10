@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
+import { ShoppingBag, Clock, PackageCheck, Truck, TrendingUp } from "lucide-react";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
@@ -50,8 +51,9 @@ export default function PainelDashboard() {
     <div>
       <div className="pn-head">
         <div>
+          <span className="eye">Visão geral</span>
           <h1>Dashboard</h1>
-          <p>Visão geral dos pedidos da loja.</p>
+          <p>Acompanhe o desempenho e os pedidos da loja.</p>
         </div>
         <Link to="/painel/pedidos" className="pn-btn-sm ink">
           Ver pedidos
@@ -60,24 +62,39 @@ export default function PainelDashboard() {
 
       <div className="pn-kpis">
         <div className="pn-kpi">
-          <div className="label">Pedidos (total)</div>
-          <div className="value">{kpis.total}</div>
+          <span className="ic"><ShoppingBag /></span>
+          <div className="kpi-text">
+            <div className="label">Pedidos (total)</div>
+            <div className="value">{kpis.total}</div>
+          </div>
         </div>
         <div className="pn-kpi">
-          <div className="label">Aguardando pagamento</div>
-          <div className="value">{kpis.aguardando}</div>
+          <span className="ic"><Clock /></span>
+          <div className="kpi-text">
+            <div className="label">Aguardando pagamento</div>
+            <div className="value">{kpis.aguardando}</div>
+          </div>
         </div>
         <div className="pn-kpi">
-          <div className="label">Pagos / preparando</div>
-          <div className="value">{kpis.pagos + kpis.em_separacao}</div>
+          <span className="ic"><PackageCheck /></span>
+          <div className="kpi-text">
+            <div className="label">Pagos / preparando</div>
+            <div className="value">{kpis.pagos + kpis.em_separacao}</div>
+          </div>
         </div>
         <div className="pn-kpi">
-          <div className="label">Enviados</div>
-          <div className="value">{kpis.enviado}</div>
+          <span className="ic"><Truck /></span>
+          <div className="kpi-text">
+            <div className="label">Enviados</div>
+            <div className="value">{kpis.enviado}</div>
+          </div>
         </div>
         <div className="pn-kpi accent">
-          <div className="label">Faturamento (pagos)</div>
-          <div className="value">{formatBRL(kpis.faturamento)}</div>
+          <span className="ic"><TrendingUp /></span>
+          <div className="kpi-text">
+            <div className="label">Faturamento (pagos)</div>
+            <div className="value">{formatBRL(kpis.faturamento)}</div>
+          </div>
         </div>
       </div>
 

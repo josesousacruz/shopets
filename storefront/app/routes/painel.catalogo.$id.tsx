@@ -244,9 +244,10 @@ export default function EditarProduto() {
     <div>
       <div className="pn-head">
         <div>
-          <Link to="/painel/catalogo" className="pn-btn-sm ghost" style={{ marginBottom: 10 }}>
+          <Link to="/painel/catalogo" className="pn-btn-sm ghost" style={{ marginBottom: 12 }}>
             <ArrowLeft size={15} /> Catálogo
           </Link>
+          <span className="eye">Editar produto</span>
           <h1>{produto.nome}</h1>
           <p>
             /{produto.slug}

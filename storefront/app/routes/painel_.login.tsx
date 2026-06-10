@@ -6,6 +6,7 @@ import type {
 } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
+import { Store } from "lucide-react";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 import { createAdminSession, getAdminToken } from "~/lib/admin-session.server";
 import contaStyles from "~/styles/conta.css?url";
@@ -60,6 +61,9 @@ export default function PainelLogin() {
     <div className="pn-login">
       <div className="card">
         <div className="brand">
+          <span className="dot">
+            <Store />
+          </span>
           Shopets
           <small>Painel do Lojista</small>
         </div>

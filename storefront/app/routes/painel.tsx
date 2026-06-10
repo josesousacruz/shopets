@@ -50,6 +50,7 @@ export default function PainelLayout() {
           </span>
         </div>
         <nav className="pn-nav">
+          <span className="nav-eyebrow">Gestão</span>
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -62,7 +63,20 @@ export default function PainelLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="foot">Shopets · gestão da loja</div>
+        <div className="foot">
+          <div className="admin">
+            <span className="avatar">{(user.name?.[0] ?? "S").toUpperCase()}</span>
+            <span className="meta">
+              <strong>{user.name}</strong>
+              <span>{user.nivel_acesso}</span>
+            </span>
+          </div>
+          <Form method="post" action="/painel/logout">
+            <button type="submit" className="sair">
+              <LogOut size={15} /> Sair
+            </button>
+          </Form>
+        </div>
       </aside>
 
       <div className="pn-main">
