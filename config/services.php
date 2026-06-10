@@ -40,6 +40,11 @@ return [
         'melhor_envio' => [
             'token' => env('MELHOR_ENVIO_TOKEN'),
         ],
+        'melhorenvio' => [
+            'token' => env('MELHORENVIO_TOKEN'),
+            'sandbox' => env('MELHORENVIO_SANDBOX', true),
+            'cep_origem' => env('MELHORENVIO_CEP_ORIGEM', '01001000'),
+        ],
     ],
 
     'payment' => [

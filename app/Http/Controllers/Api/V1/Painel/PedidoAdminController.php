@@ -4,17 +4,22 @@ namespace App\Http\Controllers\Api\V1\Painel;
 
 use App\Domain\Order\TransicaoInvalidaException;
 use App\Domain\Order\TransicionarPedidoAction;
+use App\Domain\Shipping\GerarEtiquetaAction;
 use App\Http\Controllers\Controller;
+use App\Mail\PedidoEnviado;
 use App\Models\PagamentoPedido;
 use App\Models\Pedido;
 use App\Models\Venda;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class PedidoAdminController extends Controller
 {
-    public function __construct(private readonly TransicionarPedidoAction $transicionar)
-    {
+    public function __construct(
+        private readonly TransicionarPedidoAction $transicionar,
+        private readonly GerarEtiquetaAction $gerarEtiqueta,
+    ) {
     }
 
     public function index(Request $request): JsonResponse
@@ -154,14 +159,46 @@ class PedidoAdminController extends Controller
     {
         $request->validate(['codigo_rastreio' => 'nullable|string|max:60']);
 
-        return $this->aplicar(
-            $numero,
-            'enviado',
-            'Pedido enviado.' . ($request->codigo_rastreio ? " Rastreio: {$request->codigo_rastreio}." : ''),
-            function (Pedido $p) use ($request) {
-                $p->codigo_rastreio = $request->codigo_rastreio ?: $p->codigo_rastreio;
-            },
-        );
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
+        try {
+            $this->transicionar->executar(
+                $pedido,
+                'enviado',
+                'Pedido enviado.' . ($request->codigo_rastreio ? " Rastreio: {$request->codigo_rastreio}." : ''),
+                function (Pedido $p) use ($request) {
+                    $p->codigo_rastreio = $request->codigo_rastreio ?: $p->codigo_rastreio;
+                },
+            );
+        } catch (TransicaoInvalidaException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        if ($pedido->cliente && $pedido->cliente->email) {
+            Mail::to($pedido->cliente->email)->queue(new PedidoEnviado($pedido));
+        }
+
+        return response()->json([
+            'data' => [
+                'numero' => $pedido->numero,
+                'status' => $pedido->status,
+                'codigo_rastreio' => $pedido->codigo_rastreio,
+            ],
+        ]);
+    }
+
+    public function etiqueta(string $numero): JsonResponse
+    {
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
+        $url = $this->gerarEtiqueta->executar($pedido);
+
+        return response()->json([
+            'data' => [
+                'numero' => $pedido->numero,
+                'etiqueta_url' => $url,
+            ],
+        ]);
     }
 
     public function entregar(string $numero): JsonResponse

@@ -6,6 +6,7 @@ use App\Domain\Cart\CarrinhoService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\CarrinhoResource;
 use App\Models\Cliente;
+use App\Models\Cupom;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -64,6 +65,48 @@ class CarrinhoController extends Controller
         $this->service->removerItem($carrinho, $item);
 
         return new CarrinhoResource($carrinho->fresh('itens'));
+    }
+
+    public function aplicarCupom(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'codigo' => ['required', 'string', 'max:60'],
+        ]);
+
+        $carrinho = $this->resolver($request);
+        $codigo = strtoupper(trim($data['codigo']));
+
+        $cupom = Cupom::where('codigo', $codigo)->first();
+
+        if (! $cupom) {
+            return response()->json(['message' => 'Cupom inválido.'], 422);
+        }
+
+        $resultado = $cupom->validarPara($carrinho->subtotal());
+
+        if (! $resultado['valido']) {
+            return response()->json(['message' => $resultado['motivo'] ?? 'Cupom inválido.'], 422);
+        }
+
+        $carrinho->update(['cupom_codigo' => $codigo]);
+
+        return response()->json([
+            'data' => [
+                'codigo' => $codigo,
+                'tipo' => $cupom->tipo,
+                'desconto' => $resultado['desconto'],
+                'frete_gratis' => $resultado['frete_gratis'],
+                'subtotal' => $carrinho->subtotal(),
+            ],
+        ]);
+    }
+
+    public function removerCupom(Request $request): JsonResponse
+    {
+        $carrinho = $this->resolver($request);
+        $carrinho->update(['cupom_codigo' => null]);
+
+        return response()->json(['data' => ['codigo' => null]]);
     }
 
     private function resolver(Request $request)

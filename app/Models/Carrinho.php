@@ -18,6 +18,7 @@ class Carrinho extends Model
     protected $fillable = [
         'token',
         'id_cliente',
+        'cupom_codigo',
         'expira_em',
     ];
 

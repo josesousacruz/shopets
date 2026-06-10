@@ -30,6 +30,8 @@ class Pedido extends Model
         'frete_servico',
         'prazo_entrega_dias',
         'codigo_rastreio',
+        'etiqueta_url',
+        'id_cupom',
         'observacoes',
         'id_venda',
         'nfe_chave',

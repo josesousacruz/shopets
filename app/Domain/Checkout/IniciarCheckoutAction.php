@@ -6,6 +6,7 @@ use App\Domain\Cart\CarrinhoService;
 use App\Domain\Order\EstoqueService;
 use App\Models\Carrinho;
 use App\Models\Cliente;
+use App\Models\Cupom;
 use App\Models\Pedido;
 use App\Models\Produto;
 use App\Models\ProdutoVariacao;
@@ -89,6 +90,27 @@ class IniciarCheckoutAction
             $subtotal = $carrinho->subtotal();
             $frete = (float) ($dados['frete'] ?? 0);
             $desconto = 0.0;
+            $idCupom = null;
+
+            // Aplica cupom (se houver e ainda for válido para este subtotal).
+            if (! empty($carrinho->cupom_codigo)) {
+                $cupom = Cupom::where('codigo', $carrinho->cupom_codigo)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($cupom) {
+                    $res = $cupom->validarPara($subtotal);
+                    if ($res['valido']) {
+                        $desconto = $res['desconto'];
+                        if ($res['frete_gratis']) {
+                            $frete = 0.0;
+                        }
+                        $idCupom = $cupom->id_cupom;
+                        $cupom->increment('usos_atuais');
+                    }
+                }
+            }
+
             $total = $subtotal + $frete - $desconto;
 
             $modalidade = $dados['modalidade'];
@@ -105,6 +127,7 @@ class IniciarCheckoutAction
                 'frete' => $frete,
                 'desconto' => $desconto,
                 'total' => $total,
+                'id_cupom' => $idCupom,
                 'frete_servico' => $dados['frete_servico'] ?? null,
                 'prazo_entrega_dias' => $dados['prazo_entrega_dias'] ?? null,
             ]);

@@ -43,6 +43,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         ->name('categorias.index');
     Route::get('/busca', \App\Http\Controllers\Api\V1\Storefront\BuscaController::class)
         ->name('busca');
+    Route::get('/banners', [\App\Http\Controllers\Api\V1\Storefront\BannerController::class, 'index'])
+        ->name('banners.index');
 
     // Autenticação de clientes (token-based / Sanctum)
     Route::prefix('auth')->group(function () {
@@ -65,6 +67,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::post('/carrinho/itens', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'adicionar']);
     Route::put('/carrinho/itens/{item}', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'atualizar']);
     Route::delete('/carrinho/itens/{item}', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'remover']);
+    Route::post('/carrinho/cupom', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'aplicarCupom']);
+    Route::delete('/carrinho/cupom', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'removerCupom']);
 
     // Cotação de frete (público; usa carrinho se itens omitidos)
     Route::post('/frete/cotar', [\App\Http\Controllers\Api\V1\FreteController::class, 'cotar']);
@@ -110,6 +114,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('/pedidos/{numero}/enviar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'enviar']);
             Route::post('/pedidos/{numero}/entregar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'entregar']);
             Route::post('/pedidos/{numero}/cancelar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'cancelar']);
+            Route::post('/pedidos/{numero}/etiqueta', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'etiqueta']);
 
             // Catálogo — produtos
             Route::get('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'index']);
@@ -135,6 +140,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/categorias/{id}', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'show']);
             Route::put('/categorias/{id}', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'update']);
             Route::delete('/categorias/{id}', [\App\Http\Controllers\Api\V1\Painel\CategoriaAdminController::class, 'destroy']);
+
+            // Banners da home
+            Route::get('/banners', [\App\Http\Controllers\Api\V1\Painel\BannerController::class, 'index']);
+            Route::post('/banners', [\App\Http\Controllers\Api\V1\Painel\BannerController::class, 'store']);
+            Route::get('/banners/{id}', [\App\Http\Controllers\Api\V1\Painel\BannerController::class, 'show']);
+            Route::put('/banners/{id}', [\App\Http\Controllers\Api\V1\Painel\BannerController::class, 'update']);
+            Route::delete('/banners/{id}', [\App\Http\Controllers\Api\V1\Painel\BannerController::class, 'destroy']);
+
+            // Cupons
+            Route::get('/cupons', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'index']);
+            Route::post('/cupons', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'store']);
+            Route::get('/cupons/{id}', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'show']);
+            Route::put('/cupons/{id}', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'update']);
+            Route::delete('/cupons/{id}', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'destroy']);
 
             // Configurações da loja
             Route::get('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'show']);

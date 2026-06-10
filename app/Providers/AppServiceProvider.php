@@ -23,7 +23,10 @@ class AppServiceProvider extends ServiceProvider
             $driver = config('services.shipping.driver', 'stub');
 
             return match ($driver) {
-                'melhor_envio' => new MelhorEnvioService(config('services.shipping.melhor_envio.token')),
+                'melhorenvio', 'melhor_envio' => new MelhorEnvioService(
+                    config('services.shipping.melhorenvio.token') ?? config('services.shipping.melhor_envio.token'),
+                    (bool) config('services.shipping.melhorenvio.sandbox', true),
+                ),
                 default => new StubShippingService(),
             };
         });
