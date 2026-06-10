@@ -219,6 +219,21 @@ export interface CupomAdmin {
   ativo: boolean;
 }
 
+export interface DevolucaoLinha {
+  id: number;
+  pedido: string | null;
+  cliente: string | null;
+  status: string;
+  motivo: string;
+  valor_reembolso: number | null;
+  criado_em: string | null;
+}
+
+export interface DevolucaoDetalhe extends DevolucaoLinha {
+  observacao_admin: string | null;
+  itens: { id_pedido_item: number; quantidade: number; nome: string | null }[];
+}
+
 export interface ConfiguracoesPainel {
   loja: {
     nome_empresa: string | null;
@@ -357,6 +372,33 @@ export const painel = {
     show: (token: string) => request<{ data: ConfiguracoesPainel }>("/painel/configuracoes", { token }),
     update: (token: string, body: Json) =>
       request<{ data: ConfiguracoesPainel }>("/painel/configuracoes", { method: "PUT", token, body }),
+  },
+
+  devolucoes: {
+    list: (token: string, params: { status?: string; page?: number | string } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.status) qs.set("status", params.status);
+      if (params.page) qs.set("page", String(params.page));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: DevolucaoLinha[]; meta: Meta; status_options: string[] }>(
+        `/painel/devolucoes${suffix}`,
+        { token },
+      );
+    },
+    show: (token: string, id: number | string) =>
+      request<{ data: DevolucaoDetalhe }>(`/painel/devolucoes/${id}`, { token }),
+    aprovar: (token: string, id: number | string) =>
+      request<{ data: DevolucaoDetalhe }>(`/painel/devolucoes/${id}/aprovar`, { method: "PUT", token }),
+    rejeitar: (token: string, id: number | string, observacao_admin?: string) =>
+      request<{ data: DevolucaoDetalhe }>(`/painel/devolucoes/${id}/rejeitar`, {
+        method: "PUT",
+        token,
+        body: { observacao_admin: observacao_admin ?? "" },
+      }),
+    receber: (token: string, id: number | string) =>
+      request<{ data: DevolucaoDetalhe }>(`/painel/devolucoes/${id}/receber`, { method: "PUT", token }),
+    reembolsar: (token: string, id: number | string) =>
+      request<{ data: DevolucaoDetalhe }>(`/painel/devolucoes/${id}/reembolsar`, { method: "PUT", token }),
   },
 };
 

@@ -1,7 +1,7 @@
 import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { Check, Clock, Package, ShoppingBag } from "lucide-react";
+import { Check, Clock, Package, ShoppingBag, Store } from "lucide-react";
 import { requireToken } from "~/lib/session.server";
 import { obterPedido } from "~/lib/cart.server";
 import { ApiValidationError } from "~/lib/auth.server";
@@ -25,15 +25,78 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     if (!(err instanceof ApiValidationError)) throw err;
     pedido = null;
   }
-  return json({ numero, pedido });
+  // Dados da loja para a retirada com pagamento no balcão (vêm do checkout).
+  const url = new URL(request.url);
+  const lojaNome = url.searchParams.get("loja");
+  const lojaEndereco = url.searchParams.get("end");
+  return json({ numero, pedido, lojaNome, lojaEndereco });
 }
 
 export default function CheckoutSucesso() {
-  const { numero, pedido } = useLoaderData<typeof loader>();
+  const { numero, pedido, lojaNome, lojaEndereco } = useLoaderData<typeof loader>();
 
-  const pago = pedido != null && pedido.status !== "aguardando_pagamento" && pedido.status !== "cancelado";
-  const pendente = !pedido || pedido.status === "aguardando_pagamento";
+  // Retirada com pagamento no balcão: pedido reservado, sem pagamento online.
+  const reservadoRetirada =
+    pedido?.status === "aguardando_retirada" ||
+    (pedido?.modalidade === "retirada" && pedido?.status !== "aguardando_pagamento" && !!lojaNome);
+
+  const pago =
+    !reservadoRetirada &&
+    pedido != null &&
+    pedido.status !== "aguardando_pagamento" &&
+    pedido.status !== "cancelado";
+  const pendente = !reservadoRetirada && (!pedido || pedido.status === "aguardando_pagamento");
   const statusLabel = pedido ? STATUS_LABEL[pedido.status] ?? pedido.status : "Aguardando pagamento";
+
+  if (reservadoRetirada) {
+    return (
+      <div className="co-success">
+        <div className="seal">
+          <Store />
+        </div>
+        <h1>Pedido reservado!</h1>
+        <p className="lead">
+          {lojaNome
+            ? `Retire na loja ${lojaNome} e pague no balcão.`
+            : "Retire na loja escolhida e pague no balcão."}
+        </p>
+
+        <div className="numero">
+          <Package size={16} /> Nº {numero}
+        </div>
+        <div>
+          <span className="status-pill">
+            <span className="d" /> {statusLabel}
+          </span>
+        </div>
+
+        {(lojaNome || lojaEndereco) && (
+          <div className="panel" style={{ textAlign: "left" }}>
+            <h3>Onde retirar</h3>
+            <div style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.6 }}>
+              {lojaNome && <strong style={{ display: "block" }}>{lojaNome}</strong>}
+              {lojaEndereco}
+            </div>
+          </div>
+        )}
+
+        <div className="co-note" style={{ maxWidth: 480, margin: "20px auto 0", textAlign: "left" }}>
+          <strong>Como funciona:</strong> separamos seus itens e avisaremos quando o pedido estiver
+          pronto. Vá até a loja, informe o número do pedido e pague no balcão (Pix, cartão ou
+          dinheiro). A reserva fica válida por tempo limitado.
+        </div>
+
+        <div className="btns">
+          <Link to="/conta/pedidos" className="ct-btn ct-btn--mint" style={{ width: "auto" }}>
+            <Package size={16} /> Meus pedidos
+          </Link>
+          <Link to="/loja" className="ct-btn ct-btn--ghost" style={{ width: "auto" }}>
+            <ShoppingBag size={16} /> Continuar comprando
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="co-success">

@@ -2,7 +2,7 @@ import { createCookie } from "@remix-run/node";
 import { env } from "./env.server";
 import { getToken } from "./session.server";
 import { ApiValidationError } from "./auth.server";
-import type { Carrinho, CupomAplicado, FreteOpcao, PagamentoPix, Pedido } from "~/types/api";
+import type { Carrinho, CupomAplicado, Devolucao, FreteOpcao, PagamentoPix, Pedido, PontoRetirada } from "~/types/api";
 
 /* ──────────────────────────────────────────────────────────
    Cookie httpOnly separado para o token de carrinho convidado.
@@ -184,6 +184,13 @@ export async function cotarFrete(
   });
 }
 
+/* ── Pontos de retirada ───────────────────────────────── */
+
+/** Lista pública de PDVs habilitados para retirada (nome, endereço, telefone). */
+export async function listarPontosRetirada(): Promise<{ data: PontoRetirada[] }> {
+  return cartRequest<{ data: PontoRetirada[] }>("/pontos-retirada");
+}
+
 /* ── Checkout ─────────────────────────────────────────── */
 
 export async function iniciarCheckout(
@@ -193,6 +200,7 @@ export async function iniciarCheckout(
     modalidade: "entrega" | "retirada";
     id_endereco?: number | null;
     id_pdv?: number | null;
+    pagamento_modo?: "online" | "na_retirada" | null;
     frete_servico?: string | null;
     cep?: string | null;
   },
@@ -214,6 +222,31 @@ export async function listarPedidos(bearer: string): Promise<{ data: Pedido[] }>
 
 export async function obterPedido(bearer: string, numero: string): Promise<{ data: Pedido }> {
   return cartRequest<{ data: Pedido }>(`/pedidos/${encodeURIComponent(numero)}`, { bearer });
+}
+
+/* ── Devoluções (cliente) ─────────────────────────────── */
+
+/** Lista as devoluções do próprio pedido: GET /pedidos/{numero}/devolucoes. */
+export async function listarDevolucoes(
+  bearer: string,
+  numero: string,
+): Promise<{ data: Devolucao[] }> {
+  return cartRequest<{ data: Devolucao[] }>(
+    `/pedidos/${encodeURIComponent(numero)}/devolucoes`,
+    { bearer },
+  );
+}
+
+/** Solicita devolução: POST /pedidos/{numero}/devolucao {itens, motivo}. */
+export async function solicitarDevolucao(
+  bearer: string,
+  numero: string,
+  payload: { itens: { id_pedido_item: number; quantidade: number }[]; motivo: string },
+): Promise<{ data: Devolucao }> {
+  return cartRequest<{ data: Devolucao }>(
+    `/pedidos/${encodeURIComponent(numero)}/devolucao`,
+    { method: "POST", bearer, body: payload as unknown as Json },
+  );
 }
 
 /* ── Pagamento ────────────────────────────────────────── */

@@ -135,11 +135,30 @@ export interface PedidoItem {
 
 export type PedidoStatus =
   | "aguardando_pagamento"
+  | "aguardando_retirada"
   | "pago"
   | "em_separacao"
   | "enviado"
   | "entregue"
   | "cancelado";
+
+/** Ponto de venda habilitado para retirada (GET /pontos-retirada). */
+export interface PontoRetirada {
+  id: number;
+  nome_pdv: string;
+  endereco: string | null;
+  telefone: string | null;
+}
+
+/** Devolução solicitada pelo cliente (GET /pedidos/{numero}/devolucoes). */
+export interface Devolucao {
+  id: number;
+  status: "solicitada" | "aprovada" | "recebida" | "reembolsada" | "rejeitada" | string;
+  motivo: string;
+  valor_reembolso: number | null;
+  criado_em: string | null;
+  itens: { id_pedido_item: number; quantidade: number }[];
+}
 
 export interface Pedido {
   numero: string;

@@ -473,6 +473,12 @@
 .pn-chip.st-enviado { background: rgba(30, 27, 75, 0.1); color: var(--ink-2); }
 .pn-chip.st-entregue { background: rgba(136, 226, 202, 0.45); color: #065f46; }
 .pn-chip.st-cancelado { background: rgba(225, 29, 72, 0.1); color: var(--tag-promo); }
+/* devoluções */
+.pn-chip.st-solicitada { background: rgba(245, 158, 11, 0.16); color: #92400e; }
+.pn-chip.st-aprovada { background: rgba(79, 70, 229, 0.12); color: #3730a3; }
+.pn-chip.st-recebida { background: rgba(136, 226, 202, 0.32); color: #0f766e; }
+.pn-chip.st-reembolsada { background: rgba(136, 226, 202, 0.45); color: #065f46; }
+.pn-chip.st-rejeitada { background: rgba(225, 29, 72, 0.1); color: var(--tag-promo); }
 
 /* ── Toggle switch ── */
 .pn-switch {

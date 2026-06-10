@@ -1,14 +1,15 @@
-import type { LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type { ActionFunctionArgs, LinksFunction, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
-import { ArrowLeft, Check, Copy, ExternalLink, Truck } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Truck, RotateCcw, X } from "lucide-react";
 import { requireToken } from "~/lib/session.server";
-import { obterPedido } from "~/lib/cart.server";
+import { obterPedido, listarDevolucoes, solicitarDevolucao } from "~/lib/cart.server";
 import { ApiValidationError } from "~/lib/auth.server";
 import { formatBRL } from "~/lib/format";
-import { STATUS_FLUXO, STATUS_LABEL, STATUS_SUB } from "~/lib/pedido";
-import type { Pedido } from "~/types/api";
+import { DEVOLUCAO_LABEL, STATUS_FLUXO, STATUS_LABEL, STATUS_SUB } from "~/lib/pedido";
+import type { Devolucao, Pedido } from "~/types/api";
 import contaStyles from "~/styles/conta.css?url";
 import checkoutStyles from "~/styles/checkout.css?url";
 
@@ -26,13 +27,68 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const numero = params.numero!;
   try {
     const { data: pedido } = await obterPedido(token, numero);
-    return json({ pedido });
+    // Devoluções já solicitadas para este pedido (tolerante a falhas).
+    let devolucoes: Devolucao[] = [];
+    try {
+      const r = await listarDevolucoes(token, numero);
+      devolucoes = r.data;
+    } catch {
+      devolucoes = [];
+    }
+    return json({ pedido, devolucoes });
   } catch (err) {
     if (err instanceof ApiValidationError && err.status === 404) {
       throw new Response("Pedido não encontrado", { status: 404 });
     }
     throw err;
   }
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const token = await requireToken(request);
+  const numero = params.numero!;
+  const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
+
+  if (intent === "devolucao") {
+    const motivo = String(form.get("motivo") ?? "").trim();
+
+    // Itens marcados: para cada id_pedido_item com checkbox "sel_<id>", lê a quantidade.
+    const itens: { id_pedido_item: number; quantidade: number }[] = [];
+    for (const [key, val] of form.entries()) {
+      const m = /^sel_(\d+)$/.exec(key);
+      if (m && val === "on") {
+        const id = Number(m[1]);
+        const q = Number(form.get(`qtd_${id}`)) || 0;
+        if (q > 0) itens.push({ id_pedido_item: id, quantidade: q });
+      }
+    }
+
+    if (itens.length === 0) {
+      return json({ ok: false as const, message: "Selecione ao menos um item para devolver." }, { status: 422 });
+    }
+    if (!motivo) {
+      return json({ ok: false as const, message: "Informe o motivo da devolução." }, { status: 422 });
+    }
+
+    try {
+      await solicitarDevolucao(token, numero, { itens, motivo });
+      return json({ ok: true as const, message: "Solicitação de devolução enviada." });
+    } catch (err) {
+      if (err instanceof ApiValidationError) {
+        const message =
+          err.errors.prazo?.[0] ??
+          err.errors.pedido?.[0] ??
+          err.errors.itens?.[0] ??
+          Object.values(err.errors)[0]?.[0] ??
+          err.message;
+        return json({ ok: false as const, message }, { status: err.status });
+      }
+      throw err;
+    }
+  }
+
+  return json({ ok: false as const, message: "Ação inválida." }, { status: 400 });
 }
 
 function formatData(iso: string | null): string {
@@ -82,12 +138,18 @@ function CopyButton({ value }: { value: string }) {
 }
 
 export default function PedidoDetalhe() {
-  const { pedido } = useLoaderData<typeof loader>();
+  const { pedido, devolucoes } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const nav = useNavigation();
   const end = pedido.endereco_entrega;
 
   const cancelado = pedido.status === "cancelado";
   const idxAtual = STATUS_FLUXO.indexOf(pedido.status as (typeof STATUS_FLUXO)[number]);
   const mostrarRastreio = pedido.status === "enviado" || pedido.status === "entregue" || !!pedido.codigo_rastreio;
+
+  // Elegibilidade de devolução: status enviado/entregue (backend valida prazo via 422).
+  const elegivelDevolucao = pedido.status === "enviado" || pedido.status === "entregue";
+  const temDevolucao = devolucoes.length > 0;
 
   return (
     <div className="ct-wrap">
@@ -227,6 +289,62 @@ export default function PedidoDetalhe() {
               </address>
             </section>
           )}
+
+          {/* Devoluções */}
+          {(elegivelDevolucao || temDevolucao) && (
+            <section className="co-card">
+              <h2>
+                <RotateCcw size={18} style={{ verticalAlign: "-3px", marginRight: 8, color: "var(--mint-deep)" }} />
+                Devolução
+              </h2>
+
+              {actionData?.message && (
+                <div
+                  className={`ct-alert ${actionData.ok ? "ct-alert--ok" : "ct-alert--err"}`}
+                  role="alert"
+                  style={{ marginTop: 12 }}
+                >
+                  {actionData.message}
+                </div>
+              )}
+
+              {temDevolucao ? (
+                <>
+                  <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6 }}>
+                    Acompanhe abaixo o andamento da(s) sua(s) solicitação(ões).
+                  </p>
+                  <div className="co-lines" style={{ marginTop: 12, borderRadius: 14 }}>
+                    {devolucoes.map((d) => (
+                      <div className="co-line" key={d.id} style={{ gridTemplateColumns: "1fr auto" }}>
+                        <div className="info">
+                          <div className="name">Solicitação #{d.id}</div>
+                          <div className="var">
+                            {d.itens.length} {d.itens.length === 1 ? "item" : "itens"} · {d.motivo}
+                          </div>
+                          {d.valor_reembolso != null && d.valor_reembolso > 0 && (
+                            <div className="unit">Reembolso: {formatBRL(d.valor_reembolso)}</div>
+                          )}
+                        </div>
+                        <div className="end">
+                          <span className={`co-status s-dev-${d.status}`}>
+                            <span className="d" /> {DEVOLUCAO_LABEL[d.status] ?? d.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6 }}>
+                    Recebeu algo errado ou se arrependeu? Você tem até 7 dias após o recebimento para
+                    solicitar a devolução.
+                  </p>
+                  <DevolucaoDialog pedido={pedido} busy={nav.state !== "idle"} />
+                </>
+              )}
+            </section>
+          )}
         </div>
 
         {/* Resumo */}
@@ -261,5 +379,99 @@ export default function PedidoDetalhe() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** Dialog para escolher itens + motivo e solicitar a devolução. */
+function DevolucaoDialog({ pedido, busy }: { pedido: Pedido; busy: boolean }) {
+  const [open, setOpen] = useState(false);
+  // Quantidade selecionada por item (default = quantidade do pedido).
+  const itens = pedido.itens ?? [];
+
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>
+        <button type="button" className="ct-btn ct-btn--mint" style={{ width: "auto", marginTop: 16, gap: 8 }}>
+          <RotateCcw size={15} /> Solicitar devolução
+        </button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="ct-overlay" />
+        <Dialog.Content className="ct-dialog" aria-describedby={undefined} style={{ maxHeight: "88vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Dialog.Title asChild>
+              <h2>Solicitar devolução</h2>
+            </Dialog.Title>
+            <Dialog.Close asChild>
+              <button type="button" aria-label="Fechar">
+                <X size={20} />
+              </button>
+            </Dialog.Close>
+          </div>
+
+          <Form method="post" style={{ marginTop: 16 }}>
+            <input type="hidden" name="intent" value="devolucao" />
+
+            <p style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 8 }}>
+              Selecione os itens que deseja devolver e ajuste a quantidade.
+            </p>
+
+            <div className="co-options" style={{ marginBottom: 14 }}>
+              {itens.map((it) => (
+                <label className="co-opt" key={it.id} style={{ alignItems: "center" }}>
+                  <input type="checkbox" name={`sel_${it.id}`} />
+                  <span className="dot" />
+                  <span style={{ flex: 1 }}>
+                    <span className="ttl">{it.nome}</span>
+                    <span className="desc">
+                      {it.quantidade} {it.quantidade === 1 ? "unidade" : "unidades"} ·{" "}
+                      {formatBRL(it.preco_unit)}
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    name={`qtd_${it.id}`}
+                    min={1}
+                    max={it.quantidade}
+                    defaultValue={it.quantidade}
+                    style={{
+                      width: 64,
+                      padding: "6px 8px",
+                      borderRadius: 8,
+                      border: "1px solid var(--border, rgba(4,3,30,.14))",
+                      fontWeight: 700,
+                      textAlign: "center",
+                    }}
+                    aria-label={`Quantidade a devolver de ${it.nome}`}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="ct-field">
+              <label htmlFor="motivo">Motivo da devolução</label>
+              <textarea
+                id="motivo"
+                name="motivo"
+                rows={3}
+                required
+                placeholder="Conte o que aconteceu (arrependimento, defeito, produto errado...)."
+              />
+            </div>
+
+            <div className="co-cart-actions" style={{ marginTop: 18 }}>
+              <Dialog.Close asChild>
+                <button type="button" className="ct-btn ct-btn--ghost" style={{ width: "auto" }}>
+                  Cancelar
+                </button>
+              </Dialog.Close>
+              <button type="submit" className="ct-btn ct-btn--mint" style={{ width: "auto" }} disabled={busy}>
+                {busy ? "Enviando..." : "Enviar solicitação"}
+              </button>
+            </div>
+          </Form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -9,6 +9,7 @@ import {
   FolderTree,
   Image,
   Ticket,
+  RotateCcw,
   Settings,
   LogOut,
   Menu,
@@ -31,6 +32,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 const NAV = [
   { to: "/painel", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/painel/pedidos", label: "Pedidos", icon: Package, end: false },
+  { to: "/painel/devolucoes", label: "Devoluções", icon: RotateCcw, end: false },
   { to: "/painel/catalogo", label: "Catálogo", icon: Boxes, end: false },
   { to: "/painel/categorias", label: "Categorias", icon: FolderTree, end: false },
   { to: "/painel/banners", label: "Banners", icon: Image, end: false },

@@ -2,19 +2,22 @@ import type { ActionFunctionArgs, LinksFunction, LoaderFunctionArgs, MetaFunctio
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
-import { MapPin, Truck, Package, Check, ShieldCheck, ArrowRight, ArrowLeft, Tag, X } from "lucide-react";
+import { MapPin, Truck, Package, Check, ShieldCheck, ArrowRight, ArrowLeft, Tag, X, Store, QrCode, Wallet, Phone } from "lucide-react";
 import { requireToken } from "~/lib/session.server";
 import { listarEnderecos, ApiValidationError } from "~/lib/auth.server";
-import { fetchCarrinho, cotarFrete, iniciarCheckout } from "~/lib/cart.server";
+import { fetchCarrinho, cotarFrete, iniciarCheckout, listarPontosRetirada } from "~/lib/cart.server";
 import { formatBRL } from "~/lib/format";
-import type { Carrinho, CupomAplicado, Endereco, FreteOpcao } from "~/types/api";
+import type { Carrinho, CupomAplicado, Endereco, FreteOpcao, PontoRetirada } from "~/types/api";
 import checkoutStyles from "~/styles/checkout.css?url";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: checkoutStyles }];
 
 export const meta: MetaFunction = () => [{ title: "Checkout — Shopets" }];
 
+type Modalidade = "entrega" | "retirada";
+type PagamentoModo = "online" | "na_retirada";
 type Step = "endereco" | "frete" | "revisao";
+
 const STEPS: Step[] = ["endereco", "frete", "revisao"];
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -43,8 +46,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     enderecos = [];
   }
 
+  // Pontos de retirada habilitados (público). Tolerante a falhas.
+  let pontos: PontoRetirada[] = [];
+  try {
+    const r = await listarPontosRetirada();
+    pontos = r.data;
+  } catch {
+    pontos = [];
+  }
+
   return json(
-    { carrinho, enderecos },
+    { carrinho, enderecos, pontos },
     setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
   );
 }
@@ -73,6 +85,42 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // Confirmação do pedido (etapa 3) — POST /checkout/iniciar.
   if (intent === "confirmar") {
+    const modalidade = (String(form.get("modalidade") ?? "entrega") as Modalidade);
+
+    if (modalidade === "retirada") {
+      const id_pdv = Number(form.get("id_pdv")) || null;
+      const pagamento_modo = (String(form.get("pagamento_modo") ?? "online") as PagamentoModo);
+      try {
+        const { data: pedido } = await iniciarCheckout(request, token, {
+          modalidade: "retirada",
+          id_pdv,
+          pagamento_modo,
+        });
+        // Pagar online → fluxo Pix; pagar na retirada → sucesso (reservado).
+        if (pagamento_modo === "online") {
+          return redirect(`/checkout/pagamento/${encodeURIComponent(pedido.numero)}`);
+        }
+        // Reservado para pagar no balcão: leva à tela de sucesso com os dados da loja.
+        const nomePdv = String(form.get("pdv_nome") ?? "");
+        const enderecoPdv = String(form.get("pdv_endereco") ?? "");
+        const qs = new URLSearchParams();
+        if (nomePdv) qs.set("loja", nomePdv);
+        if (enderecoPdv) qs.set("end", enderecoPdv);
+        const suffix = qs.toString() ? `?${qs}` : "";
+        return redirect(`/checkout/sucesso/${encodeURIComponent(pedido.numero)}${suffix}`);
+      } catch (err) {
+        if (err instanceof ApiValidationError) {
+          const message =
+            err.errors.id_pdv?.[0] ??
+            err.errors.pagamento_modo?.[0] ??
+            Object.values(err.errors)[0]?.[0] ??
+            err.message;
+          return json({ ok: false as const, intent, message, errors: err.errors }, { status: err.status });
+        }
+        throw err;
+      }
+    }
+
     const id_endereco = Number(form.get("id_endereco")) || null;
     const frete_servico = String(form.get("frete_servico") ?? "") || null;
     const cep = String(form.get("cep") ?? "") || null;
@@ -159,11 +207,14 @@ function CheckoutCoupon({ onChange }: { onChange: (c: CupomAplicado | null) => v
 }
 
 export default function Checkout() {
-  const { carrinho, enderecos } = useLoaderData<typeof loader>();
+  const { carrinho, enderecos, pontos } = useLoaderData<typeof loader>();
   const [cupom, setCupom] = useState<CupomAplicado | null>(null);
   const [params, setParams] = useSearchParams();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
+
+  const [modalidade, setModalidade] = useState<Modalidade>("entrega");
+  const isRetirada = modalidade === "retirada";
 
   const stepParam = (params.get("step") ?? "endereco") as Step;
   const step: Step = STEPS.includes(stepParam) ? stepParam : "endereco";
@@ -174,7 +225,12 @@ export default function Checkout() {
   // Mantém as opções de frete em estado para sobreviverem a outras actions (ex.: confirmar com erro).
   const [opcoes, setOpcoes] = useState<FreteOpcao[]>([]);
 
+  // Retirada: PDV escolhido + modo de pagamento.
+  const [idPdv, setIdPdv] = useState<number | null>(null);
+  const [pagamentoModo, setPagamentoModo] = useState<PagamentoModo>("online");
+
   const enderecoSel = enderecos.find((e) => e.id === idEndereco) ?? null;
+  const pdvSel = pontos.find((p) => p.id === idPdv) ?? null;
 
   // Quando a cotação retorna, guarda as opções.
   useEffect(() => {
@@ -198,30 +254,56 @@ export default function Checkout() {
     });
   }
 
+  // Ao alternar a modalidade, volta para o primeiro passo.
+  function escolherModalidade(m: Modalidade) {
+    setModalidade(m);
+    goto("endereco");
+  }
+
+  // Etapa 2 muda de significado conforme a modalidade (frete x pagamento na retirada).
+  const labels: Record<Step, string> = {
+    endereco: isRetirada ? "Loja" : "Endereço",
+    frete: isRetirada ? "Pagamento" : "Frete",
+    revisao: "Revisão",
+  };
+
+  // Pode avançar do passo 1?
+  const pode1 = isRetirada ? !!pdvSel : !!enderecoSel;
+  // Total exibido (retirada nunca tem frete).
+  const freteTotal = isRetirada ? 0 : cupom?.frete_gratis ? 0 : freteSel?.preco ?? 0;
+  const total = Math.max(0, carrinho.subtotal - (cupom?.desconto ?? 0) + freteTotal);
+
   return (
     <div className="co-wrap">
       <div className="co-head">
         <h1>Finalizar compra</h1>
-        <p>Entrega para todo o Brasil. Pagamento na próxima etapa.</p>
+        <p>
+          {isRetirada
+            ? "Retire na loja mais perto de você. Pague online ou no balcão."
+            : "Entrega para todo o Brasil. Pagamento na próxima etapa."}
+        </p>
       </div>
 
-      <Stepper step={step} />
+      <Stepper step={step} labels={labels} steps={STEPS} />
 
       <div className="co-checkout">
         <div className="co-steps">
-          {/* ─── Etapa 1: Modalidade + Endereço ─── */}
+          {/* ─── Etapa 1: Modalidade + (Endereço | Loja) ─── */}
           {step === "endereco" && (
             <section className="co-card">
               <h2>
-                <span className="badge">1</span> Entrega
+                <span className="badge">1</span> {isRetirada ? "Retirada" : "Entrega"}
               </h2>
-              <p className="hint">
-                Escolha onde você quer receber o pedido. Retirada na loja chega em breve.
-              </p>
+              <p className="hint">Escolha como você quer receber o pedido.</p>
 
               <div className="co-options">
                 <label className="co-opt">
-                  <input type="radio" name="modalidade" defaultChecked readOnly />
+                  <input
+                    type="radio"
+                    name="modalidade"
+                    checked={modalidade === "entrega"}
+                    onChange={() => escolherModalidade("entrega")}
+                  />
                   <span className="dot" />
                   <span>
                     <span className="ttl">
@@ -230,55 +312,104 @@ export default function Checkout() {
                     <span className="desc">Enviamos pelos Correios (PAC ou SEDEX).</span>
                   </span>
                 </label>
-                <label className="co-opt" style={{ opacity: 0.55, cursor: "not-allowed" }}>
-                  <input type="radio" name="modalidade" disabled />
+                <label className="co-opt" style={pontos.length === 0 ? { opacity: 0.55 } : undefined}>
+                  <input
+                    type="radio"
+                    name="modalidade"
+                    checked={modalidade === "retirada"}
+                    disabled={pontos.length === 0}
+                    onChange={() => escolherModalidade("retirada")}
+                  />
                   <span className="dot" />
                   <span>
                     <span className="ttl">
                       <Package /> Retirar na loja
                     </span>
-                    <span className="desc">Em breve — disponível em uma próxima etapa.</span>
+                    <span className="desc">
+                      {pontos.length === 0
+                        ? "Nenhuma loja disponível para retirada no momento."
+                        : "Sem frete. Pague online ou no balcão, ao retirar."}
+                    </span>
                   </span>
                 </label>
               </div>
 
-              <h2 style={{ marginTop: 26 }}>
-                <MapPin size={18} style={{ color: "var(--mint-deep)" }} /> Endereço de entrega
-              </h2>
+              {/* Endereço (entrega) */}
+              {!isRetirada && (
+                <>
+                  <h2 style={{ marginTop: 26 }}>
+                    <MapPin size={18} style={{ color: "var(--mint-deep)" }} /> Endereço de entrega
+                  </h2>
 
-              {enderecos.length === 0 ? (
-                <div className="co-note" style={{ marginTop: 14 }}>
-                  Você ainda não tem endereços cadastrados.{" "}
-                  <Link to="/conta/enderecos" style={{ color: "var(--mint-deep)", fontWeight: 700 }}>
-                    Cadastrar endereço
-                  </Link>
-                </div>
-              ) : (
-                <div className="co-options">
-                  {enderecos.map((e) => (
-                    <label className="co-opt" key={e.id}>
-                      <input
-                        type="radio"
-                        name="endereco"
-                        checked={idEndereco === e.id}
-                        onChange={() => setIdEndereco(e.id)}
-                      />
-                      <span className="dot" />
-                      <span>
-                        <span className="ttl">{e.apelido || "Endereço"}</span>
-                        <address>
-                          {e.logradouro}, {e.numero}
-                          {e.complemento ? ` — ${e.complemento}` : ""}
-                          <br />
-                          {e.bairro} — {e.cidade}/{e.uf} · CEP {e.cep}
-                        </address>
-                      </span>
-                    </label>
-                  ))}
-                  <Link to="/conta/enderecos" style={{ fontSize: 13.5, fontWeight: 700, color: "var(--mint-deep)" }}>
-                    + Gerenciar endereços
-                  </Link>
-                </div>
+                  {enderecos.length === 0 ? (
+                    <div className="co-note" style={{ marginTop: 14 }}>
+                      Você ainda não tem endereços cadastrados.{" "}
+                      <Link to="/conta/enderecos" style={{ color: "var(--mint-deep)", fontWeight: 700 }}>
+                        Cadastrar endereço
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="co-options">
+                      {enderecos.map((e) => (
+                        <label className="co-opt" key={e.id}>
+                          <input
+                            type="radio"
+                            name="endereco"
+                            checked={idEndereco === e.id}
+                            onChange={() => setIdEndereco(e.id)}
+                          />
+                          <span className="dot" />
+                          <span>
+                            <span className="ttl">{e.apelido || "Endereço"}</span>
+                            <address>
+                              {e.logradouro}, {e.numero}
+                              {e.complemento ? ` — ${e.complemento}` : ""}
+                              <br />
+                              {e.bairro} — {e.cidade}/{e.uf} · CEP {e.cep}
+                            </address>
+                          </span>
+                        </label>
+                      ))}
+                      <Link to="/conta/enderecos" style={{ fontSize: 13.5, fontWeight: 700, color: "var(--mint-deep)" }}>
+                        + Gerenciar endereços
+                      </Link>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Loja de retirada */}
+              {isRetirada && (
+                <>
+                  <h2 style={{ marginTop: 26 }}>
+                    <Store size={18} style={{ color: "var(--mint-deep)" }} /> Escolha a loja
+                  </h2>
+                  <div className="co-options">
+                    {pontos.map((p) => (
+                      <label className="co-opt" key={p.id}>
+                        <input
+                          type="radio"
+                          name="pdv"
+                          checked={idPdv === p.id}
+                          onChange={() => setIdPdv(p.id)}
+                        />
+                        <span className="dot" />
+                        <span>
+                          <span className="ttl">
+                            <Store /> {p.nome_pdv}
+                          </span>
+                          {p.endereco && <address>{p.endereco}</address>}
+                          {p.telefone && (
+                            <span className="desc">
+                              <Phone size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+                              {p.telefone}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </>
               )}
 
               <div className="co-cart-actions" style={{ marginTop: 24 }}>
@@ -289,17 +420,18 @@ export default function Checkout() {
                   type="button"
                   className="ct-btn ct-btn--mint"
                   style={{ width: "auto" }}
-                  disabled={!enderecoSel}
+                  disabled={!pode1}
                   onClick={() => goto("frete")}
                 >
-                  Continuar para o frete <ArrowRight size={16} />
+                  {isRetirada ? "Continuar para o pagamento" : "Continuar para o frete"}{" "}
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </section>
           )}
 
-          {/* ─── Etapa 2: Frete ─── */}
-          {step === "frete" && (
+          {/* ─── Etapa 2 (entrega): Frete ─── */}
+          {step === "frete" && !isRetirada && (
             <section className="co-card">
               <h2>
                 <span className="badge">2</span> Frete
@@ -317,7 +449,6 @@ export default function Checkout() {
                     Entrega para {enderecoSel.cidade}/{enderecoSel.uf} · CEP {enderecoSel.cep}
                   </p>
 
-                  {/* Cotação: posta intent=cotar com o CEP do endereço. */}
                   <Form method="post" className="co-frete-form">
                     <input type="hidden" name="intent" value="cotar" />
                     <input type="hidden" name="cep" value={enderecoSel.cep} />
@@ -375,6 +506,78 @@ export default function Checkout() {
             </section>
           )}
 
+          {/* ─── Etapa 2 (retirada): Forma de pagamento ─── */}
+          {step === "frete" && isRetirada && (
+            <section className="co-card">
+              <h2>
+                <span className="badge">2</span> Pagamento
+              </h2>
+              {!pdvSel ? (
+                <div className="co-note" style={{ marginTop: 14 }}>
+                  Selecione uma loja primeiro.{" "}
+                  <button type="button" onClick={() => goto("endereco")} style={{ color: "var(--mint-deep)", fontWeight: 700 }}>
+                    Voltar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="hint">Como você prefere pagar a retirada em {pdvSel.nome_pdv}?</p>
+
+                  <div className="co-options" style={{ marginTop: 14 }}>
+                    <label className="co-opt">
+                      <input
+                        type="radio"
+                        name="pagamento_modo"
+                        checked={pagamentoModo === "online"}
+                        onChange={() => setPagamentoModo("online")}
+                      />
+                      <span className="dot" />
+                      <span>
+                        <span className="ttl">
+                          <QrCode /> Pagar online (Pix)
+                        </span>
+                        <span className="desc">
+                          Pague agora via Pix e retire o pedido já quitado, sem fila no caixa.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="co-opt">
+                      <input
+                        type="radio"
+                        name="pagamento_modo"
+                        checked={pagamentoModo === "na_retirada"}
+                        onChange={() => setPagamentoModo("na_retirada")}
+                      />
+                      <span className="dot" />
+                      <span>
+                        <span className="ttl">
+                          <Wallet /> Pagar na retirada (balcão)
+                        </span>
+                        <span className="desc">
+                          Reservamos o pedido e você paga no balcão ao retirar.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="co-cart-actions" style={{ marginTop: 24 }}>
+                    <button type="button" className="ct-btn ct-btn--ghost" style={{ width: "auto" }} onClick={() => goto("endereco")}>
+                      <ArrowLeft size={16} /> Voltar
+                    </button>
+                    <button
+                      type="button"
+                      className="ct-btn ct-btn--mint"
+                      style={{ width: "auto" }}
+                      onClick={() => goto("revisao")}
+                    >
+                      Revisar pedido <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
           {/* ─── Etapa 3: Revisão ─── */}
           {step === "revisao" && (
             <section className="co-card">
@@ -382,7 +585,78 @@ export default function Checkout() {
                 <span className="badge">3</span> Revisão
               </h2>
 
-              {!enderecoSel || !freteSel ? (
+              {isRetirada ? (
+                !pdvSel ? (
+                  <div className="co-note" style={{ marginTop: 14 }}>
+                    Faltam informações.{" "}
+                    <button type="button" onClick={() => goto("endereco")} style={{ color: "var(--mint-deep)", fontWeight: 700 }}>
+                      Recomeçar
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontWeight: 800, color: "var(--ink)", fontFamily: "'Manrope',sans-serif" }}>
+                        Retirada na loja
+                      </div>
+                      <address style={{ fontStyle: "normal", fontSize: 13.5, color: "var(--muted)", lineHeight: 1.55, marginTop: 6 }}>
+                        <strong style={{ color: "var(--ink)" }}>{pdvSel.nome_pdv}</strong>
+                        <br />
+                        {pdvSel.endereco}
+                        {pdvSel.telefone ? (
+                          <>
+                            <br />
+                            Telefone: {pdvSel.telefone}
+                          </>
+                        ) : null}
+                      </address>
+                    </div>
+
+                    <div style={{ marginTop: 18 }}>
+                      <div style={{ fontWeight: 800, color: "var(--ink)", fontFamily: "'Manrope',sans-serif" }}>
+                        Pagamento
+                      </div>
+                      <div style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6 }}>
+                        {pagamentoModo === "online"
+                          ? "Pagar online via Pix na próxima etapa."
+                          : "Pagar no balcão, no momento da retirada."}
+                      </div>
+                    </div>
+
+                    <div className="co-note" style={{ marginTop: 18 }}>
+                      {pagamentoModo === "online"
+                        ? 'Na próxima etapa você pagará via Pix. Após a confirmação, separamos seu pedido e avisamos quando estiver pronto para retirada.'
+                        : 'Seu pedido será reservado com status "Aguardando retirada". Vá até a loja escolhida e pague no balcão ao retirar.'}
+                    </div>
+
+                    {erro && actionData?.intent === "confirmar" && (
+                      <div className="ct-alert ct-alert--err" role="alert">{erro}</div>
+                    )}
+
+                    <div className="co-cart-actions" style={{ marginTop: 24 }}>
+                      <button type="button" className="ct-btn ct-btn--ghost" style={{ width: "auto" }} onClick={() => goto("frete")}>
+                        <ArrowLeft size={16} /> Voltar
+                      </button>
+                      <Form method="post">
+                        <input type="hidden" name="intent" value="confirmar" />
+                        <input type="hidden" name="modalidade" value="retirada" />
+                        <input type="hidden" name="id_pdv" value={pdvSel.id} />
+                        <input type="hidden" name="pagamento_modo" value={pagamentoModo} />
+                        <input type="hidden" name="pdv_nome" value={pdvSel.nome_pdv} />
+                        <input type="hidden" name="pdv_endereco" value={pdvSel.endereco ?? ""} />
+                        <button type="submit" className="ct-btn ct-btn--mint" style={{ width: "auto" }} disabled={confirmando}>
+                          {confirmando
+                            ? "Criando pedido..."
+                            : pagamentoModo === "online"
+                              ? "Confirmar e pagar"
+                              : "Reservar pedido"}{" "}
+                          <Check size={16} />
+                        </button>
+                      </Form>
+                    </div>
+                  </>
+                )
+              ) : !enderecoSel || !freteSel ? (
                 <div className="co-note" style={{ marginTop: 14 }}>
                   Faltam informações.{" "}
                   <button type="button" onClick={() => goto("endereco")} style={{ color: "var(--mint-deep)", fontWeight: 700 }}>
@@ -429,6 +703,7 @@ export default function Checkout() {
                     </button>
                     <Form method="post">
                       <input type="hidden" name="intent" value="confirmar" />
+                      <input type="hidden" name="modalidade" value="entrega" />
                       <input type="hidden" name="id_endereco" value={enderecoSel.id} />
                       <input type="hidden" name="frete_servico" value={freteSel.servico} />
                       <input type="hidden" name="cep" value={enderecoSel.cep} />
@@ -474,7 +749,9 @@ export default function Checkout() {
           )}
           <div className="row">
             <span>Frete</span>
-            {cupom?.frete_gratis ? (
+            {isRetirada ? (
+              <b className="free">Retirada na loja</b>
+            ) : cupom?.frete_gratis ? (
               <b className="free">Grátis</b>
             ) : freteSel ? (
               <b>{formatBRL(freteSel.preco)}</b>
@@ -488,14 +765,7 @@ export default function Checkout() {
           <div className="divider" />
           <div className="total">
             <span>Total</span>
-            <b>
-              {formatBRL(
-                Math.max(
-                  0,
-                  carrinho.subtotal - (cupom?.desconto ?? 0) + (cupom?.frete_gratis ? 0 : freteSel?.preco ?? 0),
-                ),
-              )}
-            </b>
+            <b>{formatBRL(total)}</b>
           </div>
           <div className="secure">
             <ShieldCheck /> Pagamento 100% seguro
@@ -506,22 +776,17 @@ export default function Checkout() {
   );
 }
 
-function Stepper({ step }: { step: Step }) {
-  const labels: Record<Step, string> = {
-    endereco: "Endereço",
-    frete: "Frete",
-    revisao: "Revisão",
-  };
-  const idx = STEPS.indexOf(step);
+function Stepper({ step, labels, steps }: { step: Step; labels: Record<Step, string>; steps: Step[] }) {
+  const idx = steps.indexOf(step);
   return (
     <div className="co-stepper">
-      {STEPS.map((s, i) => (
+      {steps.map((s, i) => (
         <div key={s} style={{ display: "contents" }}>
           <div className={`step${i === idx ? " active" : i < idx ? " done" : ""}`}>
             <span className="n">{i < idx ? <Check size={13} /> : i + 1}</span>
             {labels[s]}
           </div>
-          {i < STEPS.length - 1 && <span className="sep" />}
+          {i < steps.length - 1 && <span className="sep" />}
         </div>
       ))}
     </div>

@@ -229,6 +229,13 @@
 .co-status.s-enviado{background:rgba(91,201,171,.18);color:#1E6B57;} .co-status.s-enviado .d{background:var(--mint-deep);}
 .co-status.s-entregue{background:rgba(91,201,171,.22);color:#1E6B57;} .co-status.s-entregue .d{background:var(--mint-deep);}
 .co-status.s-cancelado{background:rgba(225,29,72,.1);color:var(--tag-promo);} .co-status.s-cancelado .d{background:var(--tag-promo);}
+.co-status.s-aguardando_retirada{background:rgba(245,158,11,.14);color:#9A6700;} .co-status.s-aguardando_retirada .d{background:var(--tag-best);}
+/* devolução */
+.co-status.s-dev-solicitada{background:rgba(245,158,11,.14);color:#9A6700;} .co-status.s-dev-solicitada .d{background:var(--tag-best);}
+.co-status.s-dev-aprovada{background:rgba(79,70,229,.12);color:#3F3AB5;} .co-status.s-dev-aprovada .d{background:var(--tag-new);}
+.co-status.s-dev-recebida{background:rgba(91,201,171,.18);color:#1E6B57;} .co-status.s-dev-recebida .d{background:var(--mint-deep);}
+.co-status.s-dev-reembolsada{background:rgba(91,201,171,.22);color:#1E6B57;} .co-status.s-dev-reembolsada .d{background:var(--mint-deep);}
+.co-status.s-dev-rejeitada{background:rgba(225,29,72,.1);color:var(--tag-promo);} .co-status.s-dev-rejeitada .d{background:var(--tag-promo);}
 
 /* detalhe do pedido */
 .co-detail{display:grid;grid-template-columns:1fr 360px;gap:32px;align-items:start;}

@@ -66,7 +66,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#7c3aed" />
+        <meta name="theme-color" content="#04031E" />
         <Meta />
         <Links />
       </head>
@@ -85,6 +85,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
         <ScrollRestoration />
         <Scripts />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
@@ -92,4 +93,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return <Outlet />;
+}
+
+/**
+ * Registra o service worker no cliente após o load (PWA: app shell + offline).
+ * Inline para rodar sem hidratação extra; só em produção e quando suportado.
+ */
+function ServiceWorkerRegister() {
+  const script = `
+    if ('serviceWorker' in navigator && location.protocol === 'https:' || location.hostname === 'localhost') {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  `;
+  return <script dangerouslySetInnerHTML={{ __html: script }} />;
 }

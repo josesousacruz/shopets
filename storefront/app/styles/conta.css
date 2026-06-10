@@ -22,13 +22,16 @@
 .ct-field{display:flex;flex-direction:column;gap:7px;margin-top:18px;}
 .ct-field label{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:.01em;}
 .ct-field input,
-.ct-field select{
+.ct-field select,
+.ct-field textarea{
   width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:11px;
   background:var(--canvas);font-size:15px;color:var(--ink);font-family:inherit;
   transition:border-color .15s, box-shadow .15s;
 }
+.ct-field textarea{resize:vertical;min-height:80px;line-height:1.5;}
 .ct-field input:focus,
-.ct-field select:focus{
+.ct-field select:focus,
+.ct-field textarea:focus{
   outline:none;border-color:var(--mint-deep);
   box-shadow:0 0 0 3px rgba(91,201,171,.18);background:var(--paper);
 }
