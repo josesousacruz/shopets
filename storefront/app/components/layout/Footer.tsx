@@ -75,7 +75,12 @@ export function Footer() {
 
       <div className="legal">
         <span>© {year} Shopets · Todos os direitos reservados</span>
-        <span>Termos · Privacidade</span>
+        <span>
+          Termos · Privacidade ·{" "}
+          <Link to="/painel" style={{ opacity: 0.7 }}>
+            Acesso lojista
+          </Link>
+        </span>
       </div>
     </footer>
   );

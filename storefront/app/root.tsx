@@ -1,6 +1,6 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useLocation } from "@remix-run/react";
 import { Header } from "~/components/layout/Header";
 import { Footer } from "~/components/layout/Footer";
 import { CartProvider } from "~/components/cart/CartContext";
@@ -52,6 +52,8 @@ export const meta: MetaFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useLoaderData<typeof loader>() as { ga4Id?: string; metaPixelId?: string } | undefined;
+  // O painel do lojista tem chrome próprio (sidebar) — não usa header/footer do cliente.
+  const isPainel = useLocation().pathname.startsWith("/painel");
   return (
     <html lang="pt-BR">
       <head>
@@ -63,12 +65,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AnalyticsScripts ga4={data?.ga4Id} pixel={data?.metaPixelId} />
       </head>
       <body className="min-h-screen flex flex-col">
-        <CartProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <CartDrawer />
-        </CartProvider>
+        {isPainel ? (
+          children
+        ) : (
+          <CartProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <CartDrawer />
+          </CartProvider>
+        )}
         <ScrollRestoration />
         <Scripts />
       </body>
