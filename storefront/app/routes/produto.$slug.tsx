@@ -13,14 +13,20 @@ import type { Variacao } from "~/types/api";
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   if (!data) return [{ title: "Produto não encontrado" }];
   const p = data.produto;
-  return [
+  const description = p.seo.description ?? p.descricao_curta ?? undefined;
+  const tags: ReturnType<MetaFunction> = [
     { title: p.seo.title },
-    { name: "description", content: p.seo.description ?? p.descricao_curta ?? "" },
     { property: "og:title", content: p.seo.title },
-    { property: "og:description", content: p.seo.description ?? "" },
-    { property: "og:image", content: p.seo.og_image ?? "" },
     { property: "og:type", content: "product" },
   ];
+  if (description) {
+    tags.push({ name: "description", content: description });
+    tags.push({ property: "og:description", content: description });
+  }
+  if (p.seo.og_image) {
+    tags.push({ property: "og:image", content: p.seo.og_image });
+  }
+  return tags;
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {

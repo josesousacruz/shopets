@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData } from "@remix-run/react";
 import { api } from "~/lib/api.server";
 import { CategoryFilters } from "~/components/catalog/CategoryFilters";
 import { ProductGrid } from "~/components/catalog/ProductGrid";
@@ -38,7 +38,7 @@ export default function LojaCategoria() {
   return (
     <div className="mx-auto max-w-7xl px-4 lg:px-8 py-8">
       <nav className="text-sm text-slate-500 mb-2">
-        <a href="/loja" className="hover:underline">Loja</a> / {categoriaAtiva.nome}
+        <Link to="/loja" className="hover:underline">Loja</Link> / {categoriaAtiva.nome}
       </nav>
       <h1 className="font-display font-extrabold text-3xl mb-6">{categoriaAtiva.nome}</h1>
       {categoriaAtiva.descricao && <p className="text-slate-600 mb-6 max-w-prose">{categoriaAtiva.descricao}</p>}

@@ -55,6 +55,11 @@ export function CategoryFilters({
       <section>
         <h2 className="font-display font-bold text-sm uppercase tracking-wider mb-3">Ordenar</h2>
         <form method="get">
+          {Array.from(params.entries())
+            .filter(([k]) => k !== "ordem" && k !== "page")
+            .map(([k, v]) => (
+              <input key={k} type="hidden" name={k} value={v} />
+            ))}
           <select
             name="ordem"
             defaultValue={ordemAtual}
@@ -65,6 +70,11 @@ export function CategoryFilters({
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
+          <noscript>
+            <button type="submit" className="mt-2 w-full text-sm bg-brand-primary text-white rounded-lg px-3 py-2">
+              Aplicar
+            </button>
+          </noscript>
         </form>
       </section>
     </aside>

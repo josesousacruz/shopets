@@ -21,6 +21,9 @@ export default {
         xl: "16px",
         "2xl": "20px",
       },
+      boxShadow: {
+        card: "var(--shadow-card)",
+      },
     },
   },
   plugins: [],
