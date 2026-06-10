@@ -4,14 +4,16 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
-class Cliente extends Model
+class Cliente extends Authenticatable
 {
-    use HasFactory, LogsActivity, BelongsToEmpresa;
+    use HasFactory, LogsActivity, BelongsToEmpresa, HasApiTokens, Notifiable;
 
     protected $table = 'clientes';
     protected $primaryKey = 'id_cliente';
@@ -30,6 +32,14 @@ class Cliente extends Model
         'ativo',
         'observacoes',
         'id_empresa',
+        'password',
+        'origem',
+        'aceita_marketing',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
 
     protected $casts = [
@@ -39,8 +49,16 @@ class Cliente extends Model
         'credito_utilizado' => 'decimal:2',
         'data_nascimento' => 'date',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
+        'password' => 'hashed',
+        'email_verified_at' => 'datetime',
+        'aceita_marketing' => 'boolean',
     ];
+
+    public function getAuthIdentifierName()
+    {
+        return 'id_cliente';
+    }
 
     /**
      * Configure activity logging options.
