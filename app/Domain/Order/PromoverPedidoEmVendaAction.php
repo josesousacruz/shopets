@@ -72,9 +72,17 @@ class PromoverPedidoEmVendaAction
             $total = (float) $pedido->total;
 
             // 1. Cria a Venda como 'aberta' (caminho oficial do PDV).
+            //
+            // id_cliente fica NULL de propósito: a venda do ecommerce é
+            // pré-paga (Pix/cartão), não usa crediário. O trigger do PDV
+            // tr_validar_limite_credito bloqueia QUALQUER venda com cliente
+            // cujo (limite_credito - credito_utilizado) < total — e clientes
+            // do ecommerce têm limite 0. O cliente fica preservado no Pedido
+            // (registro voltado ao cliente); a Venda é o registro fiscal/estoque.
+            // Followup: escopar o trigger a vendas fiado e então re-vincular o cliente.
             $venda = Venda::create([
                 'numero_venda' => $this->gerarNumeroVenda(),
-                'id_cliente' => $pedido->id_cliente,
+                'id_cliente' => null,
                 'id_usuario' => $idUsuario,
                 'id_pdv' => $idPdv,
                 'valor_subtotal' => $subtotal,

@@ -26,7 +26,7 @@ class EcommerceInfraSeeder extends Seeder
             ['email' => $email],
             [
                 'name' => 'Ecommerce (Sistema)',
-                'cpf' => '00000000000',
+                'cpf' => '99999999999',
                 'nivel_acesso' => 'admin',
                 'ativo' => true,
                 'password' => Hash::make(str()->random(40)),
