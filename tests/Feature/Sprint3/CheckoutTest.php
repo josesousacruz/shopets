@@ -118,6 +118,9 @@ class CheckoutTest extends TestCase
     {
         [$cliente, $endereco] = $this->clienteComEndereco();
         $produto = Produto::factory()->create(['estoque_atual' => 50]);
+        $pdv = \App\Models\PontoVenda::create([
+            'nome_pdv' => 'Loja Retira', 'ativo' => true, 'permite_retirada' => true,
+        ]);
 
         Sanctum::actingAs($cliente);
 
@@ -129,6 +132,7 @@ class CheckoutTest extends TestCase
             $resp = $this->withHeaders(['X-Cart-Token' => $carrinho->token])
                 ->postJson('/api/v1/checkout/iniciar', [
                     'modalidade' => 'retirada',
+                    'id_pdv' => $pdv->id_pdv,
                 ]);
             $resp->assertCreated();
             $numeros[] = $resp->json('data.numero');

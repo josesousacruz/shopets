@@ -21,6 +21,7 @@ class Pedido extends Model
         'id_empresa',
         'status',
         'modalidade',
+        'pagamento_modo',
         'id_endereco_entrega',
         'id_ponto_venda_retirada',
         'subtotal',
@@ -82,6 +83,11 @@ class Pedido extends Model
     public function pontoVendaRetirada(): BelongsTo
     {
         return $this->belongsTo(PontoVenda::class, 'id_ponto_venda_retirada', 'id_pdv');
+    }
+
+    public function devolucoes(): HasMany
+    {
+        return $this->hasMany(DevolucaoPedido::class, 'id_pedido', 'id_pedido');
     }
 
     /**

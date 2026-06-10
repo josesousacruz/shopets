@@ -21,11 +21,13 @@ class PontoVenda extends Model
         'responsavel',
         'telefone',
         'ativo',
+        'permite_retirada',
         'configuracoes_pdv',
     ];
 
     protected $casts = [
         'ativo' => 'boolean',
+        'permite_retirada' => 'boolean',
     ];
 
     /**

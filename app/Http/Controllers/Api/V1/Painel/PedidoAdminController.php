@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Painel;
 
+use App\Domain\Order\FinalizarRetiradaAction;
 use App\Domain\Order\TransicaoInvalidaException;
 use App\Domain\Order\TransicionarPedidoAction;
 use App\Domain\Shipping\GerarEtiquetaAction;
@@ -204,6 +205,37 @@ class PedidoAdminController extends Controller
     public function entregar(string $numero): JsonResponse
     {
         return $this->aplicar($numero, 'entregue', 'Pedido entregue ao cliente.');
+    }
+
+    /**
+     * POST /api/v1/painel/pedidos/{numero}/retirar
+     * Finaliza a retirada presencial (paga no balcão -> venda+estoque+NFCe; ou
+     * confirma se já pago online). Idempotente.
+     */
+    public function retirar(Request $request, string $numero, FinalizarRetiradaAction $finalizar): JsonResponse
+    {
+        $data = $request->validate([
+            'forma_pagamento' => ['nullable', 'in:dinheiro,pix,cartao_credito,cartao'],
+        ]);
+
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
+        if (! in_array($pedido->status, ['aguardando_retirada', 'pago', 'em_separacao', 'entregue'], true)) {
+            return response()->json([
+                'message' => 'Pedido não está apto para retirada.',
+                'status' => $pedido->status,
+            ], 422);
+        }
+
+        $pedido = $finalizar->executar($pedido, $data['forma_pagamento'] ?? null, auth()->id());
+
+        return response()->json([
+            'data' => [
+                'numero' => $pedido->numero,
+                'status' => $pedido->status,
+                'id_venda' => $pedido->id_venda,
+            ],
+        ]);
     }
 
     public function cancelar(Request $request, string $numero): JsonResponse

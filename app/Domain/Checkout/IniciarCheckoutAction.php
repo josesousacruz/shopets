@@ -115,12 +115,24 @@ class IniciarCheckoutAction
 
             $modalidade = $dados['modalidade'];
 
+            // Modo de pagamento (só faz sentido em retirada): online | na_retirada.
+            // na_retirada => o pedido nasce aguardando a retirada presencial, sem
+            // cobrança online; estoque só baixa quando o atendente finaliza a retirada.
+            $pagamentoModo = $modalidade === 'retirada'
+                ? ($dados['pagamento_modo'] ?? 'online')
+                : null;
+
+            $status = ($modalidade === 'retirada' && $pagamentoModo === 'na_retirada')
+                ? 'aguardando_retirada'
+                : 'aguardando_pagamento';
+
             // 3. Cria o pedido.
             $pedido = Pedido::create([
                 'numero' => Pedido::gerarNumero(),
                 'id_cliente' => $cliente->id_cliente,
-                'status' => 'aguardando_pagamento',
+                'status' => $status,
                 'modalidade' => $modalidade,
+                'pagamento_modo' => $pagamentoModo,
                 'id_endereco_entrega' => $modalidade === 'entrega' ? ($dados['id_endereco'] ?? null) : null,
                 'id_ponto_venda_retirada' => $modalidade === 'retirada' ? ($dados['id_pdv'] ?? null) : null,
                 'subtotal' => $subtotal,
@@ -162,7 +174,7 @@ class IniciarCheckoutAction
             // Evento de criação.
             $pedido->eventos()->create([
                 'tipo' => 'pedido_criado',
-                'descricao' => 'Pedido criado em aguardando_pagamento.',
+                'descricao' => 'Pedido criado em '.$status.'.',
                 'criado_em' => now(),
             ]);
 

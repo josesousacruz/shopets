@@ -46,6 +46,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('/banners', [\App\Http\Controllers\Api\V1\Storefront\BannerController::class, 'index'])
         ->name('banners.index');
 
+    // Pontos de retirada habilitados (público — para o checkout).
+    Route::get('/pontos-retirada', [\App\Http\Controllers\Api\V1\PontoRetiradaController::class, 'index'])
+        ->name('pontos-retirada.index');
+
     // Autenticação de clientes (token-based / Sanctum)
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
@@ -67,7 +71,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::post('/carrinho/itens', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'adicionar']);
     Route::put('/carrinho/itens/{item}', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'atualizar']);
     Route::delete('/carrinho/itens/{item}', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'remover']);
-    Route::post('/carrinho/cupom', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'aplicarCupom']);
+    Route::post('/carrinho/cupom', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'aplicarCupom'])
+        ->middleware('throttle:20,1');
     Route::delete('/carrinho/cupom', [\App\Http\Controllers\Api\V1\CarrinhoController::class, 'removerCupom']);
 
     // Cotação de frete (público; usa carrinho se itens omitidos)
@@ -75,6 +80,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     // Webhook de pagamento (público — sem auth; valida assinatura quando MP real)
     Route::post('/webhooks/pagamento', \App\Http\Controllers\Api\V1\WebhookPagamentoController::class)
+        ->middleware('throttle:60,1')
         ->name('webhooks.pagamento');
 
     // DEV: aprovação manual de pagamento (só local ou driver=fake)
@@ -86,10 +92,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('enderecos', EnderecoController::class)->except(['show']);
 
         // Checkout + pedidos (escopados ao cliente)
-        Route::post('/checkout/iniciar', [\App\Http\Controllers\Api\V1\CheckoutController::class, 'iniciar']);
+        Route::post('/checkout/iniciar', [\App\Http\Controllers\Api\V1\CheckoutController::class, 'iniciar'])
+            ->middleware('throttle:30,1');
         Route::get('/pedidos', [\App\Http\Controllers\Api\V1\PedidoController::class, 'index']);
         Route::get('/pedidos/{numero}', [\App\Http\Controllers\Api\V1\PedidoController::class, 'show']);
         Route::post('/pedidos/{numero}/pagar', [\App\Http\Controllers\Api\V1\PagamentoController::class, 'pagar']);
+
+        // Devoluções (cliente, escopadas ao próprio pedido)
+        Route::get('/pedidos/{numero}/devolucoes', [\App\Http\Controllers\Api\V1\DevolucaoController::class, 'index']);
+        Route::post('/pedidos/{numero}/devolucao', [\App\Http\Controllers\Api\V1\DevolucaoController::class, 'store'])
+            ->middleware('throttle:10,1');
     });
 
     // ----------------------------------------------------------------
@@ -113,6 +125,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('/pedidos/{numero}/separacao', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'separacao']);
             Route::post('/pedidos/{numero}/enviar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'enviar']);
             Route::post('/pedidos/{numero}/entregar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'entregar']);
+            Route::post('/pedidos/{numero}/retirar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'retirar']);
             Route::post('/pedidos/{numero}/cancelar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'cancelar']);
             Route::post('/pedidos/{numero}/etiqueta', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'etiqueta']);
 
@@ -154,6 +167,18 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/cupons/{id}', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'show']);
             Route::put('/cupons/{id}', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'update']);
             Route::delete('/cupons/{id}', [\App\Http\Controllers\Api\V1\Painel\CupomController::class, 'destroy']);
+
+            // Pontos de venda (toggle retirada por PDV)
+            Route::get('/pontos-venda', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'index']);
+            Route::put('/pontos-venda/{id}', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'update']);
+
+            // Devoluções (fila + transições)
+            Route::get('/devolucoes', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'index']);
+            Route::get('/devolucoes/{id}', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'show']);
+            Route::put('/devolucoes/{id}/aprovar', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'aprovar']);
+            Route::put('/devolucoes/{id}/rejeitar', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'rejeitar']);
+            Route::put('/devolucoes/{id}/receber', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'receber']);
+            Route::put('/devolucoes/{id}/reembolsar', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'reembolsar']);
 
             // Configurações da loja
             Route::get('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'show']);

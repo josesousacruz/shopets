@@ -26,6 +26,7 @@ class CheckoutController extends Controller
             'modalidade' => ['required', 'in:entrega,retirada'],
             'id_endereco' => ['nullable', 'integer'],
             'id_pdv' => ['nullable', 'integer'],
+            'pagamento_modo' => ['nullable', 'in:online,na_retirada'],
             'frete_servico' => ['required_if:modalidade,entrega', 'nullable', 'string'],
             'cep' => ['required_if:modalidade,entrega', 'nullable', 'string'],
         ]);
@@ -40,6 +41,20 @@ class CheckoutController extends Controller
             $endereco = $cliente->enderecos()->where('id_endereco', $data['id_endereco'])->first();
             if (! $endereco) {
                 throw ValidationException::withMessages(['id_endereco' => 'Endereço inválido.']);
+            }
+        }
+
+        // Valida PDV de retirada: precisa existir, estar ativo e permitir retirada.
+        if ($data['modalidade'] === 'retirada') {
+            if (empty($data['id_pdv'])) {
+                throw ValidationException::withMessages(['id_pdv' => 'Ponto de retirada obrigatório.']);
+            }
+            $pdv = \App\Models\PontoVenda::where('id_pdv', $data['id_pdv'])
+                ->where('ativo', true)
+                ->where('permite_retirada', true)
+                ->first();
+            if (! $pdv) {
+                throw ValidationException::withMessages(['id_pdv' => 'Ponto de retirada inválido.']);
             }
         }
 
@@ -66,6 +81,7 @@ class CheckoutController extends Controller
             'modalidade' => $data['modalidade'],
             'id_endereco' => $data['id_endereco'] ?? null,
             'id_pdv' => $data['id_pdv'] ?? null,
+            'pagamento_modo' => $data['pagamento_modo'] ?? null,
             'frete_servico' => $data['frete_servico'] ?? null,
             'frete' => $frete,
             'prazo_entrega_dias' => $prazo,

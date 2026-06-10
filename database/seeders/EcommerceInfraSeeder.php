@@ -33,7 +33,7 @@ class EcommerceInfraSeeder extends Seeder
             ]
         );
 
-        PontoVenda::firstOrCreate(
+        $pdv = PontoVenda::firstOrCreate(
             ['nome_pdv' => $pdvNome],
             [
                 'descricao' => 'Ponto de venda virtual para pedidos do ecommerce',
@@ -41,5 +41,10 @@ class EcommerceInfraSeeder extends Seeder
                 'ativo' => true,
             ]
         );
+
+        // A Loja Online aceita retirada por padrão (ajustável pelo lojista).
+        if (! $pdv->permite_retirada) {
+            $pdv->update(['permite_retirada' => true]);
+        }
     }
 }
