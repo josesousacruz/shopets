@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -13,7 +14,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Produto extends Model implements HasMedia
 {
-    use HasFactory, LogsActivity, InteractsWithMedia;
+    use HasFactory, LogsActivity, InteractsWithMedia, BelongsToEmpresa;
 
     protected $primaryKey = 'id_produto';
     public $incrementing = true;
@@ -36,6 +37,7 @@ class Produto extends Model implements HasMedia
         'ncm',
         'cest',
         'ativo',
+        'id_empresa',
     ];
 
     protected $casts = [

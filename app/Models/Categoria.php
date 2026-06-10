@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -9,7 +10,7 @@ use Spatie\Activitylog\LogOptions;
 
 class Categoria extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, BelongsToEmpresa;
 
     protected $primaryKey = 'id_categoria';
     public $incrementing = true;
@@ -20,6 +21,7 @@ class Categoria extends Model
         'descricao',
         'icone',
         'ativo',
+        'id_empresa',
     ];
 
     protected $casts = [

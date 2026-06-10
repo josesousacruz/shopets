@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,7 @@ use Spatie\Activitylog\LogOptions;
 
 class Cliente extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, BelongsToEmpresa;
 
     protected $table = 'clientes';
     protected $primaryKey = 'id_cliente';
@@ -27,7 +28,8 @@ class Cliente extends Model
         'limite_credito',
         'credito_utilizado',
         'ativo',
-        'observacoes'
+        'observacoes',
+        'id_empresa',
     ];
 
     protected $casts = [
