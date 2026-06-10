@@ -1,0 +1,130 @@
+/* ═══════════════════════════════════════════════════════════
+   Shopets · Área de cliente (auth + conta)
+   Tokens (--ink, --mint, --mint-deep, --line, --muted) vêm de fc-shared.css
+   ═══════════════════════════════════════════════════════════ */
+
+.ct-wrap{max-width:1100px;margin:0 auto;padding:48px 24px 72px;}
+
+/* ── Layout centralizado para auth ── */
+.ct-auth{max-width:440px;margin:0 auto;padding:48px 24px 72px;}
+
+.ct-card{
+  background:var(--paper);border:1px solid var(--line);border-radius:20px;
+  padding:32px;box-shadow:0 18px 40px -24px rgba(4,3,30,.18);
+}
+.ct-card h1{
+  font-family:'Manrope',sans-serif;font-weight:800;font-size:26px;
+  letter-spacing:-0.02em;color:var(--ink);line-height:1.1;
+}
+.ct-card .sub{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.5;}
+
+/* ── Campos de formulário ── */
+.ct-field{display:flex;flex-direction:column;gap:7px;margin-top:18px;}
+.ct-field label{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:.01em;}
+.ct-field input,
+.ct-field select{
+  width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:11px;
+  background:var(--canvas);font-size:15px;color:var(--ink);font-family:inherit;
+  transition:border-color .15s, box-shadow .15s;
+}
+.ct-field input:focus,
+.ct-field select:focus{
+  outline:none;border-color:var(--mint-deep);
+  box-shadow:0 0 0 3px rgba(91,201,171,.18);background:var(--paper);
+}
+.ct-field input[readonly]{background:var(--line-2);color:var(--muted);cursor:not-allowed;}
+.ct-field .err{font-size:12.5px;color:var(--tag-promo);font-weight:600;}
+.ct-field--inline{flex-direction:row;align-items:center;gap:10px;margin-top:18px;}
+.ct-field--inline input{width:auto;}
+.ct-field--inline label{font-weight:500;font-size:14px;color:var(--muted);}
+
+.ct-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ct-row--cep{grid-template-columns:160px 1fr;}
+
+/* ── Botões ── */
+.ct-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 22px;border-radius:12px;font-weight:800;font-size:15px;
+  font-family:'Manrope',sans-serif;transition:background .15s, color .15s, opacity .15s;
+}
+.ct-btn--mint{background:var(--mint);color:var(--ink);width:100%;}
+.ct-btn--mint:hover{background:var(--mint-deep);color:#fff;}
+.ct-btn--mint:disabled{opacity:.6;cursor:not-allowed;}
+.ct-btn--ghost{border:1px solid var(--line);color:var(--ink);background:var(--paper);}
+.ct-btn--ghost:hover{border-color:var(--ink);}
+.ct-btn--danger{color:var(--tag-promo);border:1px solid var(--line);background:var(--paper);}
+.ct-btn--danger:hover{border-color:var(--tag-promo);background:rgba(225,29,72,.06);}
+
+.ct-links{margin-top:22px;display:flex;flex-direction:column;gap:10px;font-size:14px;}
+.ct-links a{color:var(--mint-deep);font-weight:700;}
+.ct-links a:hover{color:var(--ink);text-decoration:underline;}
+.ct-links .muted{color:var(--muted);}
+
+/* ── Alertas ── */
+.ct-alert{
+  padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:600;
+  line-height:1.5;margin-top:18px;
+}
+.ct-alert--ok{background:rgba(136,226,202,.22);color:var(--ink);border:1px solid var(--mint-deep);}
+.ct-alert--err{background:rgba(225,29,72,.08);color:var(--tag-promo);border:1px solid rgba(225,29,72,.35);}
+
+/* ── Dashboard ── */
+.ct-head{margin-bottom:28px;}
+.ct-head h1{font-family:'Manrope',sans-serif;font-weight:800;font-size:30px;letter-spacing:-0.025em;color:var(--ink);}
+.ct-head p{color:var(--muted);font-size:15px;margin-top:6px;}
+
+.ct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+.ct-tile{
+  display:flex;flex-direction:column;gap:8px;background:var(--paper);
+  border:1px solid var(--line);border-radius:18px;padding:24px;
+  transition:transform .15s, border-color .15s, box-shadow .15s;
+}
+.ct-tile:hover{transform:translateY(-3px);border-color:var(--ink);box-shadow:0 18px 36px -16px rgba(4,3,30,.16);}
+.ct-tile .ic{width:44px;height:44px;border-radius:12px;background:rgba(136,226,202,.25);color:var(--ink);display:grid;place-items:center;}
+.ct-tile .ic svg{width:22px;height:22px;}
+.ct-tile h3{font-family:'Manrope',sans-serif;font-weight:800;font-size:17px;color:var(--ink);}
+.ct-tile p{font-size:13px;color:var(--muted);line-height:1.4;}
+.ct-tile .soon{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mint-deep);}
+
+/* ── Lista de endereços ── */
+.ct-addr-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:8px;}
+.ct-addr{
+  position:relative;background:var(--paper);border:1px solid var(--line);
+  border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:6px;
+}
+.ct-addr .apelido{font-family:'Manrope',sans-serif;font-weight:800;font-size:16px;color:var(--ink);}
+.ct-addr address{font-style:normal;font-size:13.5px;color:var(--muted);line-height:1.55;}
+.ct-addr .badge{
+  align-self:flex-start;background:var(--mint);color:var(--ink);
+  font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;
+}
+.ct-addr .tipo{font-size:11px;font-weight:700;color:var(--mint-deep);text-transform:uppercase;letter-spacing:.05em;}
+.ct-addr .actions{display:flex;gap:8px;margin-top:10px;}
+.ct-addr .actions button{font-size:13px;font-weight:700;color:var(--mint-deep);}
+.ct-addr .actions button:hover{color:var(--ink);text-decoration:underline;}
+.ct-addr .actions .del{color:var(--tag-promo);}
+
+.ct-empty{
+  background:var(--paper);border:1px dashed var(--line);border-radius:16px;
+  padding:40px 24px;text-align:center;color:var(--muted);font-size:14px;
+}
+
+/* ── Dialog (Radix) ── */
+.ct-overlay{position:fixed;inset:0;background:rgba(4,3,30,.45);z-index:60;}
+.ct-dialog{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:61;
+  width:min(560px,calc(100vw - 32px));max-height:90vh;overflow:auto;
+  background:var(--paper);border-radius:20px;padding:28px;
+  box-shadow:0 30px 70px -30px rgba(4,3,30,.5);
+}
+.ct-dialog h2{font-family:'Manrope',sans-serif;font-weight:800;font-size:22px;color:var(--ink);}
+.ct-dialog .dialog-actions{display:flex;gap:12px;margin-top:24px;}
+.ct-dialog .dialog-actions .ct-btn{width:auto;flex:1;}
+
+.ct-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+
+@media (max-width:560px){
+  .ct-row{grid-template-columns:1fr;}
+  .ct-row--cep{grid-template-columns:1fr;}
+}

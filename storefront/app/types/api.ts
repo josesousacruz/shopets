@@ -49,3 +49,40 @@ export interface Paginated<T> {
   links: { first: string | null; last: string | null; prev: string | null; next: string | null };
   meta: { current_page: number; from: number | null; last_page: number; per_page: number; to: number | null; total: number; path: string };
 }
+
+export interface Cliente {
+  id: number;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  origem: string | null;
+  aceita_marketing: boolean;
+  created_at: string | null;
+}
+
+export interface Endereco {
+  id: number;
+  apelido: string | null;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string | null;
+  bairro: string;
+  cidade: string;
+  uf: string;
+  tipo: "entrega" | "cobranca" | "ambos";
+  principal: boolean;
+}
+
+export interface CepResultado {
+  cep: string;
+  logradouro: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+export interface AuthResposta {
+  cliente: Cliente;
+  token: string;
+}

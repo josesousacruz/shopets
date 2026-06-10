@@ -4,10 +4,12 @@ import { Header } from "~/components/layout/Header";
 import { Footer } from "~/components/layout/Footer";
 import { AnalyticsScripts } from "~/lib/tracking";
 import { env } from "~/lib/env.server";
+import { getCliente } from "~/lib/session.server";
 import tailwind from "~/tailwind.css?url";
 
-export async function loader() {
-  return { ga4Id: env.ga4Id, metaPixelId: env.metaPixelId };
+export async function loader({ request }: { request: Request }) {
+  const cliente = await getCliente(request);
+  return { ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente };
 }
 
 export const links: LinksFunction = () => [

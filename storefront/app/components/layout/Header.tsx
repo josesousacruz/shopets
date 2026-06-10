@@ -1,7 +1,8 @@
-import { Link, Form, useLocation } from "@remix-run/react";
+import { Link, Form, useLocation, useRouteLoaderData } from "@remix-run/react";
 import { ShoppingCart, Menu } from "lucide-react";
 import { useState } from "react";
 import { MobileNav } from "./MobileNav";
+import type { Cliente } from "~/types/api";
 
 const CATEGORIES = [
   { to: "/", label: "Início" },
@@ -18,6 +19,9 @@ const CATEGORIES = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const root = useRouteLoaderData("root") as { cliente?: Cliente | null } | undefined;
+  const cliente = root?.cliente ?? null;
+  const primeiroNome = cliente?.nome?.trim().split(/\s+/)[0] ?? "";
 
   return (
     <>
@@ -48,7 +52,11 @@ export function Header() {
           <div className="links">
             <a href="#">Acompanhar pedido</a>
             <a href="#">Ajuda</a>
-            <a href="#">Entrar / Criar conta</a>
+            {cliente ? (
+              <Link to="/conta">Minha conta</Link>
+            ) : (
+              <Link to="/login">Entrar / Criar conta</Link>
+            )}
           </div>
         </div>
       </div>
@@ -90,16 +98,29 @@ export function Header() {
           </Form>
 
           <div className="fc-actions">
-            <a className="fc-icon-btn" href="#" title="Sua conta">
+            <Link
+              className="fc-icon-btn"
+              to={cliente ? "/conta" : "/login"}
+              title={cliente ? "Minha conta" : "Entrar ou criar conta"}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 21a8 8 0 0 1 16 0" />
               </svg>
               <span className="stack label">
-                <small>Olá!</small>
-                Entrar / Criar conta
+                {cliente ? (
+                  <>
+                    <small>Olá, {primeiroNome}</small>
+                    Minha conta
+                  </>
+                ) : (
+                  <>
+                    <small>Olá!</small>
+                    Entrar / Criar conta
+                  </>
+                )}
               </span>
-            </a>
+            </Link>
             <Link className="fc-icon-btn fc-cart" to="/carrinho" aria-label="Carrinho">
               <ShoppingCart className="size-5" />
               <span className="stack label">

@@ -1,0 +1,72 @@
+import { createCookieSessionStorage, redirect } from "@remix-run/node";
+import { me } from "./auth.server";
+import type { Cliente } from "~/types/api";
+
+const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret-shopets-troque-em-producao";
+
+const storage = createCookieSessionStorage({
+  cookie: {
+    name: "__shopets_session",
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    secrets: [SESSION_SECRET],
+    maxAge: 60 * 60 * 24 * 30, // 30 dias
+  },
+});
+
+const TOKEN_KEY = "token";
+
+function getSession(request: Request) {
+  return storage.getSession(request.headers.get("Cookie"));
+}
+
+/** Lê o token Bearer guardado no cookie de sessão (ou null). */
+export async function getToken(request: Request): Promise<string | null> {
+  const session = await getSession(request);
+  const token = session.get(TOKEN_KEY);
+  return typeof token === "string" && token.length > 0 ? token : null;
+}
+
+/** Cria a sessão com o token e redireciona. */
+export async function createUserSession(token: string, redirectTo: string) {
+  const session = await storage.getSession();
+  session.set(TOKEN_KEY, token);
+  return redirect(redirectTo, {
+    headers: { "Set-Cookie": await storage.commitSession(session) },
+  });
+}
+
+/** Destrói a sessão e redireciona (default "/"). */
+export async function logout(request: Request, redirectTo = "/") {
+  const session = await getSession(request);
+  return redirect(redirectTo, {
+    headers: { "Set-Cookie": await storage.destroySession(session) },
+  });
+}
+
+/** Exige token; senão redireciona para /login?redirectTo=... */
+export async function requireToken(
+  request: Request,
+  redirectTo: string = new URL(request.url).pathname,
+): Promise<string> {
+  const token = await getToken(request);
+  if (!token) {
+    const params = new URLSearchParams([["redirectTo", redirectTo]]);
+    throw redirect(`/login?${params}`);
+  }
+  return token;
+}
+
+/** Retorna o cliente autenticado ou null (trata 401 como null). */
+export async function getCliente(request: Request): Promise<Cliente | null> {
+  const token = await getToken(request);
+  if (!token) return null;
+  try {
+    const res = await me(token);
+    return res.data;
+  } catch {
+    return null;
+  }
+}
