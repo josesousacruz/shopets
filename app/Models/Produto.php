@@ -87,6 +87,16 @@ class Produto extends Model implements HasMedia
         return $this->belongsTo(Categoria::class, 'id_categoria', 'id_categoria');
     }
 
+    public function variacoes()
+    {
+        return $this->hasMany(ProdutoVariacao::class, 'id_produto', 'id_produto');
+    }
+
+    public function temVariacoes(): bool
+    {
+        return $this->variacoes()->ativas()->exists();
+    }
+
     /**
      * Relacionamento com fornecedores
      */
