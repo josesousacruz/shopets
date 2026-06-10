@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════════════════════
+   Shopets · Home — estilos portados da referência (Física Comigo)
+   hero / departamentos / promo-inline / faixa benefícios / faq / news
+   Tokens (--ink, --mint, --line, --muted...) vêm de fc-shared.css
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Hero (promo, fundo claro com glows) ───────────────── */
+.hero-promo{
+  background:linear-gradient(180deg,#F4FBF8 0%,#E9F7F1 100%);
+  padding:56px 0 80px;position:relative;overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+.hero-promo::before{content:"";position:absolute;right:-120px;top:-120px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(136,226,202,.4),transparent 65%);pointer-events:none;}
+.hero-promo::after{content:"";position:absolute;left:-80px;bottom:-80px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(91,201,171,.22),transparent 65%);pointer-events:none;}
+.hero-promo .row{max-width:1280px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:center;position:relative;z-index:2;}
+.hero-promo .pin{display:inline-flex;align-items:center;gap:10px;background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-bottom:22px;}
+.hero-promo .pin::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--tag-promo);box-shadow:0 0 0 4px rgba(225,29,72,.3);}
+.hero-promo h1{font-family:'Manrope',sans-serif;font-weight:800;font-size:56px;letter-spacing:-0.035em;line-height:1;color:var(--ink);margin-bottom:20px;}
+.hero-promo h1 em{font-style:normal;color:var(--mint-deep);}
+.hero-promo p{font-size:18px;color:var(--ink);opacity:.72;line-height:1.5;max-width:520px;margin-bottom:28px;}
+.hero-promo .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.hero-promo .btn-pri{background:var(--mint);color:var(--ink);padding:18px 28px;border-radius:14px;font-weight:800;font-size:15px;display:inline-flex;align-items:center;gap:10px;transition:background .15s;}
+.hero-promo .btn-pri:hover{background:var(--mint-deep);color:#fff;}
+.hero-promo .btn-sec{padding:18px 22px;color:var(--ink);font-weight:600;font-size:14px;border:1px solid var(--ink);border-radius:14px;transition:all .15s;}
+.hero-promo .btn-sec:hover{background:var(--ink);color:#fff;}
+.hero-promo .timer{display:flex;gap:18px;margin-top:32px;padding-top:24px;border-top:1px solid rgba(4,3,30,.12);}
+.hero-promo .timer .tk{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+.hero-promo .timer .tk b{font-family:'Manrope',sans-serif;font-weight:800;font-size:30px;letter-spacing:-0.02em;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums;}
+.hero-promo .timer .tk span{font-size:11px;color:var(--ink);opacity:.6;font-weight:600;letter-spacing:.06em;text-transform:uppercase;}
+.hero-promo .featured{background:#fff;border-radius:28px;padding:32px;position:relative;box-shadow:0 32px 64px -20px rgba(4,3,30,.22),0 0 0 1px rgba(4,3,30,.06);}
+.hero-promo .featured .crumb{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mint-deep);margin-bottom:12px;}
+.hero-promo .featured h3{font-family:'Manrope',sans-serif;font-weight:800;font-size:26px;letter-spacing:-0.02em;line-height:1.08;color:var(--ink);margin-bottom:18px;}
+.hero-promo .featured ul{margin:0 0 24px;display:flex;flex-direction:column;gap:10px;list-style:none;padding:0;}
+.hero-promo .featured ul li{font-size:14px;color:var(--ink);font-weight:500;display:flex;align-items:center;gap:11px;}
+.hero-promo .featured ul li::before{content:"";width:18px;height:18px;border-radius:50%;background:var(--mint);flex-shrink:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%2304031E' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M3 6l2 2 4-4'/%3E%3C/svg%3E");background-position:center;background-repeat:no-repeat;background-size:12px;}
+.hero-promo .featured .price-bar{background:var(--ink);color:#fff;border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.hero-promo .featured .price-bar .pr small{display:block;font-size:11px;opacity:.55;text-decoration:line-through;margin-bottom:2px;}
+.hero-promo .featured .price-bar .pr b{font-family:'Manrope',sans-serif;font-weight:800;font-size:28px;letter-spacing:-0.02em;display:flex;align-items:baseline;gap:8px;line-height:1;}
+.hero-promo .featured .price-bar .pct{background:var(--mint);color:var(--ink);padding:5px 9px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.04em;}
+.hero-promo .featured .price-bar .buy{background:var(--mint);color:var(--ink);padding:14px 22px;border-radius:11px;font-weight:800;font-size:13px;display:inline-flex;align-items:center;gap:8px;transition:background .15s;}
+.hero-promo .featured .price-bar .buy:hover{background:var(--mint-deep);color:#fff;}
+
+/* ─── Departamentos ─────────────────────────────────────── */
+.depts{padding:64px 0 16px;}
+.dept-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.dept{
+  background:#fff;border:1px solid var(--line);border-radius:18px;
+  padding:24px 20px;display:flex;flex-direction:column;gap:14px;
+  transition:transform .25s,border-color .25s,box-shadow .25s;
+  position:relative;overflow:hidden;
+}
+.dept:hover{transform:translateY(-3px);border-color:var(--ink);box-shadow:0 18px 36px -14px rgba(4,3,30,.16);}
+.dept .ic{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;}
+.dept.d1 .ic{background:rgba(136,226,202,.25);color:var(--ink);}
+.dept.d2 .ic{background:rgba(253,224,71,.4);color:var(--ink);}
+.dept.d3 .ic{background:rgba(252,165,165,.4);color:var(--ink);}
+.dept.d4 .ic{background:var(--ink);color:#fff;}
+.dept .ic svg{width:28px;height:28px;}
+.dept h4{font-family:'Manrope',sans-serif;font-weight:800;font-size:17px;letter-spacing:-0.01em;color:var(--ink);}
+.dept p{font-size:12px;color:var(--muted);line-height:1.4;}
+.dept .meta{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--line-2);}
+.dept .meta span{font-size:11px;color:var(--muted);font-weight:600;}
+.dept .meta b{font-family:'Manrope',sans-serif;font-size:11px;font-weight:800;color:var(--ink);display:inline-flex;align-items:center;gap:4px;}
+
+/* ─── Faixa de benefícios (navy) ────────────────────────── */
+.perks-band{
+  margin-top:48px;background:var(--ink);color:#fff;border-radius:24px;
+  padding:32px 40px;position:relative;overflow:hidden;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:24px;
+}
+.perks-band::before{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(136,226,202,.24),transparent 60%);}
+.perk{display:flex;align-items:center;gap:14px;position:relative;z-index:2;}
+.perk .ic{width:44px;height:44px;border-radius:12px;background:rgba(136,226,202,.14);color:var(--mint);display:grid;place-items:center;flex-shrink:0;}
+.perk .ic svg{width:22px;height:22px;}
+.perk b{font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;display:block;letter-spacing:-0.01em;}
+.perk span{font-size:12px;color:rgba(255,255,255,.62);line-height:1.35;}
+
+/* ─── Prateleira (espaçamento das seções de produtos) ──── */
+.shelf{padding:64px 0 0;}
+
+/* ─── FAQ ───────────────────────────────────────────────── */
+.faq-row{margin-top:80px;display:grid;grid-template-columns:1fr 2fr;gap:48px;align-items:flex-start;}
+.faq-row h2{font-family:'Manrope',sans-serif;font-weight:800;font-size:32px;letter-spacing:-0.025em;color:var(--ink);line-height:1.05;}
+.faq-row .lead{font-size:14px;color:var(--muted);margin-top:12px;line-height:1.55;}
+.faq-row .item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:10px;}
+.faq-row .item summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;font-family:'Manrope',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
+.faq-row .item summary::-webkit-details-marker{display:none;}
+.faq-row .item summary svg{width:18px;height:18px;flex-shrink:0;color:var(--muted);transition:transform .2s;}
+.faq-row .item[open] summary svg{transform:rotate(45deg);color:var(--ink);}
+.faq-row .item p{font-size:14px;color:var(--muted);line-height:1.6;margin-top:12px;}
+
+/* ─── Newsletter (navy) ─────────────────────────────────── */
+.news{
+  margin-top:80px;margin-bottom:24px;background:linear-gradient(135deg,#04031E 0%,#1F1B45 100%);
+  border-radius:28px;padding:56px 48px;color:#fff;text-align:center;
+  position:relative;overflow:hidden;
+}
+.news::before{content:"";position:absolute;left:50%;top:-100px;width:500px;height:500px;border-radius:50%;transform:translateX(-50%);background:radial-gradient(circle,rgba(136,226,202,.18),transparent 60%);}
+.news h3{font-family:'Manrope',sans-serif;font-weight:800;font-size:30px;letter-spacing:-0.02em;margin-bottom:10px;position:relative;}
+.news p{color:rgba(255,255,255,.7);font-size:14px;max-width:520px;margin:0 auto 24px;line-height:1.55;position:relative;}
+.news form{display:flex;gap:8px;max-width:480px;margin:0 auto;position:relative;}
+.news input{flex:1;padding:14px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:14px;font-family:inherit;outline:none;}
+.news input::placeholder{color:rgba(255,255,255,.4);}
+.news input:focus{border-color:var(--mint);background:rgba(255,255,255,.1);}
+.news button{background:var(--mint);color:var(--ink);padding:14px 22px;border-radius:12px;font-weight:800;font-size:14px;transition:background .15s;}
+.news button:hover{background:var(--mint-deep);color:#fff;}
+
+/* ─── Responsivo ────────────────────────────────────────── */
+@media (max-width:1100px){
+  .dept-grid{grid-template-columns:repeat(2,1fr);}
+  .perks-band{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:780px){
+  .hero-promo .row{grid-template-columns:1fr;}
+  .hero-promo h1{font-size:38px;}
+  .dept-grid{grid-template-columns:1fr;}
+  .perks-band{grid-template-columns:1fr;padding:28px;}
+  .faq-row{grid-template-columns:1fr;}
+  .news{padding:40px 24px;}
+  .news form{flex-direction:column;}
+}
