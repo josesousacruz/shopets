@@ -94,9 +94,10 @@ class PagamentoController extends Controller
      */
     public function aprovarDev(Request $request, string $gatewayId, MarcarPedidoPagoAction $marcarPago): JsonResponse
     {
-        if (! app()->environment('local') && config('services.payment.driver') !== 'fake') {
-            abort(404);
-        }
+        // Endpoint de simulação: SÓ em ambiente de dev/teste. Nunca em produção,
+        // mesmo que o driver ainda esteja como 'fake' (default) — senão qualquer
+        // cliente marcaria o próprio pedido como pago sem pagar.
+        abort_unless(app()->environment(['local', 'testing']), 404);
 
         if (! $this->gateway instanceof FakePaymentGateway) {
             abort(404);
