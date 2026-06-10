@@ -28,3 +28,11 @@ Route::apiResource('produtos', ProdutoController::class);
 
 // Rota adicional para produtos por categoria
 Route::get('produtos/categoria/{categoria}', [ProdutoController::class, 'byCategory']);
+
+// Storefront público (v1) — sem autenticação
+Route::prefix('v1')->name('api.v1.')->group(function () {
+    Route::get('/produtos', [\App\Http\Controllers\Api\V1\Storefront\ProdutoController::class, 'index'])
+        ->name('produtos.index');
+    Route::get('/produtos/{slug}', [\App\Http\Controllers\Api\V1\Storefront\ProdutoController::class, 'show'])
+        ->name('produtos.show');
+});
