@@ -6,7 +6,9 @@
     "dev": "remix vite:dev",
     "build": "remix vite:build",
     "start": "remix-serve ./build/server/index.js",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -23,6 +25,7 @@
     "tailwind-merge": "^3.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@remix-run/dev": "^2.16.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
