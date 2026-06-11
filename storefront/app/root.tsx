@@ -101,7 +101,7 @@ export default function App() {
  */
 function ServiceWorkerRegister() {
   const script = `
-    if ('serviceWorker' in navigator && location.protocol === 'https:' || location.hostname === 'localhost') {
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('/sw.js').catch(function () {});
       });
