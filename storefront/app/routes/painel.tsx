@@ -4,6 +4,7 @@ import {
   Form,
   NavLink,
   Outlet,
+  useFetcher,
   useLoaderData,
   useLocation,
   useNavigate,
@@ -161,13 +162,41 @@ function useBreadcrumbs(pathname: string): string[] {
   }, [pathname]);
 }
 
+type BuscaResult = {
+  data: {
+    pedidos: { id: number; numero: string; total: number; status: string }[];
+    produtos: { id: number; nome: string; preco_venda: number }[];
+    clientes: { id: number; nome: string; email: string }[];
+  };
+};
+
 function CommandPalette({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  const fetcher = useFetcher<BuscaResult>();
   const [q, setQ] = useState("");
-  const groups = NAV_GROUPS.map((g) => ({
+  const [debounced, setDebounced] = useState("");
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(q), 250);
+    return () => window.clearTimeout(id);
+  }, [q]);
+
+  useEffect(() => {
+    if (debounced.trim().length >= 2) {
+      fetcher.load(`/painel/api/busca?q=${encodeURIComponent(debounced)}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debounced]);
+
+  const navGroups = NAV_GROUPS.map((g) => ({
     label: g.label,
     items: g.items.filter((it) => it.to && it.label.toLowerCase().includes(q.toLowerCase())),
   })).filter((g) => g.items.length);
+
+  const remote = fetcher.data?.data;
+  const hasRemote = !!remote && (
+    remote.pedidos.length + remote.produtos.length + remote.clientes.length > 0
+  );
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -176,6 +205,8 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
+
+  const go = (path: string) => { onClose(); navigate(path); };
 
   return (
     <div className="pn-cmd-overlay" onClick={onClose}>
@@ -187,36 +218,78 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar telas, pedidos, produtos…"
+            placeholder="Buscar pedidos, produtos, clientes…"
           />
           <span className="kbd" style={{ fontSize: 11, fontWeight: 600, color: "var(--pn-text-muted)" }}>
             ESC
           </span>
         </div>
         <div className="cmd-list">
-          {groups.length === 0 && (
-            <div style={{ padding: 28, textAlign: "center", fontSize: 13.5, color: "var(--pn-text-muted)" }}>
-              Nenhum resultado para “{q}”
-            </div>
+          {q.trim().length < 2 && (
+            <>
+              <div className="cmd-eyebrow">Atalhos</div>
+              <button type="button" className="cmd-item" onClick={() => go("/painel/catalogo/novo")}>
+                <span className="ci"><Box size={16} /></span>
+                Novo produto
+                <ArrowRight size={15} color="var(--pn-text-muted)" style={{ marginLeft: "auto" }} />
+              </button>
+              <button type="button" className="cmd-item" onClick={() => go("/painel/cupons")}>
+                <span className="ci"><Ticket size={16} /></span>
+                Novo cupom
+                <ArrowRight size={15} color="var(--pn-text-muted)" style={{ marginLeft: "auto" }} />
+              </button>
+            </>
           )}
-          {groups.map((g) => (
+
+          {hasRemote && remote!.pedidos.length > 0 && (
+            <>
+              <div className="cmd-eyebrow">Pedidos</div>
+              {remote!.pedidos.map((p) => (
+                <button key={`pe-${p.id}`} type="button" className="cmd-item"
+                  onClick={() => go(`/painel/pedidos/${p.numero}`)}>
+                  <span className="ci"><ShoppingCart size={16} /></span>
+                  #{p.numero} — {p.status}
+                  <ArrowRight size={15} color="var(--pn-text-muted)" style={{ marginLeft: "auto" }} />
+                </button>
+              ))}
+            </>
+          )}
+          {hasRemote && remote!.produtos.length > 0 && (
+            <>
+              <div className="cmd-eyebrow">Produtos</div>
+              {remote!.produtos.map((p) => (
+                <button key={`pr-${p.id}`} type="button" className="cmd-item"
+                  onClick={() => go(`/painel/catalogo/${p.id}`)}>
+                  <span className="ci"><Box size={16} /></span>
+                  {p.nome}
+                  <ArrowRight size={15} color="var(--pn-text-muted)" style={{ marginLeft: "auto" }} />
+                </button>
+              ))}
+            </>
+          )}
+          {hasRemote && remote!.clientes.length > 0 && (
+            <>
+              <div className="cmd-eyebrow">Clientes</div>
+              {remote!.clientes.map((c) => (
+                <button key={`cl-${c.id}`} type="button" className="cmd-item"
+                  onClick={() => go(`/painel/clientes/${c.id}`)}>
+                  <span className="ci"><Users size={16} /></span>
+                  {c.nome} <span style={{ color: "var(--pn-text-muted)", marginLeft: 6 }}>{c.email}</span>
+                  <ArrowRight size={15} color="var(--pn-text-muted)" style={{ marginLeft: "auto" }} />
+                </button>
+              ))}
+            </>
+          )}
+
+          {navGroups.map((g) => (
             <div key={g.label}>
               <div className="cmd-eyebrow">{g.label}</div>
               {g.items.map((it) => {
                 const Icon = it.icon;
                 return (
-                  <button
-                    key={it.to}
-                    type="button"
-                    className="cmd-item"
-                    onClick={() => {
-                      onClose();
-                      navigate(it.to as string);
-                    }}
-                  >
-                    <span className="ci">
-                      <Icon size={16} />
-                    </span>
+                  <button key={it.to} type="button" className="cmd-item"
+                    onClick={() => go(it.to as string)}>
+                    <span className="ci"><Icon size={16} /></span>
                     {it.label}
                     <ArrowRight size={15} color="var(--pn-text-muted)" style={{ marginLeft: "auto" }} />
                   </button>
@@ -224,6 +297,12 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
               })}
             </div>
           ))}
+
+          {q.trim().length >= 2 && !hasRemote && navGroups.length === 0 && fetcher.state !== "loading" && (
+            <div style={{ padding: 28, textAlign: "center", fontSize: 13.5, color: "var(--pn-text-muted)" }}>
+              Nenhum resultado para “{q}”.
+            </div>
+          )}
         </div>
       </div>
     </div>

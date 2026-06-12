@@ -406,6 +406,15 @@ export const painel = {
       request<{ data: PontoVendaResumo[] }>("/painel/pontos-venda", { token }),
   },
 
+  busca: (token: string, q: string) =>
+    request<{
+      data: {
+        pedidos: { id: number; numero: string; total: number; status: string }[];
+        produtos: { id: number; nome: string; preco_venda: number }[];
+        clientes: { id: number; nome: string; email: string }[];
+      };
+    }>(`/painel/busca?q=${encodeURIComponent(q)}`, { token }),
+
   notificacoes: {
     summary: (token: string) =>
       request<{ data: { unread_count: number } }>("/painel/notificacoes/summary", { token }),

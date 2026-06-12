@@ -194,6 +194,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 ->parameters(['usuarios' => 'usuario']);
             Route::post('/usuarios/{usuario}/toggle', [\App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class, 'toggle']);
 
+            // Busca global ⌘K
+            Route::get('/busca', \App\Http\Controllers\Api\V1\Painel\BuscaGlobalController::class);
+
             // Notificações in-app
             Route::get('/notificacoes', [\App\Http\Controllers\Api\V1\Painel\NotificacaoAdminController::class, 'index']);
             Route::get('/notificacoes/summary', [\App\Http\Controllers\Api\V1\Painel\NotificacaoAdminController::class, 'summary']);
