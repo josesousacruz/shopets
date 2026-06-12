@@ -100,11 +100,26 @@ export default function App() {
  * Inline para rodar sem hidratação extra; só em produção e quando suportado.
  */
 function ServiceWorkerRegister() {
-  const script = `
-    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  // Em produção: registra o SW (PWA + offline).
+  // Em desenvolvimento: NÃO registra e ainda desregistra/limpa qualquer SW e
+  // cache antigos — senão o SW (cache-first p/ .css/.js) serve o layout antigo
+  // mesmo após mudanças, causando o "pisca velho→novo" no refresh.
+  const script = import.meta.env.PROD
+    ? `
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('/sw.js').catch(function () {});
       });
+    }
+  `
+    : `
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (rs) {
+        rs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
+      if (self.caches && caches.keys) {
+        caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).catch(function () {});
+      }
     }
   `;
   return <script dangerouslySetInnerHTML={{ __html: script }} />;
