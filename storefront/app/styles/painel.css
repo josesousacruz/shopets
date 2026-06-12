@@ -1378,3 +1378,69 @@ a.pn-list-row:hover {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Sidebar colapsada (toggle persistente) ── */
+.pn-sidebar .brand {
+  position: relative;
+}
+.pn-sidebar .brand .brand-toggle {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--pn-border);
+  background: var(--pn-surface);
+  color: var(--pn-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.pn-sidebar .brand .brand-toggle:hover {
+  background: var(--pn-surface-muted);
+  color: var(--pn-text);
+  border-color: var(--pn-text-muted);
+}
+
+@media (min-width: 1025px) {
+  .pn-shell.collapsed {
+    grid-template-columns: 68px 1fr;
+  }
+  .pn-shell.collapsed .pn-sidebar .brand {
+    padding: 0 10px;
+    justify-content: center;
+  }
+  .pn-shell.collapsed .pn-sidebar .brand .wordmark,
+  .pn-shell.collapsed .pn-sidebar .pn-store,
+  .pn-shell.collapsed .pn-sidebar .nav-eyebrow,
+  .pn-shell.collapsed .pn-sidebar .pn-nav a > span:not(.badge),
+  .pn-shell.collapsed .pn-sidebar .pn-nav .navsoon > span:not(.tag),
+  .pn-shell.collapsed .pn-sidebar .pn-nav .navsoon .tag,
+  .pn-shell.collapsed .pn-sidebar .foot .admin .meta,
+  .pn-shell.collapsed .pn-sidebar .foot .sair span,
+  .pn-shell.collapsed .pn-sidebar .foot .sair {
+    display: none;
+  }
+  .pn-shell.collapsed .pn-sidebar .pn-nav a,
+  .pn-shell.collapsed .pn-sidebar .pn-nav .navsoon {
+    justify-content: center;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .pn-shell.collapsed .pn-sidebar .pn-nav a .badge {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+  }
+  .pn-shell.collapsed .pn-sidebar .pn-nav a {
+    position: relative;
+  }
+  .pn-shell.collapsed .pn-sidebar .foot {
+    padding: 10px;
+  }
+  .pn-shell.collapsed .pn-sidebar .foot .admin {
+    justify-content: center;
+  }
+}
+

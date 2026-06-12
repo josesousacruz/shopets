@@ -32,6 +32,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Search,
   Bell,
   Moon,
@@ -40,6 +42,7 @@ import {
 } from "lucide-react";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel } from "~/lib/painel.server";
+import { getSidebarCollapsed, setSidebarCollapsed } from "~/lib/painel-prefs";
 import painelStyles from "~/styles/painel.css?url";
 import contaStyles from "~/styles/conta.css?url";
 
@@ -226,8 +229,19 @@ export default function PainelLayout() {
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [collapsed, setCollapsedState] = useState(false);
   const crumbs = useBreadcrumbs(location.pathname);
   const initial = (user.name?.[0] ?? "S").toUpperCase();
+
+  useEffect(() => {
+    setCollapsedState(getSidebarCollapsed());
+  }, []);
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsedState(next);
+    setSidebarCollapsed(next);
+  };
 
   useEffect(() => {
     setNavOpen(false);
@@ -245,7 +259,7 @@ export default function PainelLayout() {
   }, []);
 
   return (
-    <div className={`pn-shell${navOpen ? " nav-open" : ""}`}>
+    <div className={`pn-shell${navOpen ? " nav-open" : ""}${collapsed ? " collapsed" : ""}`}>
       <div className="pn-backdrop" onClick={() => setNavOpen(false)} aria-hidden />
 
       <aside className="pn-sidebar">
@@ -257,6 +271,15 @@ export default function PainelLayout() {
             Shopets
             <small>Admin</small>
           </span>
+          <button
+            type="button"
+            className="brand-toggle"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir" : "Recolher"}
+          >
+            {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
+          </button>
         </div>
 
         <div className="pn-store">
