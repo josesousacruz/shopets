@@ -188,6 +188,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/permissoes', [\App\Http\Controllers\Api\V1\Painel\PermissaoAdminController::class, 'index']);
             Route::apiResource('papeis', \App\Http\Controllers\Api\V1\Painel\PapelAdminController::class)
                 ->parameters(['papeis' => 'papel']);
+
+            // Usuários do painel
+            Route::apiResource('usuarios', \App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class)
+                ->parameters(['usuarios' => 'usuario']);
+            Route::post('/usuarios/{usuario}/toggle', [\App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class, 'toggle']);
         });
     });
 });
