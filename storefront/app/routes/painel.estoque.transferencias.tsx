@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remi
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { ArrowRightLeft, ChevronLeft } from "lucide-react";
+import { useActionFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel } from "~/lib/painel.server";
 
@@ -33,10 +34,10 @@ export async function action({ request: req }: ActionFunctionArgs) {
   const observacao = String(fd.get("observacao") ?? "").trim() || undefined;
 
   if (!de || !para) {
-    return json({ error: "Selecione depósito de origem e destino." }, { status: 422 });
+    return json({ erro: "Selecione depósito de origem e destino." }, { status: 422 });
   }
   if (de === para) {
-    return json({ error: "Origem e destino precisam ser diferentes." }, { status: 422 });
+    return json({ erro: "Origem e destino precisam ser diferentes." }, { status: 422 });
   }
 
   const itens: { produto_variacao_id: number; qtd: number }[] = [];
@@ -49,17 +50,17 @@ export async function action({ request: req }: ActionFunctionArgs) {
   }
 
   if (itens.length === 0) {
-    return json({ error: "Informe ao menos uma quantidade a transferir." }, { status: 422 });
+    return json({ erro: "Informe ao menos uma quantidade a transferir." }, { status: 422 });
   }
 
   try {
     await painel.estoque.transferir(token, { de, para, itens, observacao });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Falha ao transferir.";
-    return json({ error: msg }, { status: 422 });
+    return json({ erro: msg }, { status: 422 });
   }
 
-  return redirect("/painel/estoque");
+  return redirect("/painel/estoque?feedback=transferencia");
 }
 
 export default function TransferenciasIndex() {
@@ -68,6 +69,7 @@ export default function TransferenciasIndex() {
   const [searchParams] = useSearchParams();
   const nav = useNavigation();
   const enviando = nav.state === "submitting";
+  useActionFeedback(actionData);
 
   return (
     <div>
@@ -172,9 +174,9 @@ export default function TransferenciasIndex() {
             </table>
           </div>
 
-          {actionData && "error" in actionData ? (
+          {actionData && "erro" in actionData ? (
             <p className="pn-form-err" style={{ marginTop: 8 }}>
-              {actionData.error}
+              {actionData.erro}
             </p>
           ) : null}
 

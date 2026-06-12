@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remi
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
 import { ClipboardList, ChevronLeft, Plus } from "lucide-react";
+import { useActionFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel } from "~/lib/painel.server";
 
@@ -42,15 +43,15 @@ export async function action({ request: req }: ActionFunctionArgs) {
   const observacoes = String(fd.get("observacoes") ?? "").trim() || undefined;
 
   if (!deposito_id) {
-    return json({ error: "Escolha um depósito." }, { status: 422 });
+    return json({ erro: "Escolha um depósito." }, { status: 422 });
   }
 
   try {
     const r = await painel.estoque.inventarios.create(token, { deposito_id, observacoes });
-    return redirect(`/painel/estoque/inventario/${r.data.id}`);
+    return redirect(`/painel/estoque/inventario/${r.data.id}?feedback=create`);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Falha ao abrir inventário.";
-    return json({ error: msg }, { status: 422 });
+    return json({ erro: msg }, { status: 422 });
   }
 }
 
@@ -58,6 +59,7 @@ export default function InventariosIndex() {
   const { inventarios, meta, depositos, abrindo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
+  useActionFeedback(actionData);
 
   return (
     <div>
@@ -172,8 +174,8 @@ export default function InventariosIndex() {
                   <label htmlFor="observacoes">Observações</label>
                   <textarea id="observacoes" name="observacoes" rows={3} maxLength={2000} />
                 </div>
-                {actionData && "error" in actionData ? (
-                  <p className="pn-form-err">{actionData.error}</p>
+                {actionData && "erro" in actionData ? (
+                  <p className="pn-form-err">{actionData.erro}</p>
                 ) : null}
                 <p className="pn-list-meta">
                   Ao abrir, todos os SKUs com saldo no depósito serão carregados como linhas de contagem.

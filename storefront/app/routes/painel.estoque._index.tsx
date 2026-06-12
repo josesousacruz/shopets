@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remi
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { Filter, AlertTriangle, Pencil, History, ArrowRightLeft } from "lucide-react";
+import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel } from "~/lib/painel.server";
 
@@ -37,7 +38,7 @@ export async function action({ request: req }: ActionFunctionArgs) {
   const intent = fd.get("intent");
 
   if (intent !== "ajustar") {
-    return json({ error: "Operação desconhecida." }, { status: 400 });
+    return json({ erro: "Operação desconhecida." }, { status: 400 });
   }
 
   const produto_variacao_id = Number(fd.get("produto_variacao_id"));
@@ -46,20 +47,21 @@ export async function action({ request: req }: ActionFunctionArgs) {
   const motivo = String(fd.get("motivo") ?? "").trim();
 
   if (!produto_variacao_id || !deposito_id || !qtd_delta || !motivo) {
-    return json({ error: "Preencha todos os campos do ajuste." }, { status: 422 });
+    return json({ erro: "Preencha todos os campos do ajuste." }, { status: 422 });
   }
 
   try {
     await painel.estoque.ajustar(token, { produto_variacao_id, deposito_id, qtd_delta, motivo });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Falha ao ajustar saldo.";
-    return json({ error: msg }, { status: 422 });
+    return json({ erro: msg }, { status: 422 });
   }
 
-  // remove ?ajustar=... e mantém demais filtros
+  // remove ?ajustar=... e mantém demais filtros, sinaliza feedback
   const url = new URL(req.url);
   url.searchParams.delete("ajustar");
-  return redirect(url.pathname + (url.search || ""));
+  url.searchParams.set("feedback", "ajuste");
+  return redirect(url.pathname + "?" + url.searchParams.toString());
 }
 
 export default function EstoqueIndex() {
@@ -68,6 +70,8 @@ export default function EstoqueIndex() {
   const [searchParams] = useSearchParams();
   const nav = useNavigation();
   const enviando = nav.state === "submitting";
+  useActionFeedback(actionData);
+  useFlashFeedback();
 
   const queryString = (() => {
     const cleaned = new URLSearchParams(searchParams);
@@ -237,8 +241,8 @@ export default function EstoqueIndex() {
                   <label htmlFor="motivo">Motivo</label>
                   <input id="motivo" name="motivo" required maxLength={255} />
                 </div>
-                {actionData && "error" in actionData ? (
-                  <p className="pn-form-err">{actionData.error}</p>
+                {actionData && "erro" in actionData ? (
+                  <p className="pn-form-err">{actionData.erro}</p>
                 ) : null}
               </div>
               <div className="pn-drawer-foot">

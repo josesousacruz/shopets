@@ -1,6 +1,15 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import {
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
+  useSubmit,
+} from "@remix-run/react";
+import type { MouseEvent } from "react";
 import {
   CalendarRange,
   Copy,
@@ -15,7 +24,9 @@ import {
 import { EmptyState } from "~/components/painel/EmptyState";
 import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge, type StatusTone } from "~/components/painel/StatusBadge";
+import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { confirmDestrutivo, toastInfo } from "~/lib/painel-swal";
 import { painel, PainelValidationError, type CupomAdmin } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Cupons — Painel Shopets" }];
@@ -108,36 +119,18 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (intent === "delete") {
       await painel.cupons.remove(token, String(form.get("id")));
     } else if (intent === "duplicate") {
-      const id = String(form.get("id"));
-      const list = await painel.cupons.list(token);
-      const atual = list.data.find((c) => String(c.id) === id);
-      if (!atual) return json({ erro: "Cupom não encontrado." }, { status: 404 });
+      const snap = parseSnapshotCupom(form);
+      if (!snap) return json({ erro: "Snapshot ausente." }, { status: 400 });
       const sufixo = Math.random().toString(36).slice(2, 6).toUpperCase();
       await painel.cupons.create(token, {
-        codigo: `${atual.codigo}-${sufixo}`,
-        tipo: atual.tipo,
-        valor: atual.valor,
-        valor_minimo_pedido: atual.valor_minimo_pedido,
-        valido_de: atual.valido_de,
-        valido_ate: atual.valido_ate,
-        uso_maximo: atual.uso_maximo,
+        ...snap,
+        codigo: `${snap.codigo}-${sufixo}`,
         ativo: false,
       });
     } else if (intent === "toggle") {
-      const id = String(form.get("id"));
-      const list = await painel.cupons.list(token);
-      const atual = list.data.find((c) => String(c.id) === id);
-      if (!atual) return json({ erro: "Cupom não encontrado." }, { status: 404 });
-      await painel.cupons.update(token, id, {
-        codigo: atual.codigo,
-        tipo: atual.tipo,
-        valor: atual.valor,
-        valor_minimo_pedido: atual.valor_minimo_pedido,
-        valido_de: atual.valido_de,
-        valido_ate: atual.valido_ate,
-        uso_maximo: atual.uso_maximo,
-        ativo: !atual.ativo,
-      });
+      const snap = parseSnapshotCupom(form);
+      if (!snap) return json({ erro: "Snapshot ausente." }, { status: 400 });
+      await painel.cupons.update(token, String(form.get("id")), { ...snap, ativo: !snap.ativo });
     } else {
       return json({ erro: "Ação inválida." }, { status: 400 });
     }
@@ -148,16 +141,72 @@ export async function action({ request }: ActionFunctionArgs) {
     throw err;
   }
 
-  return redirect("/painel/cupons");
+  const url = new URL(request.url);
+  const destino = intent === "create" || intent === "update" ? "/painel/cupons" : url.pathname + url.search;
+  const sep = destino.includes("?") ? "&" : "?";
+  return redirect(`${destino}${sep}feedback=${intent}`);
+}
+
+function parseSnapshotCupom(form: FormData): {
+  codigo: string;
+  tipo: CupomAdmin["tipo"];
+  valor: number;
+  valor_minimo_pedido: number;
+  valido_de: string | null;
+  valido_ate: string | null;
+  uso_maximo: number | null;
+  ativo: boolean;
+} | null {
+  const raw = String(form.get("snapshot") ?? "");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 export default function CuponsIndex() {
   const { cupons, abrindo, editando } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
+  const submit = useSubmit();
+  const nav = useNavigation();
+  const enviando = nav.state === "submitting";
+  useActionFeedback(actionData);
+  useFlashFeedback();
   const q = searchParams.get("q")?.toUpperCase() ?? "";
   const filtroStatus = (searchParams.get("status") ?? "") as StatusCupom | "";
   const filtroTipo = (searchParams.get("tipo") ?? "") as CupomAdmin["tipo"] | "";
+
+  const snapshotCupom = (c: CupomAdmin) =>
+    JSON.stringify({
+      codigo: c.codigo,
+      tipo: c.tipo,
+      valor: c.valor,
+      valor_minimo_pedido: c.valor_minimo_pedido,
+      valido_de: c.valido_de,
+      valido_ate: c.valido_ate,
+      uso_maximo: c.uso_maximo,
+      ativo: c.ativo,
+    });
+
+  const handleExcluir = async (e: MouseEvent<HTMLButtonElement>, c: CupomAdmin) => {
+    e.preventDefault();
+    const ok = await confirmDestrutivo({
+      titulo: `Excluir cupom "${c.codigo}"?`,
+      mensagem:
+        c.usos_atuais > 0
+          ? `Este cupom já foi usado ${c.usos_atuais} vez(es). O histórico será preservado, mas o código não estará mais disponível.`
+          : "O código será removido permanentemente.",
+      confirmar: "Excluir",
+    });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.set("_intent", "delete");
+    fd.set("id", String(c.id));
+    submit(fd, { method: "post", replace: true });
+  };
 
   const comStatus = cupons.map((c) => ({ ...c, status: statusCupom(c) }));
   const visiveis = comStatus.filter(
@@ -329,24 +378,24 @@ export default function CuponsIndex() {
                       <Form method="post" replace style={{ display: "inline" }}>
                         <input type="hidden" name="_intent" value="duplicate" />
                         <input type="hidden" name="id" value={c.id} />
-                        <button className="pn-icon-btn" title="Duplicar (gera novo código)">
+                        <input type="hidden" name="snapshot" value={snapshotCupom(c)} />
+                        <button
+                          className="pn-icon-btn"
+                          title="Duplicar (gera novo código inativo)"
+                          disabled={enviando}
+                        >
                           <Sparkles size={14} />
                         </button>
                       </Form>
-                      <Form
-                        method="post"
-                        replace
-                        style={{ display: "inline" }}
-                        onSubmit={(e) => {
-                          if (!window.confirm(`Excluir o cupom "${c.codigo}"?`)) e.preventDefault();
-                        }}
+                      <button
+                        type="button"
+                        className="pn-icon-btn danger"
+                        title="Excluir"
+                        disabled={enviando}
+                        onClick={(e) => handleExcluir(e, c)}
                       >
-                        <input type="hidden" name="_intent" value="delete" />
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="pn-icon-btn danger" title="Excluir">
-                          <Trash2 size={14} />
-                        </button>
-                      </Form>
+                        <Trash2 size={14} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -370,6 +419,7 @@ function CopyCodeButton({ codigo }: { codigo: string }) {
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(codigo);
+          toastInfo(`Código ${codigo} copiado.`);
         } catch {
           /* sem feedback se navegador bloquear */
         }
@@ -515,16 +565,24 @@ function DrawerCupom({ editando }: { editando: CupomAdmin | null }) {
               </p>
             ) : null}
           </div>
-          <div className="pn-drawer-foot">
-            <Link to="/painel/cupons" className="pn-btn-sm">
-              Cancelar
-            </Link>
-            <button className="pn-btn-sm mint">
-              {editando ? "Salvar cupom" : "Criar cupom"}
-            </button>
-          </div>
+          <DrawerFootCupom editando={!!editando} />
         </Form>
       </div>
+    </div>
+  );
+}
+
+function DrawerFootCupom({ editando }: { editando: boolean }) {
+  const nav = useNavigation();
+  const enviando = nav.state === "submitting";
+  return (
+    <div className="pn-drawer-foot">
+      <Link to="/painel/cupons" className="pn-btn-sm">
+        Cancelar
+      </Link>
+      <button className="pn-btn-sm mint" disabled={enviando}>
+        {enviando ? "Salvando..." : editando ? "Salvar cupom" : "Criar cupom"}
+      </button>
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
 import { ArrowLeft } from "lucide-react";
+import { useActionFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { confirmDestrutivo, Swal } from "~/lib/painel-swal";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
 import { STATUS_LABEL } from "~/lib/pedido";
@@ -40,12 +42,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
       default:
         return json({ erro: "Ação inválida." }, { status: 400 });
     }
-    return json({ ok: true });
+    return json({ ok: acao, mensagem: mensagemPedido(acao) });
   } catch (err) {
     if (err instanceof PainelValidationError) {
       return json({ erro: err.message }, { status: err.status === 422 ? 422 : 400 });
     }
     throw err;
+  }
+}
+
+function mensagemPedido(acao: string): string {
+  switch (acao) {
+    case "separacao": return "Pedido movido para separação.";
+    case "enviar": return "Pedido marcado como enviado.";
+    case "entregar": return "Pedido marcado como entregue.";
+    case "cancelar": return "Pedido cancelado.";
+    default: return "Ação concluída.";
   }
 }
 
@@ -64,12 +76,67 @@ export default function PedidoDetalhe() {
   const { pedido } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
+  const submit = useSubmit();
   const busy = nav.state !== "idle";
+  useActionFeedback(actionData);
 
   const podeSeparar = pedido.status === "pago";
   const podeEnviar = pedido.status === "em_separacao";
   const podeEntregar = pedido.status === "enviado";
   const podeCancelar = !["entregue", "cancelado"].includes(pedido.status);
+
+  const moverSeparacao = () => {
+    const fd = new FormData();
+    fd.set("_acao", "separacao");
+    submit(fd, { method: "post", replace: true });
+  };
+
+  const moverEntregar = () => {
+    const fd = new FormData();
+    fd.set("_acao", "entregar");
+    submit(fd, { method: "post", replace: true });
+  };
+
+  const enviarComRastreio = async () => {
+    const r = await Swal.fire({
+      title: "Marcar como enviado",
+      input: "text",
+      inputLabel: "Código de rastreio (opcional)",
+      inputValue: pedido.codigo_rastreio ?? "",
+      inputPlaceholder: "Ex.: AA123456789BR",
+      showCancelButton: true,
+      confirmButtonText: "Enviar",
+      cancelButtonText: "Cancelar",
+    });
+    if (!r.isConfirmed) return;
+    const fd = new FormData();
+    fd.set("_acao", "enviar");
+    fd.set("codigo_rastreio", String(r.value ?? ""));
+    submit(fd, { method: "post", replace: true });
+  };
+
+  const cancelarPedido = async () => {
+    const ok = await confirmDestrutivo({
+      titulo: `Cancelar pedido ${pedido.numero}?`,
+      mensagem: "Itens reservados retornam ao estoque. Se o pedido estava pago, o estorno é solicitado.",
+      confirmar: "Cancelar pedido",
+      cancelar: "Voltar",
+    });
+    if (!ok) return;
+    const motivoR = await Swal.fire({
+      title: "Motivo do cancelamento",
+      input: "textarea",
+      inputPlaceholder: "Cliente desistiu, falta de estoque, etc.",
+      showCancelButton: true,
+      confirmButtonText: "Cancelar pedido",
+      cancelButtonText: "Voltar",
+    });
+    if (!motivoR.isConfirmed) return;
+    const fd = new FormData();
+    fd.set("_acao", "cancelar");
+    fd.set("motivo", String(motivoR.value ?? ""));
+    submit(fd, { method: "post", replace: true });
+  };
 
   return (
     <div>
@@ -103,55 +170,41 @@ export default function PedidoDetalhe() {
         <h2>Ações</h2>
         <p className="card-sub">Avance o pedido no fluxo de atendimento.</p>
         <div className="pn-actions-bar">
-          <Form method="post">
-            <input type="hidden" name="_acao" value="separacao" />
-            <button type="submit" className="pn-btn-sm mint" disabled={!podeSeparar || busy}>
-              Em separação
-            </button>
-          </Form>
-
-          <Form
-            method="post"
-            onSubmit={(e) => {
-              const cod = window.prompt("Código de rastreio (opcional):", pedido.codigo_rastreio ?? "");
-              if (cod === null) {
-                e.preventDefault();
-                return;
-              }
-              (e.currentTarget.elements.namedItem("codigo_rastreio") as HTMLInputElement).value = cod;
-            }}
+          <button
+            type="button"
+            className="pn-btn-sm mint"
+            disabled={!podeSeparar || busy}
+            onClick={moverSeparacao}
           >
-            <input type="hidden" name="_acao" value="enviar" />
-            <input type="hidden" name="codigo_rastreio" value="" />
-            <button type="submit" className="pn-btn-sm ink" disabled={!podeEnviar || busy}>
-              Enviar
-            </button>
-          </Form>
+            {busy ? "Processando..." : "Em separação"}
+          </button>
 
-          <Form method="post">
-            <input type="hidden" name="_acao" value="entregar" />
-            <button type="submit" className="pn-btn-sm mint" disabled={!podeEntregar || busy}>
-              Marcar entregue
-            </button>
-          </Form>
-
-          <Form
-            method="post"
-            onSubmit={(e) => {
-              if (!window.confirm("Cancelar este pedido?")) {
-                e.preventDefault();
-                return;
-              }
-              const motivo = window.prompt("Motivo (opcional):", "") ?? "";
-              (e.currentTarget.elements.namedItem("motivo") as HTMLInputElement).value = motivo;
-            }}
+          <button
+            type="button"
+            className="pn-btn-sm ink"
+            disabled={!podeEnviar || busy}
+            onClick={enviarComRastreio}
           >
-            <input type="hidden" name="_acao" value="cancelar" />
-            <input type="hidden" name="motivo" value="" />
-            <button type="submit" className="pn-btn-sm danger" disabled={!podeCancelar || busy}>
-              Cancelar
-            </button>
-          </Form>
+            {busy ? "Processando..." : "Enviar"}
+          </button>
+
+          <button
+            type="button"
+            className="pn-btn-sm mint"
+            disabled={!podeEntregar || busy}
+            onClick={moverEntregar}
+          >
+            {busy ? "Processando..." : "Marcar entregue"}
+          </button>
+
+          <button
+            type="button"
+            className="pn-btn-sm danger"
+            disabled={!podeCancelar || busy}
+            onClick={cancelarPedido}
+          >
+            {busy ? "Processando..." : "Cancelar"}
+          </button>
         </div>
       </div>
 

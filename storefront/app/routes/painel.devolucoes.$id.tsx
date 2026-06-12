@@ -1,8 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
 import { ArrowLeft } from "lucide-react";
+import { useActionFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { confirmAcao, confirmDestrutivo, Swal } from "~/lib/painel-swal";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
 import { DEVOLUCAO_LABEL } from "~/lib/pedido";
@@ -40,12 +42,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
       default:
         return json({ erro: "Ação inválida." }, { status: 400 });
     }
-    return json({ ok: true });
+    return json({ ok: acao, mensagem: mensagemAcao(acao) });
   } catch (err) {
     if (err instanceof PainelValidationError) {
       return json({ erro: err.message }, { status: err.status === 422 ? 422 : 400 });
     }
     throw err;
+  }
+}
+
+function mensagemAcao(acao: string): string {
+  switch (acao) {
+    case "aprovar": return "Devolução aprovada.";
+    case "rejeitar": return "Devolução rejeitada.";
+    case "receber": return "Devolução marcada como recebida.";
+    case "reembolsar": return "Reembolso solicitado.";
+    default: return "Ação concluída.";
   }
 }
 
@@ -64,7 +76,45 @@ export default function DevolucaoDetalhe() {
   const { devolucao: d } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
+  const submit = useSubmit();
   const busy = nav.state !== "idle";
+  useActionFeedback(actionData);
+
+  const transitar = async (
+    acao: "aprovar" | "rejeitar" | "receber" | "reembolsar",
+    confirmTitulo?: string,
+    confirmMensagem?: string,
+    pedirObs?: boolean,
+  ) => {
+    if (confirmTitulo) {
+      const ok =
+        acao === "rejeitar"
+          ? await confirmDestrutivo({
+              titulo: confirmTitulo,
+              mensagem: confirmMensagem,
+              confirmar: "Rejeitar",
+            })
+          : await confirmAcao({ titulo: confirmTitulo, mensagem: confirmMensagem });
+      if (!ok) return;
+    }
+    let observacao = "";
+    if (pedirObs) {
+      const r = await Swal.fire({
+        title: "Observação interna (opcional)",
+        input: "textarea",
+        inputPlaceholder: "Motivo da rejeição, contato com o cliente, etc.",
+        showCancelButton: true,
+        confirmButtonText: "Confirmar",
+        cancelButtonText: "Cancelar",
+      });
+      if (!r.isConfirmed) return;
+      observacao = String(r.value ?? "");
+    }
+    const fd = new FormData();
+    fd.set("_acao", acao);
+    if (pedirObs) fd.set("observacao_admin", observacao);
+    submit(fd, { method: "post", replace: true });
+  };
 
   // Máquina de estados (espelha o backend).
   const podeAprovar = d.status === "solicitada";
@@ -106,51 +156,54 @@ export default function DevolucaoDetalhe() {
           </p>
         ) : (
           <div className="pn-actions-bar">
-            <Form method="post">
-              <input type="hidden" name="_acao" value="aprovar" />
-              <button type="submit" className="pn-btn-sm mint" disabled={!podeAprovar || busy}>
-                Aprovar
-              </button>
-            </Form>
-
-            <Form method="post">
-              <input type="hidden" name="_acao" value="receber" />
-              <button type="submit" className="pn-btn-sm ink" disabled={!podeReceber || busy}>
-                Marcar recebida
-              </button>
-            </Form>
-
-            <Form
-              method="post"
-              onSubmit={(e) => {
-                if (!window.confirm("Reembolsar esta devolução? O estorno será solicitado ao gateway.")) {
-                  e.preventDefault();
-                }
-              }}
+            <button
+              type="button"
+              className="pn-btn-sm mint"
+              disabled={!podeAprovar || busy}
+              onClick={() => transitar("aprovar")}
             >
-              <input type="hidden" name="_acao" value="reembolsar" />
-              <button type="submit" className="pn-btn-sm mint" disabled={!podeReembolsar || busy}>
-                Reembolsar
-              </button>
-            </Form>
+              {busy ? "Processando..." : "Aprovar"}
+            </button>
 
-            <Form
-              method="post"
-              onSubmit={(e) => {
-                if (!window.confirm("Rejeitar esta devolução?")) {
-                  e.preventDefault();
-                  return;
-                }
-                const obs = window.prompt("Observação (opcional):", "") ?? "";
-                (e.currentTarget.elements.namedItem("observacao_admin") as HTMLInputElement).value = obs;
-              }}
+            <button
+              type="button"
+              className="pn-btn-sm ink"
+              disabled={!podeReceber || busy}
+              onClick={() => transitar("receber")}
             >
-              <input type="hidden" name="_acao" value="rejeitar" />
-              <input type="hidden" name="observacao_admin" value="" />
-              <button type="submit" className="pn-btn-sm danger" disabled={!podeRejeitar || busy}>
-                Rejeitar
-              </button>
-            </Form>
+              {busy ? "Processando..." : "Marcar recebida"}
+            </button>
+
+            <button
+              type="button"
+              className="pn-btn-sm mint"
+              disabled={!podeReembolsar || busy}
+              onClick={() =>
+                transitar(
+                  "reembolsar",
+                  "Reembolsar esta devolução?",
+                  "O estorno será solicitado ao gateway de pagamento.",
+                )
+              }
+            >
+              {busy ? "Processando..." : "Reembolsar"}
+            </button>
+
+            <button
+              type="button"
+              className="pn-btn-sm danger"
+              disabled={!podeRejeitar || busy}
+              onClick={() =>
+                transitar(
+                  "rejeitar",
+                  "Rejeitar esta devolução?",
+                  "O cliente será notificado.",
+                  true,
+                )
+              }
+            >
+              {busy ? "Processando..." : "Rejeitar"}
+            </button>
           </div>
         )}
       </div>

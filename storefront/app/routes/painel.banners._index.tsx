@@ -6,7 +6,16 @@ import {
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
 } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import {
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
+  useSubmit,
+} from "@remix-run/react";
+import type { MouseEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -24,7 +33,9 @@ import {
 import { EmptyState } from "~/components/painel/EmptyState";
 import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge, type StatusTone } from "~/components/painel/StatusBadge";
+import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { confirmDestrutivo } from "~/lib/painel-swal";
 import {
   painel,
   PainelValidationError,
@@ -135,35 +146,16 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (intent === "delete") {
       await painel.banners.remove(token, String(form.get("id")));
     } else if (intent === "toggle") {
-      const id = String(form.get("id"));
-      const list = await painel.banners.list(token);
-      const atual = list.data.find((b) => String(b.id) === id);
-      if (!atual) return json({ erro: "Banner não encontrado." }, { status: 404 });
-      await painel.banners.update(token, id, {
-        titulo: atual.titulo,
-        subtitulo: atual.subtitulo,
-        imagem_path: atual.imagem_path,
-        link: atual.link,
-        ordem: atual.ordem,
-        ativo: !atual.ativo,
-        vigencia_de: atual.vigencia_de,
-        vigencia_ate: atual.vigencia_ate,
-      });
+      const snap = parseSnapshotBanner(form);
+      if (!snap) return json({ erro: "Snapshot ausente." }, { status: 400 });
+      await painel.banners.update(token, String(form.get("id")), { ...snap, ativo: !snap.ativo });
     } else if (intent === "move") {
-      const id = String(form.get("id"));
+      const snap = parseSnapshotBanner(form);
+      if (!snap) return json({ erro: "Snapshot ausente." }, { status: 400 });
       const delta = Number(form.get("delta") ?? 0);
-      const list = await painel.banners.list(token);
-      const atual = list.data.find((b) => String(b.id) === id);
-      if (!atual) return json({ erro: "Banner não encontrado." }, { status: 404 });
-      await painel.banners.update(token, id, {
-        titulo: atual.titulo,
-        subtitulo: atual.subtitulo,
-        imagem_path: atual.imagem_path,
-        link: atual.link,
-        ordem: Math.max(0, atual.ordem + delta),
-        ativo: atual.ativo,
-        vigencia_de: atual.vigencia_de,
-        vigencia_ate: atual.vigencia_ate,
+      await painel.banners.update(token, String(form.get("id")), {
+        ...snap,
+        ordem: Math.max(0, snap.ordem + delta),
       });
     } else {
       return json({ erro: "Ação inválida." }, { status: 400 });
@@ -175,7 +167,29 @@ export async function action({ request }: ActionFunctionArgs) {
     throw err;
   }
 
-  return redirect("/painel/banners");
+  const url = new URL(request.url);
+  const destino = intent === "create" || intent === "update" ? "/painel/banners" : url.pathname + url.search;
+  const sep = destino.includes("?") ? "&" : "?";
+  return redirect(`${destino}${sep}feedback=${intent}`);
+}
+
+function parseSnapshotBanner(form: FormData): {
+  titulo: string;
+  subtitulo: string | null;
+  imagem_path: string | null;
+  link: string | null;
+  ordem: number;
+  ativo: boolean;
+  vigencia_de: string | null;
+  vigencia_ate: string | null;
+} | null {
+  const raw = String(form.get("snapshot") ?? "");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 function dataInput(iso: string | null): string {
@@ -192,7 +206,38 @@ export default function BannersIndex() {
   const { banners, abrindo, editando } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
+  const submit = useSubmit();
+  const nav = useNavigation();
+  const enviando = nav.state === "submitting";
+  useActionFeedback(actionData);
+  useFlashFeedback();
   const filtro = (searchParams.get("status") ?? "") as StatusBanner | "";
+
+  const snapshotBanner = (b: BannerAdmin) =>
+    JSON.stringify({
+      titulo: b.titulo,
+      subtitulo: b.subtitulo,
+      imagem_path: b.imagem_path,
+      link: b.link,
+      ordem: b.ordem,
+      ativo: b.ativo,
+      vigencia_de: b.vigencia_de,
+      vigencia_ate: b.vigencia_ate,
+    });
+
+  const handleExcluir = async (e: MouseEvent<HTMLButtonElement>, b: BannerAdmin) => {
+    e.preventDefault();
+    const ok = await confirmDestrutivo({
+      titulo: `Excluir banner "${b.titulo}"?`,
+      mensagem: "Ele sai imediatamente da loja e não pode ser restaurado.",
+      confirmar: "Excluir",
+    });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.set("_intent", "delete");
+    fd.set("id", String(b.id));
+    submit(fd, { method: "post", replace: true });
+  };
 
   const comStatus = banners.map((b) => ({ ...b, status: statusBanner(b) }));
   const visiveis = filtro ? comStatus.filter((b) => b.status === filtro) : comStatus;
@@ -321,7 +366,12 @@ export default function BannersIndex() {
                   <input type="hidden" name="_intent" value="move" />
                   <input type="hidden" name="id" value={b.id} />
                   <input type="hidden" name="delta" value="-1" />
-                  <button className="pn-icon-btn" title="Subir na home" disabled={b.ordem === 0}>
+                  <input type="hidden" name="snapshot" value={snapshotBanner(b)} />
+                  <button
+                    className="pn-icon-btn"
+                    title="Subir na home"
+                    disabled={b.ordem === 0 || enviando}
+                  >
                     <ArrowUp size={14} />
                   </button>
                 </Form>
@@ -329,14 +379,20 @@ export default function BannersIndex() {
                   <input type="hidden" name="_intent" value="move" />
                   <input type="hidden" name="id" value={b.id} />
                   <input type="hidden" name="delta" value="1" />
-                  <button className="pn-icon-btn" title="Descer na home">
+                  <input type="hidden" name="snapshot" value={snapshotBanner(b)} />
+                  <button className="pn-icon-btn" title="Descer na home" disabled={enviando}>
                     <ArrowDown size={14} />
                   </button>
                 </Form>
                 <Form method="post" replace style={{ display: "inline" }}>
                   <input type="hidden" name="_intent" value="toggle" />
                   <input type="hidden" name="id" value={b.id} />
-                  <button className="pn-icon-btn" title={b.ativo ? "Pausar" : "Ativar"}>
+                  <input type="hidden" name="snapshot" value={snapshotBanner(b)} />
+                  <button
+                    className="pn-icon-btn"
+                    title={b.ativo ? "Pausar" : "Ativar"}
+                    disabled={enviando}
+                  >
                     {b.ativo ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </Form>
@@ -348,20 +404,15 @@ export default function BannersIndex() {
                 >
                   <Pencil size={14} />
                 </Link>
-                <Form
-                  method="post"
-                  replace
-                  style={{ display: "inline" }}
-                  onSubmit={(e) => {
-                    if (!window.confirm(`Excluir o banner "${b.titulo}"?`)) e.preventDefault();
-                  }}
+                <button
+                  type="button"
+                  className="pn-icon-btn danger"
+                  title="Excluir"
+                  disabled={enviando}
+                  onClick={(e) => handleExcluir(e, b)}
                 >
-                  <input type="hidden" name="_intent" value="delete" />
-                  <input type="hidden" name="id" value={b.id} />
-                  <button className="pn-icon-btn danger" title="Excluir">
-                    <Trash2 size={14} />
-                  </button>
-                </Form>
+                  <Trash2 size={14} />
+                </button>
               </div>
             </article>
           ))}
@@ -523,16 +574,24 @@ function DrawerBanner({ editando }: { editando: BannerAdmin | null }) {
               </div>
             </div>
           </div>
-          <div className="pn-drawer-foot">
-            <Link to="/painel/banners" className="pn-btn-sm">
-              Cancelar
-            </Link>
-            <button className="pn-btn-sm mint">
-              {editando ? "Salvar banner" : "Criar banner"}
-            </button>
-          </div>
+          <DrawerFootBanner editando={!!editando} />
         </Form>
       </div>
+    </div>
+  );
+}
+
+function DrawerFootBanner({ editando }: { editando: boolean }) {
+  const nav = useNavigation();
+  const enviando = nav.state === "submitting";
+  return (
+    <div className="pn-drawer-foot">
+      <Link to="/painel/banners" className="pn-btn-sm">
+        Cancelar
+      </Link>
+      <button className="pn-btn-sm mint" disabled={enviando}>
+        {enviando ? "Salvando..." : editando ? "Salvar banner" : "Criar banner"}
+      </button>
     </div>
   );
 }

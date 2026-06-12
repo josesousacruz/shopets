@@ -1,8 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
 import { ChevronLeft, ClipboardList, CheckCircle2, XCircle } from "lucide-react";
+import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { confirmAcao, confirmDestrutivo } from "~/lib/painel-swal";
 import { painel } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Inventário — Painel Shopets" }];
@@ -39,35 +41,67 @@ export async function action({ request: req, params }: ActionFunctionArgs) {
         saldo_contado,
         observacoes,
       });
-      return json({ ok: true });
+      return json({ ok: "contar" });
     }
     if (intent === "concluir") {
       await painel.estoque.inventarios.concluir(token, id);
-      return redirect(`/painel/estoque/inventario/${id}`);
+      return redirect(`/painel/estoque/inventario/${id}?feedback=concluir`);
     }
     if (intent === "cancelar") {
       await painel.estoque.inventarios.cancelar(token, id);
-      return redirect(`/painel/estoque/inventario/${id}`);
+      return redirect(`/painel/estoque/inventario/${id}?feedback=cancelar`);
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Falha na operação.";
-    return json({ error: msg }, { status: 422 });
+    return json({ erro: msg }, { status: 422 });
   }
 
-  return json({ error: "Intent inválida." }, { status: 400 });
+  return json({ erro: "Intent inválida." }, { status: 400 });
 }
 
 export default function InventarioDetalhe() {
   const { inventario } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
+  const submit = useSubmit();
   const enviando = nav.state === "submitting";
+  useActionFeedback(actionData);
+  useFlashFeedback();
 
   const ativo = inventario.status !== "concluido" && inventario.status !== "cancelado";
   const totalDiverg = inventario.contagens.filter(
     (c) => c.saldo_contado != null && (c.diferenca ?? 0) !== 0,
   ).length;
   const naoContadas = inventario.contagens.filter((c) => c.saldo_contado == null).length;
+
+  const concluir = async () => {
+    const ok = await confirmAcao({
+      titulo: "Concluir inventário?",
+      mensagem:
+        totalDiverg > 0
+          ? `Serão gerados ${totalDiverg} ajuste(s) de saldo por divergência.`
+          : "Sem divergências encontradas — o inventário ficará registrado como concluído.",
+      confirmar: "Concluir",
+      icone: "warning",
+    });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.set("intent", "concluir");
+    submit(fd, { method: "post", replace: true });
+  };
+
+  const cancelar = async () => {
+    const ok = await confirmDestrutivo({
+      titulo: "Cancelar este inventário?",
+      mensagem: "As contagens registradas ficarão arquivadas, mas nenhum ajuste será aplicado.",
+      confirmar: "Cancelar inventário",
+      cancelar: "Voltar",
+    });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.set("intent", "cancelar");
+    submit(fd, { method: "post", replace: true });
+  };
 
   return (
     <div>
@@ -92,24 +126,28 @@ export default function InventarioDetalhe() {
         </div>
         {ativo ? (
           <div className="pn-head-actions" style={{ display: "flex", gap: 8 }}>
-            <Form method="post" replace>
-              <input type="hidden" name="intent" value="cancelar" />
-              <button className="pn-btn-sm" disabled={enviando}>
-                <XCircle size={14} /> Cancelar
-              </button>
-            </Form>
-            <Form method="post" replace>
-              <input type="hidden" name="intent" value="concluir" />
-              <button className="pn-btn-sm mint" disabled={enviando || naoContadas === inventario.contagens.length}>
-                <CheckCircle2 size={14} /> Concluir e ajustar
-              </button>
-            </Form>
+            <button
+              type="button"
+              className="pn-btn-sm"
+              disabled={enviando}
+              onClick={cancelar}
+            >
+              <XCircle size={14} /> {enviando ? "Aguarde..." : "Cancelar"}
+            </button>
+            <button
+              type="button"
+              className="pn-btn-sm mint"
+              disabled={enviando || naoContadas === inventario.contagens.length}
+              onClick={concluir}
+            >
+              <CheckCircle2 size={14} /> {enviando ? "Concluindo..." : "Concluir e ajustar"}
+            </button>
           </div>
         ) : null}
       </div>
 
-      {actionData && "error" in actionData ? (
-        <p className="pn-form-err">{actionData.error}</p>
+      {actionData && "erro" in actionData ? (
+        <p className="pn-form-err">{actionData.erro}</p>
       ) : null}
 
       <div className="pn-card pn-table-wrap">

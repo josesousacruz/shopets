@@ -1,6 +1,14 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import {
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
+  useSubmit,
+} from "@remix-run/react";
 import {
   ArrowDown,
   ArrowUp,
@@ -13,11 +21,13 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, type MouseEvent } from "react";
 import { EmptyState } from "~/components/painel/EmptyState";
 import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge } from "~/components/painel/StatusBadge";
+import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { confirmDestrutivo } from "~/lib/painel-swal";
 import { painel, PainelValidationError, type CategoriaAdmin } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Categorias — Painel Shopets" }];
@@ -37,10 +47,28 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
+function snapshotFromForm(form: FormData): {
+  nome: string;
+  ordem: number;
+  visivel_ecommerce: boolean;
+  id_categoria_pai: number | null;
+  descricao_seo: string | null;
+} | null {
+  const raw = String(form.get("snapshot") ?? "");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   const { token } = await requireAdmin(request);
   const form = await request.formData();
   const intent = String(form.get("_intent") ?? "");
+  const url = new URL(request.url);
+  const redirectTarget = url.pathname + url.search;
 
   const payload = () => ({
     nome: String(form.get("nome") ?? "").trim(),
@@ -58,29 +86,19 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (intent === "delete") {
       await painel.categorias.remove(token, String(form.get("id")));
     } else if (intent === "toggle") {
-      const id = String(form.get("id"));
-      const list = await painel.categorias.list(token);
-      const atual = list.data.find((c) => String(c.id) === id);
-      if (!atual) return json({ erro: "Categoria não encontrada." }, { status: 404 });
-      await painel.categorias.update(token, id, {
-        nome: atual.nome,
-        ordem: atual.ordem,
-        visivel_ecommerce: !atual.visivel_ecommerce,
-        id_categoria_pai: atual.id_categoria_pai,
-        descricao_seo: atual.descricao_seo,
+      const snap = snapshotFromForm(form);
+      if (!snap) return json({ erro: "Snapshot ausente." }, { status: 400 });
+      await painel.categorias.update(token, String(form.get("id")), {
+        ...snap,
+        visivel_ecommerce: !snap.visivel_ecommerce,
       });
     } else if (intent === "move") {
-      const id = String(form.get("id"));
+      const snap = snapshotFromForm(form);
+      if (!snap) return json({ erro: "Snapshot ausente." }, { status: 400 });
       const delta = Number(form.get("delta") ?? 0);
-      const list = await painel.categorias.list(token);
-      const atual = list.data.find((c) => String(c.id) === id);
-      if (!atual) return json({ erro: "Categoria não encontrada." }, { status: 404 });
-      await painel.categorias.update(token, id, {
-        nome: atual.nome,
-        ordem: Math.max(0, atual.ordem + delta),
-        visivel_ecommerce: atual.visivel_ecommerce,
-        id_categoria_pai: atual.id_categoria_pai,
-        descricao_seo: atual.descricao_seo,
+      await painel.categorias.update(token, String(form.get("id")), {
+        ...snap,
+        ordem: Math.max(0, snap.ordem + delta),
       });
     } else {
       return json({ erro: "Ação inválida." }, { status: 400 });
@@ -92,7 +110,9 @@ export async function action({ request }: ActionFunctionArgs) {
     throw err;
   }
 
-  return redirect("/painel/categorias");
+  const destino = intent === "create" || intent === "update" ? "/painel/categorias" : redirectTarget;
+  const sep = destino.includes("?") ? "&" : "?";
+  return redirect(`${destino}${sep}feedback=${intent}`);
 }
 
 function nivelDe(c: CategoriaAdmin, mapa: Map<number, CategoriaAdmin>): number {
@@ -110,8 +130,39 @@ export default function CategoriasIndex() {
   const { categorias, abrindo, editando } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
+  const submit = useSubmit();
+  const nav = useNavigation();
+  const enviando = nav.state === "submitting";
+  useActionFeedback(actionData);
+  useFlashFeedback();
   const q = searchParams.get("q")?.toLowerCase() ?? "";
   const filtroStatus = searchParams.get("status") ?? "";
+
+  const snapshotCategoria = (c: CategoriaAdmin) =>
+    JSON.stringify({
+      nome: c.nome,
+      ordem: c.ordem,
+      visivel_ecommerce: c.visivel_ecommerce,
+      id_categoria_pai: c.id_categoria_pai,
+      descricao_seo: c.descricao_seo,
+    });
+
+  const handleExcluir = async (e: MouseEvent<HTMLButtonElement>, c: CategoriaAdmin) => {
+    e.preventDefault();
+    const ok = await confirmDestrutivo({
+      titulo: `Excluir "${c.nome}"?`,
+      mensagem:
+        (c.produtos_count ?? 0) > 0
+          ? `Esta categoria está vinculada a ${c.produtos_count} produto(s). Eles ficarão sem categoria.`
+          : "A categoria será removida permanentemente.",
+      confirmar: "Excluir",
+    });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.set("_intent", "delete");
+    fd.set("id", String(c.id));
+    submit(fd, { method: "post", replace: true });
+  };
 
   const mapa = useMemo(
     () => new Map(categorias.map((c) => [c.id, c] as const)),
@@ -224,10 +275,11 @@ export default function CategoriasIndex() {
                     <input type="hidden" name="_intent" value="move" />
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="delta" value="-1" />
+                    <input type="hidden" name="snapshot" value={snapshotCategoria(c)} />
                     <button
                       className="pn-icon-btn"
                       title="Subir"
-                      disabled={c.ordem === 0}
+                      disabled={c.ordem === 0 || enviando}
                     >
                       <ArrowUp size={14} />
                     </button>
@@ -236,16 +288,19 @@ export default function CategoriasIndex() {
                     <input type="hidden" name="_intent" value="move" />
                     <input type="hidden" name="id" value={c.id} />
                     <input type="hidden" name="delta" value="1" />
-                    <button className="pn-icon-btn" title="Descer">
+                    <input type="hidden" name="snapshot" value={snapshotCategoria(c)} />
+                    <button className="pn-icon-btn" title="Descer" disabled={enviando}>
                       <ArrowDown size={14} />
                     </button>
                   </Form>
                   <Form method="post" replace style={{ display: "inline" }}>
                     <input type="hidden" name="_intent" value="toggle" />
                     <input type="hidden" name="id" value={c.id} />
+                    <input type="hidden" name="snapshot" value={snapshotCategoria(c)} />
                     <button
                       className="pn-icon-btn"
                       title={c.visivel_ecommerce ? "Ocultar da loja" : "Tornar visível"}
+                      disabled={enviando}
                     >
                       {c.visivel_ecommerce ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -258,20 +313,15 @@ export default function CategoriasIndex() {
                   >
                     <Pencil size={14} />
                   </Link>
-                  <Form
-                    method="post"
-                    replace
-                    style={{ display: "inline" }}
-                    onSubmit={(e) => {
-                      if (!window.confirm(`Excluir a categoria "${c.nome}"?`)) e.preventDefault();
-                    }}
+                  <button
+                    type="button"
+                    className="pn-icon-btn danger"
+                    title="Excluir"
+                    disabled={enviando}
+                    onClick={(e) => handleExcluir(e, c)}
                   >
-                    <input type="hidden" name="_intent" value="delete" />
-                    <input type="hidden" name="id" value={c.id} />
-                    <button className="pn-icon-btn danger" title="Excluir">
-                      <Trash2 size={14} />
-                    </button>
-                  </Form>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             );
@@ -382,16 +432,24 @@ function DrawerCategoria({
               />
             </div>
           </div>
-          <div className="pn-drawer-foot">
-            <Link to="/painel/categorias" className="pn-btn-sm">
-              Cancelar
-            </Link>
-            <button className="pn-btn-sm mint">
-              {editando ? "Salvar alterações" : "Criar categoria"}
-            </button>
-          </div>
+          <DrawerFoot editando={!!editando} />
         </Form>
       </div>
+    </div>
+  );
+}
+
+function DrawerFoot({ editando }: { editando: boolean }) {
+  const nav = useNavigation();
+  const enviando = nav.state === "submitting";
+  return (
+    <div className="pn-drawer-foot">
+      <Link to="/painel/categorias" className="pn-btn-sm">
+        Cancelar
+      </Link>
+      <button className="pn-btn-sm mint" disabled={enviando}>
+        {enviando ? "Salvando..." : editando ? "Salvar alterações" : "Criar categoria"}
+      </button>
     </div>
   );
 }
