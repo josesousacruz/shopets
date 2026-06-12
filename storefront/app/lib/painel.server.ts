@@ -427,6 +427,46 @@ export const painel = {
       const suffix = qs.toString() ? `?${qs}` : "";
       return request<{ data: KardexLinha[] }>(`/painel/estoque/kardex/${variacaoId}${suffix}`, { token });
     },
+    inventarios: {
+      list: (token: string, params: { deposito_id?: number; status?: string } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.deposito_id) qs.set("deposito_id", String(params.deposito_id));
+        if (params.status) qs.set("status", params.status);
+        const suffix = qs.toString() ? `?${qs}` : "";
+        return request<{ data: InventarioListItem[]; meta: Meta }>(
+          `/painel/inventarios${suffix}`,
+          { token },
+        );
+      },
+      show: (token: string, id: number | string) =>
+        request<{ data: InventarioDetalhe }>(`/painel/inventarios/${id}`, { token }),
+      create: (token: string, body: Json) =>
+        request<{ data: InventarioDetalhe }>("/painel/inventarios", { method: "POST", token, body }),
+      contar: (token: string, id: number | string, body: Json) =>
+        request<{ data: InventarioContagemRow }>(
+          `/painel/inventarios/${id}/contagens`,
+          { method: "POST", token, body },
+        ),
+      concluir: (token: string, id: number | string) =>
+        request<{ data: InventarioDetalhe }>(
+          `/painel/inventarios/${id}/concluir`,
+          { method: "POST", token },
+        ),
+      cancelar: (token: string, id: number | string) =>
+        request<{ data: InventarioDetalhe }>(
+          `/painel/inventarios/${id}/cancelar`,
+          { method: "POST", token },
+        ),
+    },
+    curvaAbc: (token: string, params: { periodo_dias?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.periodo_dias) qs.set("periodo_dias", String(params.periodo_dias));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: CurvaAbcLinha[]; meta: CurvaAbcMeta }>(
+        `/painel/relatorios/curva-abc${suffix}`,
+        { token },
+      );
+    },
   },
 
   clientes: {
@@ -525,7 +565,7 @@ export interface SaldoEstoqueRow {
   variacao: {
     id_variacao: number;
     sku: string | null;
-    nome: string | null;
+    nome_variacao?: string | null;
     produto?: { nome: string };
   } | null;
   deposito: { id: number; nome: string } | null;
@@ -538,13 +578,63 @@ export interface DepositoItem {
   ativo: boolean;
 }
 
+export interface InventarioListItem {
+  id: number;
+  deposito_id: number;
+  status: string;
+  aberto_em: string | null;
+  finalizado_em: string | null;
+  observacoes: string | null;
+  deposito?: { id: number; nome: string } | null;
+  aberto_por?: { id: number; name: string } | null;
+}
+
+export interface InventarioContagemRow {
+  id: number;
+  inventario_id: number;
+  produto_variacao_id: number;
+  saldo_sistema: number;
+  saldo_contado: number | null;
+  diferenca: number | null;
+  observacoes: string | null;
+  variacao?: {
+    id_variacao: number;
+    sku: string | null;
+    produto?: { nome: string };
+  } | null;
+}
+
+export interface InventarioDetalhe extends InventarioListItem {
+  contagens: InventarioContagemRow[];
+}
+
+export interface CurvaAbcLinha {
+  id_produto: number;
+  produto: string;
+  qtd_total: number;
+  receita_total: number;
+  perc: number;
+  perc_acumulado: number;
+  classe: "A" | "B" | "C";
+}
+
+export interface CurvaAbcMeta {
+  periodo_dias: number;
+  desde: string;
+  receita_total: number;
+  contagem_total: number;
+  classes: { A: number; B: number; C: number };
+}
+
 export interface KardexLinha {
   id_movimentacao: number;
   deposito_id: number | null;
-  tipo: string;
-  origem: string;
+  id_produto_variacao: number | null;
+  tipo_movimentacao: string;
+  origem_type: string | null;
   quantidade: number;
-  observacao: string | null;
+  observacoes: string | null;
+  data_movimentacao: string | null;
   created_at: string;
 }
 

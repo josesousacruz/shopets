@@ -201,6 +201,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('/estoque/transferencias', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'transferir']);
             Route::get('/estoque/kardex/{variacao}', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'kardex']);
 
+            // Inventário
+            Route::get('/inventarios', [\App\Http\Controllers\Api\V1\Painel\InventarioAdminController::class, 'index']);
+            Route::post('/inventarios', [\App\Http\Controllers\Api\V1\Painel\InventarioAdminController::class, 'store']);
+            Route::get('/inventarios/{inventario}', [\App\Http\Controllers\Api\V1\Painel\InventarioAdminController::class, 'show']);
+            Route::post('/inventarios/{inventario}/contagens', [\App\Http\Controllers\Api\V1\Painel\InventarioAdminController::class, 'registrarContagem']);
+            Route::post('/inventarios/{inventario}/concluir', [\App\Http\Controllers\Api\V1\Painel\InventarioAdminController::class, 'concluir']);
+            Route::post('/inventarios/{inventario}/cancelar', [\App\Http\Controllers\Api\V1\Painel\InventarioAdminController::class, 'cancelar']);
+
+            // Curva ABC
+            Route::get('/relatorios/curva-abc', [\App\Http\Controllers\Api\V1\Painel\CurvaAbcController::class, 'index']);
+
             // Clientes
             Route::get('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'index']);
             Route::post('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'store']);
