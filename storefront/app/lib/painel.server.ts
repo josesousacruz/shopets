@@ -192,6 +192,7 @@ export interface CategoriaAdmin {
   visivel_ecommerce: boolean;
   ativo: boolean;
   id_categoria_pai: number | null;
+  produtos_count?: number;
 }
 
 export interface BannerAdmin {

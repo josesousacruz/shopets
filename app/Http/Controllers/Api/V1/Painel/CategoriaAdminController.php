@@ -14,13 +14,25 @@ class CategoriaAdminController extends Controller
     public function index(): JsonResponse
     {
         $categorias = Categoria::query()
+            ->withCount('produtos')
             ->orderBy('ordem')
             ->orderBy('nome')
-            ->get()
-            ->map(fn ($c) => $this->serialize($c))
-            ->all();
+            ->get();
 
-        return response()->json(['data' => $categorias]);
+        // Ordena pais primeiro com filhos imediatamente abaixo, mantendo ordem/nome.
+        $porPai = $categorias->groupBy(fn ($c) => $c->id_categoria_pai);
+        $arvore = collect();
+        $append = function ($paiId) use (&$append, $porPai, $arvore) {
+            foreach ($porPai->get($paiId, collect()) as $c) {
+                $arvore->push($c);
+                $append($c->id_categoria);
+            }
+        };
+        $append(null);
+
+        return response()->json([
+            'data' => $arvore->map(fn ($c) => $this->serialize($c))->all(),
+        ]);
     }
 
     public function show(int $id): JsonResponse
@@ -102,6 +114,7 @@ class CategoriaAdminController extends Controller
             'visivel_ecommerce' => (bool) $c->visivel_ecommerce,
             'ativo' => (bool) $c->ativo,
             'id_categoria_pai' => $c->id_categoria_pai,
+            'produtos_count' => (int) ($c->produtos_count ?? 0),
         ];
     }
 }
