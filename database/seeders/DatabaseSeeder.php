@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         // Executar seeders na ordem correta
         $this->call([
             PermissionSeeder::class,
+            PainelPermissionsSeeder::class,
             UserSeeder::class,
             FormasPagamentoSeeder::class,
             EcommerceInfraSeeder::class,
