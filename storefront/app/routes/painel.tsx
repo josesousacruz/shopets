@@ -32,11 +32,13 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Search,
   ArrowRight,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { requireAdmin } from "~/lib/admin-session.server";
@@ -117,12 +119,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operação",
     items: [
-      { label: "Pontos de Venda", icon: Store, soon: true },
       { to: "/painel/estoque", label: "Estoque", icon: Package, end: true },
       { to: "/painel/estoque/transferencias", label: "Transferências", icon: Package },
       { to: "/painel/estoque/inventario", label: "Inventário", icon: Package },
       { to: "/painel/estoque/curva-abc", label: "Curva ABC", icon: BarChart3 },
-      { label: "Fornecedores", icon: Truck, soon: true },
     ],
   },
   {
@@ -130,20 +130,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ to: "/painel/clientes", label: "Clientes", icon: Users }],
   },
   {
-    label: "Financeiro",
-    items: [
-      { label: "Visão geral", icon: Wallet, soon: true },
-      { label: "Contas a Pagar", icon: TrendingDown, soon: true },
-      { label: "Contas a Receber", icon: TrendingUp, soon: true },
-      { label: "Fluxo de Caixa", icon: Banknote, soon: true },
-    ],
-  },
-  {
     label: "Sistema",
-    items: [
-      { label: "Relatórios", icon: BarChart3, soon: true },
-      { to: "/painel/configuracoes", label: "Configurações", icon: Settings },
-    ],
+    items: [{ to: "/painel/configuracoes", label: "Configurações", icon: Settings }],
   },
 ];
 
@@ -312,6 +300,51 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
   );
 }
 
+interface FooterUser {
+  name: string;
+  nivel_acesso?: string | null;
+}
+
+function UserFooter({ user, initial }: { user: FooterUser; initial: string }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest(".pn-user")) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="foot">
+      <div className={`pn-user${open ? " open" : ""}`}>
+        <button type="button" className="trigger" onClick={() => setOpen((v) => !v)}>
+          <span className="avatar">{initial}</span>
+          <span className="meta">
+            <strong>{user.name}</strong>
+            <span>{user.nivel_acesso || "Admin"}</span>
+          </span>
+          <span className="more">
+            <MoreHorizontal size={16} />
+          </span>
+        </button>
+        {open ? (
+          <div className="pn-user-menu" role="menu">
+            <Form method="post" action="/painel/logout">
+              <button type="submit" className="item">
+                <LogOut size={14} /> Sair
+              </button>
+            </Form>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function PainelLayout() {
   const { user, badges, pdvs, pdvAtivoId } = useLoaderData<typeof loader>();
   const location = useLocation();
@@ -359,16 +392,17 @@ export default function PainelLayout() {
             Shopets
             <small>Admin</small>
           </span>
-          <button
-            type="button"
-            className="brand-toggle"
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-            title={collapsed ? "Expandir" : "Recolher"}
-          >
-            {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
-          </button>
         </div>
+
+        <button
+          type="button"
+          className="pn-sidebar-toggle"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
 
         <PdvSwitcher pdvs={pdvs} pdvAtivoId={pdvAtivoId} />
 
@@ -377,15 +411,8 @@ export default function PainelLayout() {
             <div className="nav-group" key={group.label}>
               <span className="nav-eyebrow">{group.label}</span>
               {group.items.map((it) => {
+                if (!it.to) return null;
                 const Icon = it.icon;
-                if (it.soon || !it.to) {
-                  return (
-                    <span className="navsoon" key={it.label} title="Em breve">
-                      <Icon /> {it.label}
-                      <span className="tag">em breve</span>
-                    </span>
-                  );
-                }
                 const badge = it.badgeKey ? badges[it.badgeKey] : 0;
                 return (
                   <NavLink
@@ -395,7 +422,11 @@ export default function PainelLayout() {
                     onClick={() => setNavOpen(false)}
                     className={({ isActive }) => (isActive ? "active" : "")}
                   >
-                    <Icon /> {it.label}
+                    <span className="ico">
+                      <Icon />
+                      {badge > 0 && <span className="dot" aria-hidden />}
+                    </span>
+                    <span className="label">{it.label}</span>
                     {badge > 0 && <span className="badge">{badge}</span>}
                   </NavLink>
                 );
@@ -404,20 +435,7 @@ export default function PainelLayout() {
           ))}
         </nav>
 
-        <div className="foot">
-          <div className="admin">
-            <span className="avatar">{initial}</span>
-            <span className="meta">
-              <strong>{user.name}</strong>
-              <span>{user.nivel_acesso}</span>
-            </span>
-          </div>
-          <Form method="post" action="/painel/logout">
-            <button type="submit" className="sair">
-              <LogOut size={15} /> Sair
-            </button>
-          </Form>
-        </div>
+        <UserFooter user={user} initial={initial} />
       </aside>
 
       <div className="pn-main">

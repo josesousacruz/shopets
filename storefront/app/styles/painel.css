@@ -1513,68 +1513,175 @@ a.pn-list-row:hover {
   margin-top: 1px;
 }
 
-/* ── Sidebar colapsada (toggle persistente) ── */
-.pn-sidebar .brand {
+/* ── Sidebar: ícone wrapper, label, dot ── */
+.pn-nav a .ico,
+.pn-nav .navsoon .ico {
   position: relative;
-}
-.pn-sidebar .brand .brand-toggle {
-  margin-left: auto;
-  width: 26px;
-  height: 26px;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  border-radius: 6px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.pn-nav a .ico .dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #10b981;
+  border: 1.5px solid var(--pn-surface);
+  display: none;
+}
+.pn-nav a .label { flex: 1; min-width: 0; }
+
+/* ── Toggle flutuante na borda direita da sidebar ── */
+.pn-sidebar { position: sticky; }
+.pn-sidebar-toggle {
+  position: absolute;
+  top: 86px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
   border: 1px solid var(--pn-border);
   background: var(--pn-surface);
   color: var(--pn-text-muted);
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  transition: background 0.15s, color 0.15s, transform 0.12s;
+  z-index: 5;
 }
-.pn-sidebar .brand .brand-toggle:hover {
-  background: var(--pn-surface-muted);
-  color: var(--pn-text);
-  border-color: var(--pn-text-muted);
+.pn-sidebar-toggle:hover {
+  background: var(--pn-accent-soft);
+  color: var(--pn-accent);
+  transform: scale(1.06);
 }
 
+/* ── User dropdown no rodapé ── */
+.pn-user {
+  position: relative;
+}
+.pn-user .trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--pn-r-control);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pn-user .trigger:hover,
+.pn-user.open .trigger {
+  background: var(--pn-surface-muted);
+}
+.pn-user .trigger .avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--pn-accent-soft);
+  color: var(--pn-accent);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+.pn-user .trigger .meta {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+.pn-user .trigger .meta strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pn-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pn-user .trigger .meta span {
+  font-size: 11.5px;
+  color: var(--pn-text-muted);
+  text-transform: capitalize;
+}
+.pn-user .trigger .more {
+  color: var(--pn-text-muted);
+  flex-shrink: 0;
+}
+.pn-user-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--pn-surface);
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-r-card);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  z-index: 10;
+}
+.pn-user-menu .item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--pn-r-control);
+  font-size: 13px;
+  color: var(--pn-text-2);
+  cursor: pointer;
+  text-align: left;
+}
+.pn-user-menu .item:hover {
+  background: var(--pn-error-soft);
+  color: var(--pn-error);
+}
+
+/* ── Collapsed state ── */
 @media (min-width: 1025px) {
   .pn-shell.collapsed {
-    grid-template-columns: 68px 1fr;
+    grid-template-columns: 72px 1fr;
   }
   .pn-shell.collapsed .pn-sidebar .brand {
-    padding: 0 10px;
+    padding: 0;
     justify-content: center;
   }
   .pn-shell.collapsed .pn-sidebar .brand .wordmark,
   .pn-shell.collapsed .pn-sidebar .pn-store,
   .pn-shell.collapsed .pn-sidebar .nav-eyebrow,
-  .pn-shell.collapsed .pn-sidebar .pn-nav a > span:not(.badge),
-  .pn-shell.collapsed .pn-sidebar .pn-nav .navsoon > span:not(.tag),
-  .pn-shell.collapsed .pn-sidebar .pn-nav .navsoon .tag,
-  .pn-shell.collapsed .pn-sidebar .foot .admin .meta,
-  .pn-shell.collapsed .pn-sidebar .foot .sair span,
-  .pn-shell.collapsed .pn-sidebar .foot .sair {
+  .pn-shell.collapsed .pn-sidebar .pn-nav a .label,
+  .pn-shell.collapsed .pn-sidebar .pn-nav a .badge,
+  .pn-shell.collapsed .pn-sidebar .pn-user .trigger .meta,
+  .pn-shell.collapsed .pn-sidebar .pn-user .trigger .more {
     display: none;
   }
-  .pn-shell.collapsed .pn-sidebar .pn-nav a,
-  .pn-shell.collapsed .pn-sidebar .pn-nav .navsoon {
+  .pn-shell.collapsed .pn-sidebar .pn-nav a {
     justify-content: center;
     padding-left: 8px;
     padding-right: 8px;
-  }
-  .pn-shell.collapsed .pn-sidebar .pn-nav a .badge {
-    position: absolute;
-    right: 4px;
-    top: 4px;
-  }
-  .pn-shell.collapsed .pn-sidebar .pn-nav a {
     position: relative;
   }
-  .pn-shell.collapsed .pn-sidebar .foot {
-    padding: 10px;
+  /* No recolhido, badges viram dot verde sobre o ícone */
+  .pn-shell.collapsed .pn-sidebar .pn-nav a .ico .dot {
+    display: block;
   }
-  .pn-shell.collapsed .pn-sidebar .foot .admin {
+  .pn-shell.collapsed .pn-sidebar .pn-user .trigger {
     justify-content: center;
+    padding: 8px 0;
+  }
+  .pn-shell.collapsed .pn-sidebar .nav-group {
+    margin-top: 8px;
   }
 }
 
