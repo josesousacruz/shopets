@@ -16,8 +16,12 @@ class MovimentacaoEstoque extends Model
 
     protected $fillable = [
         'id_produto',
+        'id_produto_variacao',
         'id_usuario',
         'id_item_venda',
+        'deposito_id',
+        'origem_type',
+        'origem_id',
         'tipo_movimentacao',
         'quantidade',
         'valor_unitario',

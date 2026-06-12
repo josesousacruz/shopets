@@ -20,8 +20,8 @@ class EstoqueAdminController extends Controller
 
         $q = EstoqueSaldo::query()
             ->with([
-                'variacao:id,id_produto,sku,nome',
-                'variacao.produto:id,nome',
+                'variacao:id_variacao,id_produto,sku',
+                'variacao.produto:id_produto,nome',
                 'deposito:id,nome',
             ])
             ->when($depositoId, fn ($qq) => $qq->where('deposito_id', $depositoId))
@@ -30,7 +30,6 @@ class EstoqueAdminController extends Controller
         if ($busca = $request->query('q')) {
             $q->whereHas('variacao', function ($w) use ($busca) {
                 $w->where('sku', 'like', "%{$busca}%")
-                  ->orWhere('nome', 'like', "%{$busca}%")
                   ->orWhereHas('produto', fn ($p) => $p->where('nome', 'like', "%{$busca}%"));
             });
         }
@@ -57,13 +56,15 @@ class EstoqueAdminController extends Controller
     public function ajustar(Request $request)
     {
         $data = $request->validate([
-            'produto_variacao_id' => ['required', 'integer', 'exists:produto_variacoes,id'],
+            'produto_variacao_id' => ['required', 'integer', 'exists:produto_variacoes,id_variacao'],
             'deposito_id' => ['required', 'integer', 'exists:depositos,id'],
-            'qtd_delta' => ['required', 'integer'],
+            'qtd_delta' => ['required', 'integer', 'not_in:0'],
             'motivo' => ['required', 'string', 'max:255'],
         ]);
 
         return DB::transaction(function () use ($data, $request) {
+            $variacao = ProdutoVariacao::findOrFail($data['produto_variacao_id']);
+
             $saldo = EstoqueSaldo::firstOrCreate(
                 ['produto_variacao_id' => $data['produto_variacao_id'], 'deposito_id' => $data['deposito_id']],
                 ['saldo' => 0, 'reservado' => 0, 'minimo' => 0, 'custo_medio' => 0],
@@ -77,14 +78,15 @@ class EstoqueAdminController extends Controller
 
             MovimentacaoEstoque::create([
                 'deposito_id' => $data['deposito_id'],
-                'id_produto' => $saldo->variacao->id_produto ?? null,
-                'id_produto_variacao' => $data['produto_variacao_id'],
-                'tipo' => $data['qtd_delta'] >= 0 ? 'entrada' : 'saida',
-                'origem' => 'ajuste',
+                'id_produto' => $variacao->id_produto,
+                'id_produto_variacao' => $variacao->id_variacao,
+                'id_usuario' => $request->user()->id,
+                'tipo_movimentacao' => 'ajuste',
                 'origem_type' => 'ajuste_manual',
                 'origem_id' => $request->user()->id,
                 'quantidade' => abs($data['qtd_delta']),
-                'observacao' => $data['motivo'],
+                'observacoes' => $data['motivo'],
+                'data_movimentacao' => now(),
             ]);
 
             return response()->json(['data' => $saldo->refresh()]);
@@ -98,7 +100,7 @@ class EstoqueAdminController extends Controller
             'de' => ['required', 'integer', 'exists:depositos,id', 'different:para'],
             'para' => ['required', 'integer', 'exists:depositos,id'],
             'itens' => ['required', 'array', 'min:1'],
-            'itens.*.produto_variacao_id' => ['required', 'integer', 'exists:produto_variacoes,id'],
+            'itens.*.produto_variacao_id' => ['required', 'integer', 'exists:produto_variacoes,id_variacao'],
             'itens.*.qtd' => ['required', 'integer', 'min:1'],
             'observacao' => ['nullable', 'string', 'max:500'],
         ]);
@@ -108,11 +110,13 @@ class EstoqueAdminController extends Controller
                 $saldoDe = EstoqueSaldo::where('produto_variacao_id', $item['produto_variacao_id'])
                     ->where('deposito_id', $data['de'])->lockForUpdate()->first();
 
-                if (!$saldoDe || ($saldoDe->saldo - $saldoDe->reservado) < $item['qtd']) {
+                if (! $saldoDe || ($saldoDe->saldo - $saldoDe->reservado) < $item['qtd']) {
                     throw ValidationException::withMessages([
                         'itens' => "Saldo insuficiente no depósito de origem para variação {$item['produto_variacao_id']}.",
                     ]);
                 }
+
+                $variacao = ProdutoVariacao::findOrFail($item['produto_variacao_id']);
 
                 $saldoDe->decrement('saldo', $item['qtd']);
 
@@ -124,23 +128,27 @@ class EstoqueAdminController extends Controller
 
                 MovimentacaoEstoque::create([
                     'deposito_id' => $data['de'],
-                    'id_produto_variacao' => $item['produto_variacao_id'],
-                    'tipo' => 'saida',
-                    'origem' => 'transferencia',
+                    'id_produto' => $variacao->id_produto,
+                    'id_produto_variacao' => $variacao->id_variacao,
+                    'id_usuario' => $request->user()->id,
+                    'tipo_movimentacao' => 'saida',
                     'origem_type' => 'transferencia_saida',
                     'origem_id' => $request->user()->id,
                     'quantidade' => $item['qtd'],
-                    'observacao' => $data['observacao'] ?? null,
+                    'observacoes' => $data['observacao'] ?? null,
+                    'data_movimentacao' => now(),
                 ]);
                 MovimentacaoEstoque::create([
                     'deposito_id' => $data['para'],
-                    'id_produto_variacao' => $item['produto_variacao_id'],
-                    'tipo' => 'entrada',
-                    'origem' => 'transferencia',
+                    'id_produto' => $variacao->id_produto,
+                    'id_produto_variacao' => $variacao->id_variacao,
+                    'id_usuario' => $request->user()->id,
+                    'tipo_movimentacao' => 'entrada',
                     'origem_type' => 'transferencia_entrada',
                     'origem_id' => $request->user()->id,
                     'quantidade' => $item['qtd'],
-                    'observacao' => $data['observacao'] ?? null,
+                    'observacoes' => $data['observacao'] ?? null,
+                    'data_movimentacao' => now(),
                 ]);
             }
 
@@ -152,9 +160,9 @@ class EstoqueAdminController extends Controller
     public function kardex(Request $request, ProdutoVariacao $variacao)
     {
         $q = MovimentacaoEstoque::query()
-            ->where('id_produto_variacao', $variacao->id)
+            ->where('id_produto_variacao', $variacao->id_variacao)
             ->when($request->query('deposito_id'), fn ($qq, $v) => $qq->where('deposito_id', $v))
-            ->orderByDesc('id')
+            ->orderByDesc('id_movimentacao')
             ->limit(200);
 
         return response()->json(['data' => $q->get()]);
