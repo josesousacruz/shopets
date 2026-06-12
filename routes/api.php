@@ -183,6 +183,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             // Configurações da loja
             Route::get('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'show']);
             Route::put('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'update']);
+
+            // RBAC — Permissões e Papéis (matriz custom)
+            Route::get('/permissoes', [\App\Http\Controllers\Api\V1\Painel\PermissaoAdminController::class, 'index']);
+            Route::apiResource('papeis', \App\Http\Controllers\Api\V1\Painel\PapelAdminController::class)
+                ->parameters(['papeis' => 'papel']);
         });
     });
 });
