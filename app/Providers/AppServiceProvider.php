@@ -9,8 +9,9 @@ use App\Domain\Shipping\MelhorEnvioService;
 use App\Domain\Shipping\ShippingQuoteInterface;
 use App\Domain\Shipping\StubShippingService;
 use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -56,6 +57,16 @@ class AppServiceProvider extends ServiceProvider
             $base = rtrim(env('STOREFRONT_URL', 'http://localhost:3000'), '/');
 
             return $base.'/redefinir-senha/'.$token.'?email='.urlencode($notifiable->getEmailForPasswordReset());
+        });
+
+        // RBAC: papel "super-admin" tem todas as permissões automaticamente.
+        // Retornar null deixa a checagem normal seguir; retornar true autoriza.
+        Gate::before(function ($user, $ability) {
+            if ($user && method_exists($user, 'hasRole') && $user->hasRole('super-admin')) {
+                return true;
+            }
+
+            return null;
         });
     }
 }
