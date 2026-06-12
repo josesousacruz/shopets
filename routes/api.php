@@ -194,6 +194,27 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 ->parameters(['usuarios' => 'usuario']);
             Route::post('/usuarios/{usuario}/toggle', [\App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class, 'toggle']);
 
+            // Clientes
+            Route::get('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'index']);
+            Route::post('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'store']);
+            Route::get('/clientes-export', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'export']);
+            Route::get('/clientes/{cliente}', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'show'])
+                ->scopeBindings();
+            Route::put('/clientes/{cliente}', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'update']);
+            Route::post('/clientes/{cliente}/toggle', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'toggle']);
+            Route::delete('/clientes/{cliente}', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'destroy']);
+            Route::post('/clientes/{cliente}/notas', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'storeNota']);
+            Route::delete('/clientes/{cliente}/notas/{nota}', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'destroyNota']);
+            Route::post('/clientes/{cliente}/tags', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'syncTags']);
+            Route::post('/clientes/{cliente}/email', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'enviarEmail']);
+            Route::post('/clientes/{cliente}/cupom', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'gerarCupom']);
+            Route::get('/cliente-tags', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'tagsIndex']);
+            Route::post('/cliente-tags', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'tagsStore']);
+            Route::delete('/cliente-tags/{tag}', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'tagsDestroy']);
+            Route::get('/segmentos-clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'segmentosIndex']);
+            Route::post('/segmentos-clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'segmentosStore']);
+            Route::delete('/segmentos-clientes/{segmento}', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'segmentosDestroy']);
+
             // Busca global ⌘K
             Route::get('/busca', \App\Http\Controllers\Api\V1\Painel\BuscaGlobalController::class);
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -56,6 +57,11 @@ class Cliente extends Authenticatable
     ];
 
     public function getAuthIdentifierName()
+    {
+        return 'id_cliente';
+    }
+
+    public function getRouteKeyName(): string
     {
         return 'id_cliente';
     }
@@ -178,9 +184,35 @@ class Cliente extends Authenticatable
         if ($this->pontos_fidelidade < $pontos) {
             throw new \Exception('Pontos insuficientes para resgate');
         }
-        
+
         $this->decrement('pontos_fidelidade', $pontos);
-        
+
         return $this;
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(ClienteTag::class, 'cliente_tag', 'id_cliente', 'tag_id');
+    }
+
+    public function notas(): HasMany
+    {
+        return $this->hasMany(ClienteNota::class, 'id_cliente', 'id_cliente');
+    }
+
+    /**
+     * Métricas agregadas: total_gasto (pedidos entregues), ticket_medio, qtd_pedidos, ultima_compra.
+     * Não persiste — calcula on-the-fly.
+     */
+    public function getMetricasAttribute(): array
+    {
+        $entregues = $this->pedidos()->where('status', 'entregue');
+
+        return [
+            'total_gasto' => (float) ($entregues->sum('total') ?? 0),
+            'qtd_pedidos' => (int) $this->pedidos()->count(),
+            'ticket_medio' => (float) ($entregues->avg('total') ?? 0),
+            'ultima_compra' => optional($this->pedidos()->latest('created_at')->first())->created_at,
+        ];
     }
 }
