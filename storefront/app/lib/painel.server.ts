@@ -400,7 +400,19 @@ export const painel = {
     reembolsar: (token: string, id: number | string) =>
       request<{ data: DevolucaoDetalhe }>(`/painel/devolucoes/${id}/reembolsar`, { method: "PUT", token }),
   },
+
+  pontosVenda: {
+    list: (token: string) =>
+      request<{ data: PontoVendaResumo[] }>("/painel/pontos-venda", { token }),
+  },
 };
+
+export interface PontoVendaResumo {
+  id: number;
+  nome: string;
+  ativo?: boolean;
+  permite_retirada?: boolean;
+}
 
 /**
  * Upload de imagem de banner (multipart). Cria ou atualiza o banner com o

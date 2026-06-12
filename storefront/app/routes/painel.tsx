@@ -43,6 +43,8 @@ import {
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel } from "~/lib/painel.server";
 import { getSidebarCollapsed, setSidebarCollapsed } from "~/lib/painel-prefs";
+import { getPdvAtivo } from "~/lib/pdv-context.server";
+import { PdvSwitcher } from "~/components/painel/PdvSwitcher";
 import painelStyles from "~/styles/painel.css?url";
 import contaStyles from "~/styles/conta.css?url";
 
@@ -57,21 +59,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Badges da nav (Pedidos a separar = pago + em separação; Devoluções na fila
   // = solicitadas). Best-effort: nunca derruba o shell se a API falhar.
   let badges = { pedidos: 0, devolucoes: 0 };
+  let pdvs: Awaited<ReturnType<typeof painel.pontosVenda.list>>["data"] = [];
   try {
-    const [pago, separacao, devolucoes] = await Promise.all([
+    const [pago, separacao, devolucoes, pdvList] = await Promise.all([
       painel.pedidos.list(token, { status: "pago" }),
       painel.pedidos.list(token, { status: "em_separacao" }),
       painel.devolucoes.list(token, { status: "solicitada" }),
+      painel.pontosVenda.list(token).catch(() => ({ data: [] as typeof pdvs })),
     ]);
     badges = {
       pedidos: pago.meta.total + separacao.meta.total,
       devolucoes: devolucoes.meta.total,
     };
+    pdvs = pdvList.data;
   } catch {
     // mantém zeros
   }
 
-  return json({ user, badges });
+  const pdvAtivoId = await getPdvAtivo(request);
+
+  return json({ user, badges, pdvs, pdvAtivoId });
 }
 
 type BadgeKey = "pedidos" | "devolucoes";
@@ -225,7 +232,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
 }
 
 export default function PainelLayout() {
-  const { user, badges } = useLoaderData<typeof loader>();
+  const { user, badges, pdvs, pdvAtivoId } = useLoaderData<typeof loader>();
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -282,18 +289,7 @@ export default function PainelLayout() {
           </button>
         </div>
 
-        <div className="pn-store">
-          <button type="button">
-            <span className="si">
-              <Store size={16} />
-            </span>
-            <span className="st">
-              <strong>Shopets</strong>
-              <span>Loja online</span>
-            </span>
-            <ChevronDown size={15} color="var(--pn-text-muted)" />
-          </button>
-        </div>
+        <PdvSwitcher pdvs={pdvs} pdvAtivoId={pdvAtivoId} />
 
         <nav className="pn-nav">
           {NAV_GROUPS.map((group) => (
