@@ -406,6 +406,57 @@ export const painel = {
       request<{ data: PontoVendaResumo[] }>("/painel/pontos-venda", { token }),
   },
 
+  clientes: {
+    list: (token: string, params: ClientesListParams = {}) => {
+      const qs = new URLSearchParams();
+      if (params.q) qs.set("q", params.q);
+      if (params.status) qs.set("status", params.status);
+      if (params.tag_id) qs.set("tag_id", String(params.tag_id));
+      if (params.criado_de) qs.set("criado_de", params.criado_de);
+      if (params.criado_ate) qs.set("criado_ate", params.criado_ate);
+      if (params.page) qs.set("page", String(params.page));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: ClienteLinha[]; meta: Meta }>(
+        `/painel/clientes${suffix}`,
+        { token },
+      );
+    },
+    show: (token: string, id: number | string) =>
+      request<{
+        data: { cliente: ClienteDetalhe; metricas: ClienteMetricas };
+      }>(`/painel/clientes/${id}`, { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: ClienteLinha }>("/painel/clientes", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: ClienteLinha }>(`/painel/clientes/${id}`, { method: "PUT", token, body }),
+    toggle: (token: string, id: number | string) =>
+      request<{ data: { ativo: boolean } }>(`/painel/clientes/${id}/toggle`, { method: "POST", token }),
+    destroy: (token: string, id: number | string) =>
+      request<void>(`/painel/clientes/${id}`, { method: "DELETE", token }),
+    addNota: (token: string, id: number | string, texto: string) =>
+      request<{ data: ClienteNotaItem }>(`/painel/clientes/${id}/notas`, { method: "POST", token, body: { texto } }),
+    removeNota: (token: string, id: number | string, notaId: number | string) =>
+      request<void>(`/painel/clientes/${id}/notas/${notaId}`, { method: "DELETE", token }),
+    syncTags: (token: string, id: number | string, tag_ids: number[]) =>
+      request<{ data: unknown }>(`/painel/clientes/${id}/tags`, { method: "POST", token, body: { tag_ids } }),
+    tags: {
+      list: (token: string) =>
+        request<{ data: ClienteTagItem[] }>("/painel/cliente-tags", { token }),
+      create: (token: string, body: Json) =>
+        request<{ data: ClienteTagItem }>("/painel/cliente-tags", { method: "POST", token, body }),
+      destroy: (token: string, id: number | string) =>
+        request<void>(`/painel/cliente-tags/${id}`, { method: "DELETE", token }),
+    },
+    segmentos: {
+      list: (token: string) =>
+        request<{ data: SegmentoItem[] }>("/painel/segmentos-clientes", { token }),
+      create: (token: string, body: Json) =>
+        request<{ data: SegmentoItem }>("/painel/segmentos-clientes", { method: "POST", token, body }),
+      destroy: (token: string, id: number | string) =>
+        request<void>(`/painel/segmentos-clientes/${id}`, { method: "DELETE", token }),
+    },
+  },
+
   busca: (token: string, q: string) =>
     request<{
       data: {
@@ -441,6 +492,61 @@ export const painel = {
       }),
   },
 };
+
+export interface ClientesListParams {
+  q?: string;
+  status?: string;
+  tag_id?: number;
+  criado_de?: string;
+  criado_ate?: string;
+  page?: number;
+}
+
+export interface ClienteLinha {
+  id_cliente: number;
+  nome: string;
+  email: string;
+  cpf_cnpj: string | null;
+  telefone: string | null;
+  ativo: boolean;
+  pedidos_count?: number;
+  created_at: string;
+}
+
+export interface ClienteMetricas {
+  total_gasto: number;
+  qtd_pedidos: number;
+  ticket_medio: number;
+  ultima_compra: string | null;
+}
+
+export interface ClienteDetalhe extends ClienteLinha {
+  tipo_pessoa: string | null;
+  data_nascimento: string | null;
+  aceita_marketing: boolean;
+  tags: ClienteTagItem[];
+  notas: ClienteNotaItem[];
+  enderecos: unknown[];
+}
+
+export interface ClienteTagItem {
+  id: number;
+  nome: string;
+  cor: string;
+}
+
+export interface ClienteNotaItem {
+  id: number;
+  texto: string;
+  user?: { id: number; name: string } | null;
+  created_at: string;
+}
+
+export interface SegmentoItem {
+  id: number;
+  nome: string;
+  filtros: Record<string, unknown>;
+}
 
 export interface NotificacaoItem {
   id: number;
