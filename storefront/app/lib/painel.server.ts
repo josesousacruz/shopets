@@ -405,7 +405,43 @@ export const painel = {
     list: (token: string) =>
       request<{ data: PontoVendaResumo[] }>("/painel/pontos-venda", { token }),
   },
+
+  notificacoes: {
+    summary: (token: string) =>
+      request<{ data: { unread_count: number } }>("/painel/notificacoes/summary", { token }),
+    list: (token: string, params: { unread?: boolean; tipo?: string; page?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.unread) qs.set("unread", "1");
+      if (params.tipo) qs.set("tipo", params.tipo);
+      if (params.page) qs.set("page", String(params.page));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{
+        data: NotificacaoItem[];
+        meta: Meta & { unread_count: number };
+      }>(`/painel/notificacoes${suffix}`, { token });
+    },
+    marcarLida: (token: string, id: number | string) =>
+      request<{ data: NotificacaoItem }>(`/painel/notificacoes/${id}/marcar-lida`, {
+        method: "POST",
+        token,
+      }),
+    marcarTodasLidas: (token: string) =>
+      request<{ data: { ok: boolean } }>("/painel/notificacoes/marcar-todas-lidas", {
+        method: "POST",
+        token,
+      }),
+  },
 };
+
+export interface NotificacaoItem {
+  id: number;
+  tipo: string;
+  titulo: string;
+  mensagem: string | null;
+  link: string | null;
+  lida_em: string | null;
+  created_at: string;
+}
 
 export interface PontoVendaResumo {
   id: number;

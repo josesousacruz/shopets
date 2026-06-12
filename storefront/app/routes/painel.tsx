@@ -35,8 +35,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Search,
-  Bell,
-  Moon,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -45,6 +43,7 @@ import { painel } from "~/lib/painel.server";
 import { getSidebarCollapsed, setSidebarCollapsed } from "~/lib/painel-prefs";
 import { getPdvAtivo } from "~/lib/pdv-context.server";
 import { PdvSwitcher } from "~/components/painel/PdvSwitcher";
+import { NotificationsBell } from "~/components/painel/NotificationsBell";
 import painelStyles from "~/styles/painel.css?url";
 import contaStyles from "~/styles/conta.css?url";
 
@@ -372,13 +371,7 @@ export default function PainelLayout() {
           </button>
 
           <div className="acts">
-            <button type="button" className="icon-btn" title="Tema (em breve)">
-              <Moon size={18} />
-            </button>
-            <button type="button" className="icon-btn" title="Notificações">
-              <Bell size={18} />
-              <span className="dot" />
-            </button>
+            <NotificationsBell />
           </div>
 
           <div className="who">

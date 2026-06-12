@@ -193,6 +193,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::apiResource('usuarios', \App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class)
                 ->parameters(['usuarios' => 'usuario']);
             Route::post('/usuarios/{usuario}/toggle', [\App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class, 'toggle']);
+
+            // Notificações in-app
+            Route::get('/notificacoes', [\App\Http\Controllers\Api\V1\Painel\NotificacaoAdminController::class, 'index']);
+            Route::get('/notificacoes/summary', [\App\Http\Controllers\Api\V1\Painel\NotificacaoAdminController::class, 'summary']);
+            Route::post('/notificacoes/marcar-todas-lidas', [\App\Http\Controllers\Api\V1\Painel\NotificacaoAdminController::class, 'marcarTodasLidas']);
+            Route::post('/notificacoes/{notificacao}/marcar-lida', [\App\Http\Controllers\Api\V1\Painel\NotificacaoAdminController::class, 'marcarLida']);
         });
     });
 });
