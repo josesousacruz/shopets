@@ -194,6 +194,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 ->parameters(['usuarios' => 'usuario']);
             Route::post('/usuarios/{usuario}/toggle', [\App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class, 'toggle']);
 
+            // Estoque
+            Route::get('/estoque', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'index']);
+            Route::get('/estoque/depositos', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'depositos']);
+            Route::post('/estoque/ajuste', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'ajustar']);
+            Route::post('/estoque/transferencias', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'transferir']);
+            Route::get('/estoque/kardex/{variacao}', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'kardex']);
+
             // Clientes
             Route::get('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'index']);
             Route::post('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'store']);

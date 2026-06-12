@@ -406,6 +406,29 @@ export const painel = {
       request<{ data: PontoVendaResumo[] }>("/painel/pontos-venda", { token }),
   },
 
+  estoque: {
+    list: (token: string, params: { q?: string; deposito_id?: number; abaixo_minimo?: boolean } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.q) qs.set("q", params.q);
+      if (params.deposito_id) qs.set("deposito_id", String(params.deposito_id));
+      if (params.abaixo_minimo) qs.set("abaixo_minimo", "1");
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: SaldoEstoqueRow[]; meta: Meta }>(`/painel/estoque${suffix}`, { token });
+    },
+    depositos: (token: string) =>
+      request<{ data: DepositoItem[] }>("/painel/estoque/depositos", { token }),
+    ajustar: (token: string, body: Json) =>
+      request<{ data: SaldoEstoqueRow }>("/painel/estoque/ajuste", { method: "POST", token, body }),
+    transferir: (token: string, body: Json) =>
+      request<{ data: { ok: boolean } }>("/painel/estoque/transferencias", { method: "POST", token, body }),
+    kardex: (token: string, variacaoId: number | string, params: { deposito_id?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.deposito_id) qs.set("deposito_id", String(params.deposito_id));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: KardexLinha[] }>(`/painel/estoque/kardex/${variacaoId}${suffix}`, { token });
+    },
+  },
+
   clientes: {
     list: (token: string, params: ClientesListParams = {}) => {
       const qs = new URLSearchParams();
@@ -492,6 +515,38 @@ export const painel = {
       }),
   },
 };
+
+export interface SaldoEstoqueRow {
+  id: number;
+  saldo: number;
+  reservado: number;
+  minimo: number;
+  custo_medio: number;
+  variacao: {
+    id_variacao: number;
+    sku: string | null;
+    nome: string | null;
+    produto?: { nome: string };
+  } | null;
+  deposito: { id: number; nome: string } | null;
+}
+
+export interface DepositoItem {
+  id: number;
+  nome: string;
+  default: boolean;
+  ativo: boolean;
+}
+
+export interface KardexLinha {
+  id_movimentacao: number;
+  deposito_id: number | null;
+  tipo: string;
+  origem: string;
+  quantidade: number;
+  observacao: string | null;
+  created_at: string;
+}
 
 export interface ClientesListParams {
   q?: string;

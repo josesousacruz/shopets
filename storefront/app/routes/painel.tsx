@@ -118,7 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operação",
     items: [
       { label: "Pontos de Venda", icon: Store, soon: true },
-      { label: "Estoque", icon: Package, soon: true },
+      { to: "/painel/estoque", label: "Estoque", icon: Package },
       { label: "Fornecedores", icon: Truck, soon: true },
     ],
   },
