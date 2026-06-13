@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Produto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use League\Csv\Reader;
 
 class ProdutoAdminController extends Controller
 {
@@ -118,6 +120,79 @@ class ProdutoAdminController extends Controller
         };
 
         return response()->json(['data' => ['afetados' => $afetados]]);
+    }
+
+    /**
+     * POST /produtos/import — importa produtos de um CSV, com relatório linha-a-linha.
+     * Colunas aceitas: nome*, preco_venda*, preco_custo, codigo_barras, codigo_interno,
+     * id_categoria, estoque_atual, unidade, visivel_ecommerce, ativo.
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate(['arquivo' => ['required', 'file', 'max:5120']]);
+
+        $csv = Reader::createFromString(file_get_contents($request->file('arquivo')->getRealPath()));
+        $csv->setHeaderOffset(0);
+
+        $criados = 0;
+        $erros = [];
+        $linha = 1; // header é a linha 1
+
+        foreach ($csv->getRecords() as $registro) {
+            $linha++;
+            $registro = array_change_key_case(array_map('trim', $registro), CASE_LOWER);
+
+            $v = Validator::make($registro, [
+                'nome' => ['required', 'string', 'max:255'],
+                'preco_venda' => ['required', 'numeric', 'min:0'],
+                'preco_custo' => ['nullable', 'numeric', 'min:0'],
+                'id_categoria' => ['nullable', 'integer', 'exists:categorias,id_categoria'],
+                'estoque_atual' => ['nullable', 'numeric', 'min:0'],
+            ]);
+
+            if ($v->fails()) {
+                $erros[] = ['linha' => $linha, 'mensagem' => implode(' ', $v->errors()->all())];
+                continue;
+            }
+
+            $dados = $v->validated();
+            $unidade = $registro['unidade'] ?? 'un';
+            $visivel = $registro['visivel_ecommerce'] ?? '0';
+            $ativo = $registro['ativo'] ?? '1';
+
+            Produto::create([
+                'nome' => $dados['nome'],
+                'slug' => $this->slugUnico(null, $dados['nome']),
+                'preco_venda' => $dados['preco_venda'],
+                'preco_custo' => $dados['preco_custo'] ?? 0,
+                'id_categoria' => $dados['id_categoria'] ?? null,
+                'estoque_atual' => $dados['estoque_atual'] ?? 0,
+                'codigo_barras' => $registro['codigo_barras'] ?? null,
+                'codigo_interno' => $registro['codigo_interno'] ?? null,
+                'unidade' => in_array($unidade, ['un', 'kg', 'g', 'l', 'ml', 'cx', 'm', 'cm'], true) ? $unidade : 'un',
+                'visivel_ecommerce' => in_array($visivel, ['1', 'true', 'sim'], true),
+                'ativo' => ! in_array($ativo, ['0', 'false', 'nao', 'não'], true),
+            ]);
+            $criados++;
+        }
+
+        return response()->json(['data' => [
+            'criados' => $criados,
+            'total_linhas' => $linha - 1,
+            'erros' => $erros,
+        ]]);
+    }
+
+    /** GET /produtos/import/template — CSV modelo. */
+    public function importTemplate(): \Illuminate\Http\Response
+    {
+        $header = "nome,preco_venda,preco_custo,id_categoria,estoque_atual,codigo_barras,unidade,visivel_ecommerce,ativo\n";
+        $exemplo = "Ração Golden 15kg,189.90,120.00,,30,7891234567890,un,1,1\n";
+
+        return response($header.$exemplo, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="modelo-produtos.csv"',
+        ]);
     }
 
     private function bulkStatus($query, array $payload): int

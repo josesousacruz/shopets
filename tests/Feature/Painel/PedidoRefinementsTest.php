@@ -11,6 +11,7 @@ use App\Models\PontoVenda;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -98,5 +99,17 @@ class PedidoRefinementsTest extends TestCase
         $pedido = $this->pedido();
         $this->postJson("/api/v1/painel/pedidos/{$pedido->numero}/cancelar", [])
             ->assertStatus(422)->assertJsonValidationErrors('motivo');
+    }
+
+    public function test_gera_etiqueta_pdf(): void
+    {
+        Storage::fake('public');
+        $pedido = $this->pedido();
+
+        $r = $this->postJson("/api/v1/painel/pedidos/{$pedido->numero}/etiqueta")->assertOk();
+
+        $this->assertStringContainsString('etiquetas/', $r->json('data.etiqueta_url'));
+        Storage::disk('public')->assertExists("etiquetas/{$pedido->numero}.pdf");
+        $this->assertDatabaseHas('pedido_eventos', ['id_pedido' => $pedido->id_pedido, 'tipo' => 'etiqueta_gerada']);
     }
 }

@@ -135,6 +135,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             // Catálogo — produtos
             Route::get('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'index']);
             Route::post('/produtos/bulk', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'bulk']);
+            Route::get('/produtos/import/template', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'importTemplate']);
+            Route::post('/produtos/import', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'import']);
             Route::post('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'store']);
             Route::get('/produtos/{id}', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'show']);
             Route::put('/produtos/{id}', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'update']);
