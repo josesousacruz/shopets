@@ -59,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
             return $base.'/redefinir-senha/'.$token.'?email='.urlencode($notifiable->getEmailForPasswordReset());
         });
 
+        // Hook financeiro: pedido pago gera Conta a Receber (Fluxo/DRE).
+        \App\Models\Pedido::observe(\App\Observers\PedidoObserver::class);
+
         // RBAC: papel "super-admin" tem todas as permissões automaticamente.
         // Retornar null deixa a checagem normal seguir; retornar true autoriza.
         Gate::before(function ($user, $ability) {

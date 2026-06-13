@@ -32,6 +32,8 @@ class ContaReceber extends Model
         'data_recebimento',
         'status',
         'categoria',
+        'plano_conta_id',
+        'conta_bancaria_id',
         'tipo_documento',
         'observacoes',
         'numero_parcela',

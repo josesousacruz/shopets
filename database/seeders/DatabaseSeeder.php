@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             FormasPagamentoSeeder::class,
             EcommerceInfraSeeder::class,
+            PlanoContasSeeder::class,
             // ConfiguracaoEmpresaSeeder::class,
             // CategoriaSeeder::class,
             // PontoVendaSeeder::class,

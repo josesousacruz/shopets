@@ -31,6 +31,8 @@ class ContaPagar extends Model
         'data_pagamento',
         'status',
         'categoria',
+        'plano_conta_id',
+        'conta_bancaria_id',
         'tipo_documento',
         'observacoes',
         'numero_parcela',

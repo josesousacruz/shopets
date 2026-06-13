@@ -237,6 +237,43 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('/compras/{id}/receber', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'receber']);
             Route::post('/compras/{id}/cancelar', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'cancelar']);
 
+            // Financeiro — Plano de contas
+            Route::get('/financeiro/plano-contas', [\App\Http\Controllers\Api\V1\Painel\PlanoContaAdminController::class, 'index']);
+            Route::post('/financeiro/plano-contas', [\App\Http\Controllers\Api\V1\Painel\PlanoContaAdminController::class, 'store']);
+            Route::put('/financeiro/plano-contas/{id}', [\App\Http\Controllers\Api\V1\Painel\PlanoContaAdminController::class, 'update']);
+            Route::post('/financeiro/plano-contas/{id}/mover', [\App\Http\Controllers\Api\V1\Painel\PlanoContaAdminController::class, 'mover']);
+            Route::delete('/financeiro/plano-contas/{id}', [\App\Http\Controllers\Api\V1\Painel\PlanoContaAdminController::class, 'destroy']);
+
+            // Financeiro — Contas bancárias
+            Route::get('/financeiro/contas-bancarias', [\App\Http\Controllers\Api\V1\Painel\ContaBancariaAdminController::class, 'index']);
+            Route::post('/financeiro/contas-bancarias', [\App\Http\Controllers\Api\V1\Painel\ContaBancariaAdminController::class, 'store']);
+            Route::put('/financeiro/contas-bancarias/{id}', [\App\Http\Controllers\Api\V1\Painel\ContaBancariaAdminController::class, 'update']);
+            Route::delete('/financeiro/contas-bancarias/{id}', [\App\Http\Controllers\Api\V1\Painel\ContaBancariaAdminController::class, 'destroy']);
+
+            // Financeiro — Contas a pagar
+            Route::get('/financeiro/contas-pagar', [\App\Http\Controllers\Api\V1\Painel\ContaPagarAdminController::class, 'index']);
+            Route::post('/financeiro/contas-pagar', [\App\Http\Controllers\Api\V1\Painel\ContaPagarAdminController::class, 'store']);
+            Route::put('/financeiro/contas-pagar/{id}', [\App\Http\Controllers\Api\V1\Painel\ContaPagarAdminController::class, 'update']);
+            Route::post('/financeiro/contas-pagar/{id}/baixar', [\App\Http\Controllers\Api\V1\Painel\ContaPagarAdminController::class, 'baixar']);
+            Route::delete('/financeiro/contas-pagar/{id}', [\App\Http\Controllers\Api\V1\Painel\ContaPagarAdminController::class, 'destroy']);
+
+            // Financeiro — Contas a receber
+            Route::get('/financeiro/contas-receber', [\App\Http\Controllers\Api\V1\Painel\ContaReceberAdminController::class, 'index']);
+            Route::post('/financeiro/contas-receber', [\App\Http\Controllers\Api\V1\Painel\ContaReceberAdminController::class, 'store']);
+            Route::put('/financeiro/contas-receber/{id}', [\App\Http\Controllers\Api\V1\Painel\ContaReceberAdminController::class, 'update']);
+            Route::post('/financeiro/contas-receber/{id}/baixar', [\App\Http\Controllers\Api\V1\Painel\ContaReceberAdminController::class, 'baixar']);
+            Route::delete('/financeiro/contas-receber/{id}', [\App\Http\Controllers\Api\V1\Painel\ContaReceberAdminController::class, 'destroy']);
+
+            // Financeiro — Fluxo de caixa / DRE
+            Route::get('/financeiro/fluxo-caixa', [\App\Http\Controllers\Api\V1\Painel\FluxoCaixaAdminController::class, 'index']);
+            Route::get('/financeiro/dre', [\App\Http\Controllers\Api\V1\Painel\DREAdminController::class, 'index']);
+
+            // Financeiro — Conciliação OFX
+            Route::get('/financeiro/conciliacao/linhas', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'linhas']);
+            Route::post('/financeiro/conciliacao', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'store']);
+            Route::get('/financeiro/conciliacao/{linha}/sugestoes', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'sugestoes']);
+            Route::post('/financeiro/conciliacao/{linha}/match', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'aplicar']);
+
             // Clientes
             Route::get('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'index']);
             Route::post('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'store']);
