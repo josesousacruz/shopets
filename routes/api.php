@@ -212,6 +212,31 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             // Curva ABC
             Route::get('/relatorios/curva-abc', [\App\Http\Controllers\Api\V1\Painel\CurvaAbcController::class, 'index']);
 
+            // Fornecedores
+            Route::get('/fornecedores', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'index']);
+            Route::post('/fornecedores', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'store']);
+            Route::get('/fornecedores/{id}', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'show']);
+            Route::put('/fornecedores/{id}', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'update']);
+            Route::delete('/fornecedores/{id}', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'destroy']);
+            Route::get('/fornecedores/{id}/produtos', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'produtos']);
+            Route::post('/fornecedores/{id}/produtos', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'vincularProduto']);
+            Route::delete('/fornecedores/{id}/produtos/{produto}', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'desvincularProduto']);
+            Route::get('/fornecedores/{id}/historico', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'historico']);
+            Route::get('/fornecedores/{id}/documentos', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'documentos']);
+            Route::post('/fornecedores/{id}/documentos', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'anexarDocumento']);
+            Route::delete('/fornecedores/{id}/documentos/{media}', [\App\Http\Controllers\Api\V1\Painel\FornecedorAdminController::class, 'removerDocumento']);
+
+            // Pedidos de Compra (PO)
+            Route::get('/compras/sugestao-reposicao', \App\Http\Controllers\Api\V1\Painel\SugestaoReposicaoController::class);
+            Route::get('/compras', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'index']);
+            Route::post('/compras', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'store']);
+            Route::get('/compras/{id}', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'show']);
+            Route::put('/compras/{id}', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'update']);
+            Route::delete('/compras/{id}', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'destroy']);
+            Route::post('/compras/{id}/enviar', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'enviar']);
+            Route::post('/compras/{id}/receber', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'receber']);
+            Route::post('/compras/{id}/cancelar', [\App\Http\Controllers\Api\V1\Painel\PedidoCompraAdminController::class, 'cancelar']);
+
             // Clientes
             Route::get('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'index']);
             Route::post('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'store']);
