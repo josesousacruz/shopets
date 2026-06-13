@@ -294,10 +294,25 @@ export const painel = {
         `/painel/pedidos/${numero}/entregar`,
         { method: "POST", token },
       ),
-    cancelar: (token: string, numero: string, motivo?: string) =>
-      request<{ data: { numero: string; status: string; codigo_rastreio: string | null } }>(
+    cancelar: (token: string, numero: string, motivo: string) =>
+      request<{ data: { numero: string; status: string; estorno?: { solicitado: boolean; ok: boolean } } }>(
         `/painel/pedidos/${numero}/cancelar`,
-        { method: "POST", token, body: { motivo: motivo ?? "" } },
+        { method: "POST", token, body: { motivo } },
+      ),
+    atualizarRastreio: (token: string, numero: string, codigo_rastreio: string) =>
+      request<{ data: { numero: string; codigo_rastreio: string } }>(
+        `/painel/pedidos/${numero}/rastreio`,
+        { method: "PUT", token, body: { codigo_rastreio } },
+      ),
+    mensagens: (token: string, numero: string) =>
+      request<{ data: { id: number; autor_tipo: string; autor: string; texto: string; criado_em: string | null }[] }>(
+        `/painel/pedidos/${numero}/mensagens`,
+        { token },
+      ),
+    enviarMensagem: (token: string, numero: string, texto: string) =>
+      request<{ data: { id: number; texto: string } }>(
+        `/painel/pedidos/${numero}/mensagens`,
+        { method: "POST", token, body: { texto } },
       ),
   },
 

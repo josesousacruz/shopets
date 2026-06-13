@@ -5,11 +5,16 @@ namespace App\Http\Controllers\Api\V1\Painel;
 use App\Domain\Order\FinalizarRetiradaAction;
 use App\Domain\Order\TransicaoInvalidaException;
 use App\Domain\Order\TransicionarPedidoAction;
+use App\Domain\Payment\PaymentGatewayInterface;
 use App\Domain\Shipping\GerarEtiquetaAction;
 use App\Http\Controllers\Controller;
 use App\Mail\PedidoEnviado;
+use App\Mail\PedidoRastreioAtualizado;
+use App\Models\ContaReceber;
 use App\Models\PagamentoPedido;
 use App\Models\Pedido;
+use App\Models\PedidoEvento;
+use App\Models\PedidoMensagem;
 use App\Models\Venda;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +25,66 @@ class PedidoAdminController extends Controller
     public function __construct(
         private readonly TransicionarPedidoAction $transicionar,
         private readonly GerarEtiquetaAction $gerarEtiqueta,
+        private readonly PaymentGatewayInterface $gateway,
     ) {
+    }
+
+    /** PUT /pedidos/{numero}/rastreio — atualiza o código e notifica o cliente. */
+    public function atualizarRastreio(Request $request, string $numero): JsonResponse
+    {
+        $data = $request->validate(['codigo_rastreio' => ['required', 'string', 'max:60']]);
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
+        $pedido->update(['codigo_rastreio' => $data['codigo_rastreio']]);
+        PedidoEvento::create([
+            'id_pedido' => $pedido->id_pedido,
+            'tipo' => 'rastreio_atualizado',
+            'descricao' => "Rastreio atualizado: {$data['codigo_rastreio']}.",
+            'criado_por_user_id' => $request->user()->id,
+            'criado_em' => now(),
+        ]);
+
+        if ($pedido->cliente && $pedido->cliente->email) {
+            Mail::to($pedido->cliente->email)->queue(new PedidoRastreioAtualizado($pedido, $data['codigo_rastreio']));
+        }
+
+        return response()->json(['data' => ['numero' => $pedido->numero, 'codigo_rastreio' => $pedido->codigo_rastreio]]);
+    }
+
+    /** GET /pedidos/{numero}/mensagens */
+    public function mensagens(string $numero): JsonResponse
+    {
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
+        $msgs = PedidoMensagem::with('user:id,name')
+            ->where('id_pedido', $pedido->id_pedido)
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'autor_tipo' => $m->autor_tipo,
+                'autor' => $m->autor_tipo === 'admin' ? ($m->user?->name ?? 'Equipe') : ($pedido->cliente?->nome ?? 'Cliente'),
+                'texto' => $m->texto,
+                'criado_em' => optional($m->created_at)->toIso8601String(),
+            ]);
+
+        return response()->json(['data' => $msgs]);
+    }
+
+    /** POST /pedidos/{numero}/mensagens */
+    public function enviarMensagem(Request $request, string $numero): JsonResponse
+    {
+        $data = $request->validate(['texto' => ['required', 'string', 'max:2000']]);
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+
+        $msg = PedidoMensagem::create([
+            'id_pedido' => $pedido->id_pedido,
+            'autor_tipo' => 'admin',
+            'user_id' => $request->user()->id,
+            'texto' => $data['texto'],
+        ]);
+
+        return response()->json(['data' => ['id' => $msg->id, 'texto' => $msg->texto]], 201);
     }
 
     public function index(Request $request): JsonResponse
@@ -240,13 +304,60 @@ class PedidoAdminController extends Controller
 
     public function cancelar(Request $request, string $numero): JsonResponse
     {
-        $request->validate(['motivo' => 'nullable|string|max:255']);
+        $request->validate(['motivo' => 'required|string|max:255']);
 
-        return $this->aplicar(
-            $numero,
-            'cancelado',
-            'Pedido cancelado.' . ($request->motivo ? " Motivo: {$request->motivo}." : ''),
-        );
+        $pedido = Pedido::where('numero', $numero)->firstOrFail();
+        $eraPago = in_array($pedido->status, ['pago', 'em_separacao'], true);
+
+        try {
+            $this->transicionar->executar(
+                $pedido,
+                'cancelado',
+                "Pedido cancelado. Motivo: {$request->motivo}.",
+            );
+        } catch (TransicaoInvalidaException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $estorno = ['solicitado' => false, 'ok' => false];
+        if ($eraPago) {
+            $estorno = $this->estornarPagamento($pedido);
+            // Neutraliza a receita realizada gerada pelo pagamento (PedidoObserver).
+            ContaReceber::where('observacoes', 'Pedido #'.$pedido->id_pedido)
+                ->update(['status' => 'cancelado', 'ativo' => false]);
+        }
+
+        return response()->json([
+            'data' => [
+                'numero' => $pedido->numero,
+                'status' => $pedido->status,
+                'estorno' => $estorno,
+            ],
+        ]);
+    }
+
+    /** Estorna o pagamento aprovado via gateway (ambiente conforme driver configurado). */
+    private function estornarPagamento(Pedido $pedido): array
+    {
+        $pagamento = PagamentoPedido::where('id_pedido', $pedido->id_pedido)
+            ->where('status', 'aprovado')
+            ->orderByDesc('id_pagamento_pedido')
+            ->first();
+
+        if (! $pagamento || ! $pagamento->gateway_id_externo) {
+            return ['solicitado' => false, 'ok' => false];
+        }
+
+        $ok = $this->gateway->estornar($pagamento->gateway_id_externo, (float) $pagamento->valor);
+
+        PedidoEvento::create([
+            'id_pedido' => $pedido->id_pedido,
+            'tipo' => 'estorno',
+            'descricao' => $ok ? 'Estorno solicitado ao gateway.' : 'Falha ao solicitar estorno ao gateway.',
+            'criado_em' => now(),
+        ]);
+
+        return ['solicitado' => true, 'ok' => $ok];
     }
 
     private function aplicar(string $numero, string $novoStatus, string $descricao, ?callable $extra = null): JsonResponse

@@ -128,6 +128,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('/pedidos/{numero}/retirar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'retirar']);
             Route::post('/pedidos/{numero}/cancelar', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'cancelar']);
             Route::post('/pedidos/{numero}/etiqueta', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'etiqueta']);
+            Route::put('/pedidos/{numero}/rastreio', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'atualizarRastreio']);
+            Route::get('/pedidos/{numero}/mensagens', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'mensagens']);
+            Route::post('/pedidos/{numero}/mensagens', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'enviarMensagem']);
 
             // Catálogo — produtos
             Route::get('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'index']);
