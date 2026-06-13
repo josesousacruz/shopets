@@ -96,6 +96,60 @@ class ProdutoAdminController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * POST /produtos/bulk — edição em massa.
+     * action: status | categoria | price_delta
+     */
+    public function bulk(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:produtos,id_produto'],
+            'action' => ['required', 'in:status,categoria,price_delta'],
+            'payload' => ['required', 'array'],
+        ]);
+
+        $produtos = Produto::whereIn('id_produto', $data['ids']);
+
+        $afetados = match ($data['action']) {
+            'status' => $this->bulkStatus($produtos, $data['payload']),
+            'categoria' => $produtos->update(['id_categoria' => $data['payload']['id_categoria'] ?? null]),
+            'price_delta' => $this->bulkPreco($data['ids'], $data['payload']),
+        };
+
+        return response()->json(['data' => ['afetados' => $afetados]]);
+    }
+
+    private function bulkStatus($query, array $payload): int
+    {
+        $update = [];
+        if (array_key_exists('ativo', $payload)) {
+            $update['ativo'] = (bool) $payload['ativo'];
+        }
+        if (array_key_exists('visivel_ecommerce', $payload)) {
+            $update['visivel_ecommerce'] = (bool) $payload['visivel_ecommerce'];
+        }
+
+        return $update ? $query->update($update) : 0;
+    }
+
+    private function bulkPreco(array $ids, array $payload): int
+    {
+        $tipo = $payload['tipo'] ?? 'percentual'; // percentual | fixo
+        $valor = (float) ($payload['valor'] ?? 0);
+        $afetados = 0;
+
+        foreach (Produto::whereIn('id_produto', $ids)->get() as $p) {
+            $novo = $tipo === 'percentual'
+                ? (float) $p->preco_venda * (1 + $valor / 100)
+                : (float) $p->preco_venda + $valor;
+            $p->update(['preco_venda' => round(max(0, $novo), 2)]);
+            $afetados++;
+        }
+
+        return $afetados;
+    }
+
     private function validar(Request $request, ?int $ignoreId = null): array
     {
         return $request->validate([

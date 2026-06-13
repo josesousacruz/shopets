@@ -312,6 +312,8 @@ export const painel = {
     },
     show: (token: string, id: number | string) =>
       request<{ data: ProdutoDetalheAdmin }>(`/painel/produtos/${id}`, { token }),
+    bulk: (token: string, body: { ids: number[]; action: "status" | "categoria" | "price_delta"; payload: Json }) =>
+      request<{ data: { afetados: number } }>("/painel/produtos/bulk", { method: "POST", token, body }),
     create: (token: string, body: Json) =>
       request<{ data: ProdutoDetalheAdmin }>("/painel/produtos", { method: "POST", token, body }),
     update: (token: string, id: number | string, body: Json) =>
