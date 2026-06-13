@@ -2167,3 +2167,12 @@ a.pn-list-row:hover {
 .pn-bulk-bar { position: sticky; bottom: 16px; margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; background: var(--pn-text, #1a1a1a); color: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
 .pn-bulk-bar .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pn-bulk-bar .pn-btn-link { color: #fff; opacity: 0.85; }
+
+/* ── Fase 7.D: PermissionMatrix + templates ───────────────────────────── */
+.pn-drawer.pn-drawer-lg { max-width: 720px; width: 92vw; }
+.pn-matrix { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.pn-matrix-modulo { border: 1px solid var(--pn-border); border-radius: 10px; padding: 10px 12px; }
+.pn-matrix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; text-transform: capitalize; }
+.pn-matrix-acoes { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.pn-matrix-acoes .pn-check { font-size: 13px; }
+.pn-email-preview { border: 1px solid var(--pn-border); border-radius: 10px; padding: 16px; margin-top: 10px; background: #fff; }

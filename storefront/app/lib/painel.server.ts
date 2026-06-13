@@ -769,7 +769,58 @@ export const painel = {
     agendar: (token: string, body: Json) =>
       request<{ data: unknown }>("/painel/relatorios/agendamentos", { method: "POST", token, body }),
   },
+
+  papeis: {
+    list: (token: string) => request<{ data: PapelItem[] }>("/painel/papeis", { token }),
+    permissoes: (token: string) => request<{ data: Record<string, string[]> }>("/painel/permissoes", { token }),
+    show: (token: string, id: number | string) =>
+      request<{ data: PapelDetalhe }>(`/painel/papeis/${id}`, { token }),
+    create: (token: string, body: { nome: string; permissions: string[] }) =>
+      request<{ data: unknown }>("/painel/papeis", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: { nome: string; permissions: string[] }) =>
+      request<{ data: unknown }>(`/painel/papeis/${id}`, { method: "PUT", token, body }),
+    destroy: (token: string, id: number | string) =>
+      request<void>(`/painel/papeis/${id}`, { method: "DELETE", token }),
+  },
+
+  templatesEmail: {
+    list: (token: string) => request<{ data: TemplateEmailItem[] }>("/painel/templates-email", { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: TemplateEmailItem }>("/painel/templates-email", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: TemplateEmailItem }>(`/painel/templates-email/${id}`, { method: "PUT", token, body }),
+    destroy: (token: string, id: number | string) =>
+      request<void>(`/painel/templates-email/${id}`, { method: "DELETE", token }),
+    preview: (token: string, id: number | string) =>
+      request<{ data: { assunto: string; corpo_html: string } }>(`/painel/templates-email/${id}/preview`, { token }),
+  },
 };
+
+export interface PapelItem {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  permissions_count: number;
+  sistema?: boolean;
+}
+
+export interface PapelDetalhe {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  sistema?: boolean;
+  permissions: string[];
+}
+
+export interface TemplateEmailItem {
+  id: number;
+  slug: string;
+  nome: string;
+  assunto: string;
+  corpo_html: string;
+  variaveis: string[] | null;
+  ativo: boolean;
+}
 
 export interface SaldoEstoqueRow {
   id: number;

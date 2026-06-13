@@ -22,6 +22,8 @@ import {
   Package,
   Truck,
   Building2,
+  Shield,
+  Mail,
   Users,
   Wallet,
   TrendingDown,
@@ -149,7 +151,11 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Sistema",
-    items: [{ to: "/painel/configuracoes", label: "Configurações", icon: Settings }],
+    items: [
+      { to: "/painel/configuracoes", label: "Configurações", icon: Settings },
+      { to: "/painel/papeis", label: "Papéis e Permissões", icon: Shield },
+      { to: "/painel/templates-email", label: "Templates de E-mail", icon: Mail },
+    ],
   },
 ];
 
