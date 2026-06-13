@@ -191,6 +191,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('/devolucoes/{id}/reembolsar', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'reembolsar']);
 
             // Configurações da loja
+            // Métodos de envio
+            Route::get('/metodos-envio', [\App\Http\Controllers\Api\V1\Painel\MetodoEnvioAdminController::class, 'index']);
+            Route::post('/metodos-envio', [\App\Http\Controllers\Api\V1\Painel\MetodoEnvioAdminController::class, 'store']);
+            Route::put('/metodos-envio/{id}', [\App\Http\Controllers\Api\V1\Painel\MetodoEnvioAdminController::class, 'update']);
+            Route::delete('/metodos-envio/{id}', [\App\Http\Controllers\Api\V1\Painel\MetodoEnvioAdminController::class, 'destroy']);
+
             // Templates de e-mail
             Route::get('/templates-email', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'index']);
             Route::post('/templates-email', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'store']);
