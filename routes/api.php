@@ -191,6 +191,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('/devolucoes/{id}/reembolsar', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'reembolsar']);
 
             // Configurações da loja
+            // Templates de e-mail
+            Route::get('/templates-email', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'index']);
+            Route::post('/templates-email', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'store']);
+            Route::put('/templates-email/{id}', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'update']);
+            Route::delete('/templates-email/{id}', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'destroy']);
+            Route::get('/templates-email/{id}/preview', [\App\Http\Controllers\Api\V1\Painel\TemplateEmailAdminController::class, 'preview']);
+
             Route::get('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'show']);
             Route::put('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'update']);
 
