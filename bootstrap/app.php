@@ -20,9 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'cliente' => \App\Http\Middleware\EnsureCliente::class,
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'pdv.scope' => \App\Http\Middleware\PdvScope::class,
         ]);
 
-        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        // 'painel_pdv_ativo' é definido pelo Remix; não criptografar para o middleware ler.
+        $middleware->encryptCookies(except: ['appearance', 'sidebar_state', 'painel_pdv_ativo']);
 
         $middleware->validateCsrfTokens(except: [
             'nfce/emitir', // Excluir a rota da verificação CSRF

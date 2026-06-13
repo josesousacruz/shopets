@@ -16,7 +16,8 @@ class EstoqueAdminController extends Controller
     /** Lista saldos por SKU (agregados) ou filtrados por depósito. */
     public function index(Request $request)
     {
-        $depositoId = $request->query('deposito_id');
+        // Filtro explícito tem prioridade; senão, usa o depósito do PDV ativo (PdvScope).
+        $depositoId = $request->query('deposito_id') ?? $request->attributes->get('pdv_deposito_id');
 
         $q = EstoqueSaldo::query()
             ->with([

@@ -23,12 +23,20 @@ class PontoVenda extends Model
         'ativo',
         'permite_retirada',
         'configuracoes_pdv',
+        'deposito_id',
+        'serie_fiscal_default',
+        'regime_tributario',
     ];
 
     protected $casts = [
         'ativo' => 'boolean',
         'permite_retirada' => 'boolean',
     ];
+
+    public function deposito()
+    {
+        return $this->belongsTo(Deposito::class, 'deposito_id');
+    }
 
     /**
      * Configure activity logging options.
@@ -46,7 +54,7 @@ class PontoVenda extends Model
      */
     public function users()
     {
-        return $this->belongsToMany(User::class, 'users_pontos_venda')
+        return $this->belongsToMany(User::class, 'users_pdvs', 'id_pdv', 'user_id')
                     ->withTimestamps();
     }
 

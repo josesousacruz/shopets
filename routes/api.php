@@ -170,7 +170,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
             // Pontos de venda (toggle retirada por PDV)
             Route::get('/pontos-venda', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'index']);
+            Route::post('/pontos-venda', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'store']);
+            Route::get('/pontos-venda/{id}', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'show']);
             Route::put('/pontos-venda/{id}', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'update']);
+            Route::delete('/pontos-venda/{id}', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'destroy']);
+            Route::post('/pontos-venda/{id}/operadores', [\App\Http\Controllers\Api\V1\Painel\PontoVendaAdminController::class, 'syncOperadores']);
 
             // Devoluções (fila + transições)
             Route::get('/devolucoes', [\App\Http\Controllers\Api\V1\Painel\DevolucaoAdminController::class, 'index']);
@@ -195,7 +199,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('/usuarios/{usuario}/toggle', [\App\Http\Controllers\Api\V1\Painel\UsuarioAdminController::class, 'toggle']);
 
             // Estoque
-            Route::get('/estoque', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'index']);
+            Route::get('/estoque', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'index'])->middleware('pdv.scope');
             Route::get('/estoque/depositos', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'depositos']);
             Route::post('/estoque/ajuste', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'ajustar']);
             Route::post('/estoque/transferencias', [\App\Http\Controllers\Api\V1\Painel\EstoqueAdminController::class, 'transferir']);

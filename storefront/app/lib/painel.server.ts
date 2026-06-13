@@ -695,6 +695,22 @@ export const painel = {
         request<{ data: unknown }>(`/painel/financeiro/conciliacao/${linha}/match`, { method: "POST", token, body }),
     },
   },
+
+  pdv: {
+    list: (token: string) => request<{ data: PdvItem[] }>("/painel/pontos-venda", { token }),
+    show: (token: string, id: number | string) => request<{ data: PdvDetalhe }>(`/painel/pontos-venda/${id}`, { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: PdvItem }>("/painel/pontos-venda", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: PdvItem }>(`/painel/pontos-venda/${id}`, { method: "PUT", token, body }),
+    destroy: (token: string, id: number | string) =>
+      request<void>(`/painel/pontos-venda/${id}`, { method: "DELETE", token }),
+    syncOperadores: (token: string, id: number | string, user_ids: number[]) =>
+      request<{ data: { id: number; name: string; email: string }[] }>(
+        `/painel/pontos-venda/${id}/operadores`, { method: "POST", token, body: { user_ids } }),
+    usuariosDisponiveis: (token: string) =>
+      request<{ data: { id: number; name: string; email: string }[] }>("/painel/usuarios", { token }),
+  },
 };
 
 export interface SaldoEstoqueRow {
@@ -1109,4 +1125,26 @@ export interface ConciliacaoSugestao {
   valor: number;
   data_vencimento: string;
   score: number;
+}
+
+// ---- PDV (Fase 6) --------------------------------------------------------
+
+export interface PdvItem {
+  id_pdv: number;
+  nome_pdv: string;
+  descricao: string | null;
+  endereco: string | null;
+  responsavel: string | null;
+  telefone: string | null;
+  ativo: boolean;
+  permite_retirada: boolean;
+  deposito_id: number | null;
+  serie_fiscal_default: string | null;
+  regime_tributario: string | null;
+  users_count?: number;
+  deposito?: { id: number; nome: string } | null;
+}
+
+export interface PdvDetalhe extends PdvItem {
+  users: { id: number; name: string; email: string }[];
 }

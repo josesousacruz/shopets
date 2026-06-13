@@ -2140,3 +2140,12 @@ a.pn-list-row:hover {
 .pn-dre-resultado { display: flex; align-items: center; justify-content: space-between; }
 .pn-dre-resultado strong.pos { color: var(--pn-accent-strong); font-size: 1.3rem; }
 .pn-dre-resultado strong.neg { color: var(--pn-error); font-size: 1.3rem; }
+
+/* ── Fase 6: PDV ──────────────────────────────────────────────────────── */
+.pn-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.pn-pdv-card { display: block; text-decoration: none; color: inherit; transition: border-color .15s; }
+.pn-pdv-card:hover { border-color: var(--pn-accent); }
+.pn-pdv-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pn-pdv-card-head strong { flex: 1; }
+.pn-pdv-card-meta { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--pn-text-soft); }
+.pn-operadores-list { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; }

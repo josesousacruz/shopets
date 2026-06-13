@@ -126,6 +126,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/painel/estoque/curva-abc", label: "Curva ABC", icon: BarChart3 },
       { to: "/painel/fornecedores", label: "Fornecedores", icon: Building2 },
       { to: "/painel/compras", label: "Pedidos de Compra", icon: Truck },
+      { to: "/painel/pdv", label: "Pontos de Venda", icon: Store },
     ],
   },
   {
