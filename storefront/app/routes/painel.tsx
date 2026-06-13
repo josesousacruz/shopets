@@ -129,6 +129,16 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Financeiro",
+    items: [
+      { to: "/painel/financeiro", label: "Visão geral", icon: Wallet, end: true },
+      { to: "/painel/financeiro/contas-receber", label: "Contas a Receber", icon: TrendingUp },
+      { to: "/painel/financeiro/contas-pagar", label: "Contas a Pagar", icon: TrendingDown },
+      { to: "/painel/financeiro/fluxo-caixa", label: "Fluxo de Caixa", icon: BarChart3 },
+      { to: "/painel/financeiro/dre", label: "DRE", icon: Banknote },
+    ],
+  },
+  {
     label: "Relacionamento",
     items: [{ to: "/painel/clientes", label: "Clientes", icon: Users }],
   },

@@ -614,6 +614,87 @@ export const painel = {
       return request<{ data: SugestaoGrupo[] }>(`/painel/compras/sugestao-reposicao${suffix}`, { token });
     },
   },
+
+  financeiro: {
+    planoContas: {
+      tree: (token: string) => request<{ data: PlanoContaNode[] }>("/painel/financeiro/plano-contas", { token }),
+      create: (token: string, body: Json) =>
+        request<{ data: unknown }>("/painel/financeiro/plano-contas", { method: "POST", token, body }),
+      update: (token: string, id: number | string, body: Json) =>
+        request<{ data: unknown }>(`/painel/financeiro/plano-contas/${id}`, { method: "PUT", token, body }),
+      mover: (token: string, id: number | string, parent_id: number | null) =>
+        request<{ data: unknown }>(`/painel/financeiro/plano-contas/${id}/mover`, { method: "POST", token, body: { parent_id } }),
+      destroy: (token: string, id: number | string) =>
+        request<void>(`/painel/financeiro/plano-contas/${id}`, { method: "DELETE", token }),
+    },
+    contasBancarias: {
+      list: (token: string) => request<{ data: ContaBancariaItem[] }>("/painel/financeiro/contas-bancarias", { token }),
+      create: (token: string, body: Json) =>
+        request<{ data: ContaBancariaItem }>("/painel/financeiro/contas-bancarias", { method: "POST", token, body }),
+      update: (token: string, id: number | string, body: Json) =>
+        request<{ data: ContaBancariaItem }>(`/painel/financeiro/contas-bancarias/${id}`, { method: "PUT", token, body }),
+      destroy: (token: string, id: number | string) =>
+        request<void>(`/painel/financeiro/contas-bancarias/${id}`, { method: "DELETE", token }),
+    },
+    contasPagar: {
+      list: (token: string, params: { status?: string; vencimento_de?: string; vencimento_ate?: string; page?: number } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.status) qs.set("status", params.status);
+        if (params.vencimento_de) qs.set("vencimento_de", params.vencimento_de);
+        if (params.vencimento_ate) qs.set("vencimento_ate", params.vencimento_ate);
+        if (params.page) qs.set("page", String(params.page));
+        const suffix = qs.toString() ? `?${qs}` : "";
+        return request<{ data: ContaItem[]; meta: Meta; resumo: ContasResumo }>(`/painel/financeiro/contas-pagar${suffix}`, { token });
+      },
+      create: (token: string, body: Json) =>
+        request<{ data: ContaItem[] }>("/painel/financeiro/contas-pagar", { method: "POST", token, body }),
+      baixar: (token: string, id: number | string, body: Json) =>
+        request<{ data: ContaItem }>(`/painel/financeiro/contas-pagar/${id}/baixar`, { method: "POST", token, body }),
+      destroy: (token: string, id: number | string) =>
+        request<void>(`/painel/financeiro/contas-pagar/${id}`, { method: "DELETE", token }),
+    },
+    contasReceber: {
+      list: (token: string, params: { status?: string; vencimento_de?: string; vencimento_ate?: string; page?: number } = {}) => {
+        const qs = new URLSearchParams();
+        if (params.status) qs.set("status", params.status);
+        if (params.vencimento_de) qs.set("vencimento_de", params.vencimento_de);
+        if (params.vencimento_ate) qs.set("vencimento_ate", params.vencimento_ate);
+        if (params.page) qs.set("page", String(params.page));
+        const suffix = qs.toString() ? `?${qs}` : "";
+        return request<{ data: ContaItem[]; meta: Meta; resumo: ContasResumo }>(`/painel/financeiro/contas-receber${suffix}`, { token });
+      },
+      create: (token: string, body: Json) =>
+        request<{ data: ContaItem[] }>("/painel/financeiro/contas-receber", { method: "POST", token, body }),
+      baixar: (token: string, id: number | string, body: Json) =>
+        request<{ data: ContaItem }>(`/painel/financeiro/contas-receber/${id}/baixar`, { method: "POST", token, body }),
+      destroy: (token: string, id: number | string) =>
+        request<void>(`/painel/financeiro/contas-receber/${id}`, { method: "DELETE", token }),
+    },
+    fluxoCaixa: (token: string, params: { modo?: string; de?: string; ate?: string; conta_bancaria_id?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.modo) qs.set("modo", params.modo);
+      if (params.de) qs.set("de", params.de);
+      if (params.ate) qs.set("ate", params.ate);
+      if (params.conta_bancaria_id) qs.set("conta_bancaria_id", String(params.conta_bancaria_id));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: FluxoCaixaResultado; modo: string }>(`/painel/financeiro/fluxo-caixa${suffix}`, { token });
+    },
+    dre: (token: string, params: { de?: string; ate?: string } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.de) qs.set("de", params.de);
+      if (params.ate) qs.set("ate", params.ate);
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: DREResultado }>(`/painel/financeiro/dre${suffix}`, { token });
+    },
+    conciliacao: {
+      linhas: (token: string, contaBancariaId: number | string) =>
+        request<{ data: ExtratoLinha[] }>(`/painel/financeiro/conciliacao/linhas?conta_bancaria_id=${contaBancariaId}`, { token }),
+      sugestoes: (token: string, linha: number | string) =>
+        request<{ data: ConciliacaoSugestao[] }>(`/painel/financeiro/conciliacao/${linha}/sugestoes`, { token }),
+      aplicar: (token: string, linha: number | string, body: Json) =>
+        request<{ data: unknown }>(`/painel/financeiro/conciliacao/${linha}/match`, { method: "POST", token, body }),
+    },
+  },
 };
 
 export interface SaldoEstoqueRow {
@@ -827,6 +908,25 @@ export async function uploadFotoProduto(
   );
 }
 
+/** Upload de arquivo OFX (multipart) para conciliação bancária. */
+export async function uploadOfx(
+  token: string,
+  contaBancariaId: number | string,
+  file: File,
+): Promise<{ data: { importadas: number; ignoradas: number } }> {
+  const fd = new FormData();
+  fd.append("conta_bancaria_id", String(contaBancariaId));
+  fd.append("arquivo", file, file.name || "extrato.ofx");
+
+  const res = await fetch(`${env.apiBaseUrl}/painel/financeiro/conciliacao`, {
+    method: "POST",
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+
+  return parse<{ data: { importadas: number; ignoradas: number } }>(res, "/painel/financeiro/conciliacao");
+}
+
 // ---- Fornecedores & Compras (Fase 4) -------------------------------------
 
 export interface FornecedorLinha {
@@ -929,4 +1029,84 @@ export interface SugestaoGrupo {
   fornecedor_id: number | null;
   fornecedor: string;
   itens: SugestaoGrupoItem[];
+}
+
+// ---- Financeiro (Fase 5) -------------------------------------------------
+
+export interface PlanoContaNode {
+  id: number;
+  codigo: string;
+  nome: string;
+  tipo: "receita" | "despesa";
+  ativo: boolean;
+  parent_id: number | null;
+  filhos: PlanoContaNode[];
+}
+
+export interface ContaBancariaItem {
+  id: number;
+  tipo: "banco" | "caixa" | "cartao" | "digital";
+  nome: string;
+  banco: string | null;
+  agencia: string | null;
+  conta: string | null;
+  saldo_inicial: string;
+  ativo: boolean;
+}
+
+export interface ContaItem {
+  id_conta_pagar?: number;
+  id_conta_receber?: number;
+  numero_documento: string | null;
+  descricao: string;
+  valor_original: string;
+  valor_pago?: string;
+  valor_recebido?: string;
+  data_vencimento: string;
+  data_pagamento?: string | null;
+  data_recebimento?: string | null;
+  status: "pendente" | "pago" | "recebido" | "vencido" | "cancelado";
+  categoria: string;
+  numero_parcela: number;
+  total_parcelas: number;
+  fornecedor?: { id_fornecedor: number; nome: string } | null;
+  cliente?: { id_cliente: number; nome: string } | null;
+}
+
+export interface ContasResumo {
+  pendente: number;
+  vencido: number;
+  pago_mes?: number;
+  recebido_mes?: number;
+}
+
+export interface FluxoCaixaResultado {
+  linhas: { data: string; entradas: number; saidas: number; saldo: number }[];
+  totais: { entradas: number; saidas: number; saldo: number };
+}
+
+export interface DREResultado {
+  periodo: { de: string; ate: string };
+  receitas: { plano: string; total: number }[];
+  despesas: { plano: string; total: number }[];
+  total_receitas: number;
+  total_despesas: number;
+  lucro_liquido: number;
+}
+
+export interface ExtratoLinha {
+  id: number;
+  data: string;
+  valor: number;
+  memo: string | null;
+  conciliada: boolean;
+}
+
+export interface ConciliacaoSugestao {
+  tipo: "pagar" | "receber";
+  id: number;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  score: number;
 }
