@@ -278,6 +278,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/financeiro/conciliacao/{linha}/sugestoes', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'sugestoes']);
             Route::post('/financeiro/conciliacao/{linha}/match', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'aplicar']);
 
+            // Dashboard — agregações
+            Route::get('/dashboard/serie-vendas', [\App\Http\Controllers\Api\V1\Painel\DashboardAdminController::class, 'serieVendas']);
+            Route::get('/dashboard/top-produtos', [\App\Http\Controllers\Api\V1\Painel\DashboardAdminController::class, 'topProdutos']);
+            Route::get('/dashboard/top-categorias', [\App\Http\Controllers\Api\V1\Painel\DashboardAdminController::class, 'topCategorias']);
+            Route::get('/dashboard/kpis', [\App\Http\Controllers\Api\V1\Painel\DashboardAdminController::class, 'kpis']);
+
             // Relatórios (rotas específicas ANTES do {slug} dinâmico)
             Route::get('/relatorios', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'index']);
             Route::post('/relatorios/favoritos', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'favoritar']);

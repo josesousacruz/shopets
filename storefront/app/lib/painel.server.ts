@@ -712,6 +712,19 @@ export const painel = {
       request<{ data: { id: number; name: string; email: string }[] }>("/painel/usuarios", { token }),
   },
 
+  dashboard: {
+    serieVendas: (token: string, periodo = "30d") =>
+      request<{ data: { data: string; pedidos: number; total: number }[]; comparacao: { total_atual: number; total_anterior: number; variacao_pct: number | null } }>(
+        `/painel/dashboard/serie-vendas?periodo=${periodo}`, { token }),
+    topProdutos: (token: string, periodo = "30d") =>
+      request<{ data: { produto: string; quantidade: number; total: number }[] }>(`/painel/dashboard/top-produtos?periodo=${periodo}`, { token }),
+    topCategorias: (token: string, periodo = "30d") =>
+      request<{ data: { categoria: string; quantidade: number; total: number }[] }>(`/painel/dashboard/top-categorias?periodo=${periodo}`, { token }),
+    kpis: (token: string, periodo = "30d") =>
+      request<{ data: { faturamento: number; pedidos: number; ticket_medio: number; estoque_abaixo_minimo: number; a_receber_pendente: number; a_pagar_pendente: number } }>(
+        `/painel/dashboard/kpis?periodo=${periodo}`, { token }),
+  },
+
   relatorios: {
     list: (token: string) =>
       request<{ data: RelatorioDef[]; grupos: Record<string, string>; favoritos: RelatorioFavorito[] }>(

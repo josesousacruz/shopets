@@ -51,6 +51,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const processar = [...pagosPrimeiros, ...separacao.data].slice(0, 6);
 
+  const [serie, top, dashKpis] = await Promise.all([
+    painel.dashboard.serieVendas(token, "30d"),
+    painel.dashboard.topProdutos(token, "30d"),
+    painel.dashboard.kpis(token, "30d"),
+  ]);
+
   return json({
     kpis: {
       total: todos.meta.total,
@@ -61,6 +67,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       faturamento,
     },
     processar,
+    serie: serie.data,
+    serieComparacao: serie.comparacao,
+    topProdutos: top.data,
+    dashKpis: dashKpis.data,
   });
 }
 
@@ -88,14 +98,6 @@ const AMOSTRA_ESTOQUE = [
   { nome: "Areia Sanitária Pipicat 12kg", atual: 6, minimo: 15 },
   { nome: "Coleira Seresto Cães G", atual: 1, minimo: 8 },
 ];
-const AMOSTRA_FINANCEIRO = { pagar: 23400, receber: 41800, vencidasHoje: 3, vencidasValor: 2840 };
-const AMOSTRA_TOP = [
-  { nome: "Ração Golden Adultos 15kg", cat: "Cães · Ração", qtd: 142, receita: 26965.8 },
-  { nome: "Antipulgas Bravecto", cat: "Cães · Saúde", qtd: 98, receita: 12642.0 },
-  { nome: "Areia Sanitária Pipicat 12kg", cat: "Gatos · Higiene", qtd: 87, receita: 7821.3 },
-  { nome: "Ração Premier Gatos 7,5kg", cat: "Gatos · Ração", qtd: 76, receita: 11856.0 },
-  { nome: "Coleira Seresto", cat: "Cães · Saúde", qtd: 54, receita: 6642.0 },
-];
 const AMOSTRA_ATIVIDADE = [
   { icon: ShoppingBag, texto: "Novo pedido #10492 de Patrícia Lemos", quando: "há 6 min" },
   { icon: Package, texto: "Entrada de estoque · Ração Golden 15kg (+30)", quando: "há 22 min" },
@@ -118,7 +120,18 @@ function fmtData(iso: string | null) {
 }
 
 export default function PainelDashboard() {
-  const { kpis, processar } = useLoaderData<typeof loader>();
+  const { kpis, processar, serie, serieComparacao, topProdutos, dashKpis } = useLoaderData<typeof loader>();
+
+  const vendas: SalePoint[] = serie.map((s) => ({
+    dia: new Date(s.data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+    ecom: s.total,
+    pdv: 0,
+  }));
+  const financeiro = {
+    receber: dashKpis.a_receber_pendente,
+    pagar: dashKpis.a_pagar_pendente,
+    abaixoMinimo: dashKpis.estoque_abaixo_minimo,
+  };
   const [periodo, setPeriodo] = useState("hoje");
 
   return (
@@ -199,9 +212,14 @@ export default function PainelDashboard() {
             <div className="pn-section-head" style={{ marginBottom: 0 }}>
               <div>
                 <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  Vendas por canal <Preview />
+                  Vendas online
                 </h3>
-                <p>E-commerce vs. PDV nos últimos 14 dias</p>
+                <p>
+                  Últimos 30 dias
+                  {serieComparacao.variacao_pct != null
+                    ? ` · ${serieComparacao.variacao_pct >= 0 ? "+" : ""}${serieComparacao.variacao_pct}% vs. período anterior`
+                    : ""}
+                </p>
               </div>
               <div className="pn-legend">
                 <span>
@@ -216,7 +234,7 @@ export default function PainelDashboard() {
             </div>
           </div>
           <div style={{ padding: "0 18px 16px" }}>
-            <SalesChart data={AMOSTRA_VENDAS} />
+            <SalesChart data={vendas.length ? vendas : AMOSTRA_VENDAS} />
           </div>
         </div>
 
@@ -337,13 +355,13 @@ export default function PainelDashboard() {
           <div className="pn-section-head">
             <div>
               <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                Financeiro <Preview />
+                Financeiro
               </h3>
-              <p>Pagar vs. Receber</p>
+              <p>Pagar vs. Receber (pendente)</p>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <Donut pagar={AMOSTRA_FINANCEIRO.pagar} receber={AMOSTRA_FINANCEIRO.receber} />
+            <Donut pagar={financeiro.pagar} receber={financeiro.receber} />
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -351,7 +369,7 @@ export default function PainelDashboard() {
                   <span style={{ fontSize: 12.5, color: "var(--pn-text-2)" }}>A receber</span>
                 </div>
                 <div className="pn-tnum" style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>
-                  {formatBRL(AMOSTRA_FINANCEIRO.receber)}
+                  {formatBRL(financeiro.receber)}
                 </div>
               </div>
               <div>
@@ -360,15 +378,17 @@ export default function PainelDashboard() {
                   <span style={{ fontSize: 12.5, color: "var(--pn-text-2)" }}>A pagar</span>
                 </div>
                 <div className="pn-tnum" style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>
-                  {formatBRL(AMOSTRA_FINANCEIRO.pagar)}
+                  {formatBRL(financeiro.pagar)}
                 </div>
               </div>
             </div>
           </div>
-          <div className="pn-mini-alert err" style={{ marginTop: 16 }}>
-            <AlertTriangle size={16} />
-            {AMOSTRA_FINANCEIRO.vencidasHoje} contas vencem hoje · {formatBRL(AMOSTRA_FINANCEIRO.vencidasValor)}
-          </div>
+          {financeiro.abaixoMinimo > 0 ? (
+            <Link to="/painel/estoque?abaixo_minimo=1" className="pn-mini-alert err" style={{ marginTop: 16, textDecoration: "none" }}>
+              <AlertTriangle size={16} />
+              {financeiro.abaixoMinimo} item(ns) abaixo do estoque mínimo
+            </Link>
+          ) : null}
         </div>
 
         {/* Top produtos */}
@@ -377,25 +397,29 @@ export default function PainelDashboard() {
             <div className="pn-section-head" style={{ marginBottom: 0 }}>
               <div>
                 <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  Top produtos <Preview />
+                  Top produtos
                 </h3>
-                <p>Por receita no período</p>
+                <p>Por receita nos últimos 30 dias</p>
               </div>
             </div>
           </div>
           <div style={{ padding: "4px 10px 14px" }}>
-            {AMOSTRA_TOP.map((p, i) => (
-              <div key={i} className="pn-list-row" style={{ padding: "10px 12px", borderTop: i ? "1px solid var(--pn-divider)" : "none" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pn-text-muted)", width: 16 }}>{i + 1}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nome}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--pn-text-muted)", marginTop: 2 }}>{p.cat}</div>
+            {topProdutos.length === 0 ? (
+              <div className="pn-empty" style={{ padding: 16 }}>Sem vendas no período.</div>
+            ) : (
+              topProdutos.map((p, i) => (
+                <div key={i} className="pn-list-row" style={{ padding: "10px 12px", borderTop: i ? "1px solid var(--pn-divider)" : "none" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pn-text-muted)", width: 16 }}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{p.produto}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--pn-text-muted)", marginTop: 2 }}>{p.quantidade} un.</div>
+                  </div>
+                  <span className="pn-tnum" style={{ fontSize: 13, fontWeight: 600 }}>
+                    {formatBRL(p.total)}
+                  </span>
                 </div>
-                <span className="pn-tnum" style={{ fontSize: 13, fontWeight: 600 }}>
-                  {formatBRL(p.receita)}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
