@@ -22,11 +22,21 @@ class ConfiguracaoEmpresa extends Model
         'logo_path',
         'taxa_entrega',
         'valor_minimo_entrega',
+        'seo_titulo',
+        'seo_descricao',
+        'og_image_path',
+        'ambiente_nfce',
+        'csc_nfce',
+        'csc_id_nfce',
+        'certificado_path',
+        'certificado_senha',
     ];
 
     protected $casts = [
         'taxa_entrega' => 'decimal:2',
         'valor_minimo_entrega' => 'decimal:2',
+        'ambiente_nfce' => 'integer',
+        'certificado_senha' => 'encrypted',
     ];
 
     /**
