@@ -711,6 +711,22 @@ export const painel = {
     usuariosDisponiveis: (token: string) =>
       request<{ data: { id: number; name: string; email: string }[] }>("/painel/usuarios", { token }),
   },
+
+  relatorios: {
+    list: (token: string) =>
+      request<{ data: RelatorioDef[]; grupos: Record<string, string>; favoritos: RelatorioFavorito[] }>(
+        "/painel/relatorios", { token }),
+    show: (token: string, slug: string, params: Record<string, string> = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request<RelatorioDados>(`/painel/relatorios/${slug}${qs ? `?${qs}` : ""}`, { token });
+    },
+    favoritar: (token: string, body: Json) =>
+      request<{ data: RelatorioFavorito }>("/painel/relatorios/favoritos", { method: "POST", token, body }),
+    removerFavorito: (token: string, id: number | string) =>
+      request<void>(`/painel/relatorios/favoritos/${id}`, { method: "DELETE", token }),
+    agendar: (token: string, body: Json) =>
+      request<{ data: unknown }>("/painel/relatorios/agendamentos", { method: "POST", token, body }),
+  },
 };
 
 export interface SaldoEstoqueRow {
@@ -922,6 +938,29 @@ export async function uploadFotoProduto(
     res,
     `/painel/produtos/${produtoId}/fotos`,
   );
+}
+
+/** Baixa um relatório exportado (csv/pdf) como bytes + headers para repasse ao browser. */
+export async function exportRelatorio(
+  token: string,
+  slug: string,
+  formato: string,
+  params: Record<string, string> = {},
+): Promise<{ body: ArrayBuffer; contentType: string; filename: string }> {
+  const qs = new URLSearchParams({ ...params, formato }).toString();
+  const res = await fetch(`${env.apiBaseUrl}/painel/relatorios/${slug}/export?${qs}`, {
+    headers: { Accept: "*/*", Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new PainelValidationError(res.status, `Falha ao exportar (${res.status}).`, {});
+  }
+  const disp = res.headers.get("Content-Disposition") ?? "";
+  const match = disp.match(/filename="?([^"]+)"?/);
+  return {
+    body: await res.arrayBuffer(),
+    contentType: res.headers.get("Content-Type") ?? "application/octet-stream",
+    filename: match?.[1] ?? `${slug}.${formato}`,
+  };
 }
 
 /** Upload de arquivo OFX (multipart) para conciliação bancária. */
@@ -1147,4 +1186,27 @@ export interface PdvItem {
 
 export interface PdvDetalhe extends PdvItem {
   users: { id: number; name: string; email: string }[];
+}
+
+// ---- Relatórios (Fase 8) -------------------------------------------------
+
+export interface RelatorioDef {
+  slug: string;
+  nome: string;
+  grupo: string;
+  grupo_label: string;
+  filtros: string[];
+}
+
+export interface RelatorioFavorito {
+  id: number;
+  slug: string;
+  nome: string;
+  filtros: Record<string, string> | null;
+}
+
+export interface RelatorioDados {
+  definicao: { slug: string; nome: string; grupo: string; filtros: string[]; colunas: Record<string, string> };
+  linhas: Record<string, string | number>[];
+  total: number;
 }

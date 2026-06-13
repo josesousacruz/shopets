@@ -144,6 +144,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ to: "/painel/clientes", label: "Clientes", icon: Users }],
   },
   {
+    label: "Análise",
+    items: [{ to: "/painel/relatorios", label: "Relatórios", icon: BarChart3 }],
+  },
+  {
     label: "Sistema",
     items: [{ to: "/painel/configuracoes", label: "Configurações", icon: Settings }],
   },

@@ -278,6 +278,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/financeiro/conciliacao/{linha}/sugestoes', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'sugestoes']);
             Route::post('/financeiro/conciliacao/{linha}/match', [\App\Http\Controllers\Api\V1\Painel\ConciliacaoOfxController::class, 'aplicar']);
 
+            // Relatórios (rotas específicas ANTES do {slug} dinâmico)
+            Route::get('/relatorios', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'index']);
+            Route::post('/relatorios/favoritos', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'favoritar']);
+            Route::delete('/relatorios/favoritos/{id}', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'removerFavorito']);
+            Route::get('/relatorios/agendamentos', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'agendamentos']);
+            Route::post('/relatorios/agendamentos', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'agendar']);
+            Route::delete('/relatorios/agendamentos/{id}', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'removerAgendamento']);
+            Route::get('/relatorios/{slug}/export', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'export']);
+            Route::get('/relatorios/{slug}', [\App\Http\Controllers\Api\V1\Painel\RelatorioAdminController::class, 'show']);
+
             // Clientes
             Route::get('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'index']);
             Route::post('/clientes', [\App\Http\Controllers\Api\V1\Painel\ClienteAdminController::class, 'store']);

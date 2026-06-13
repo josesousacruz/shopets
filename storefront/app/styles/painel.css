@@ -2149,3 +2149,6 @@ a.pn-list-row:hover {
 .pn-pdv-card-head strong { flex: 1; }
 .pn-pdv-card-meta { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--pn-text-soft); }
 .pn-operadores-list { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; }
+
+.pn-inline-field { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pn-text-soft); }
+.pn-inline-field input { width: auto; }
