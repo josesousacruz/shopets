@@ -2110,3 +2110,12 @@ a.pn-list-row:hover {
   box-shadow: 0 8px 24px rgba(15,23,42,0.12) !important;
 }
 .pn-swal-toast .swal2-title { font-size: 13.5px !important; font-weight: 600 !important; }
+
+/* ── Fase 4: Fornecedores + Pedidos de Compra ─────────────────────────── */
+.pn-field-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.pn-field-row .pn-field { flex: 1 1 180px; }
+.pn-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.pn-card-head h3 { margin: 0; }
+.pn-totais { display: flex; gap: 24px; justify-content: flex-end; flex-wrap: wrap; padding: 12px 4px 2px; color: var(--pn-text-soft); }
+.pn-totais strong { color: var(--pn-text); }
+.pn-form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }

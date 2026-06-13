@@ -21,6 +21,7 @@ import {
   Store,
   Package,
   Truck,
+  Building2,
   Users,
   Wallet,
   TrendingDown,
@@ -123,6 +124,8 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/painel/estoque/transferencias", label: "Transferências", icon: Package },
       { to: "/painel/estoque/inventario", label: "Inventário", icon: Package },
       { to: "/painel/estoque/curva-abc", label: "Curva ABC", icon: BarChart3 },
+      { to: "/painel/fornecedores", label: "Fornecedores", icon: Building2 },
+      { to: "/painel/compras", label: "Pedidos de Compra", icon: Truck },
     ],
   },
   {

@@ -555,6 +555,65 @@ export const painel = {
         token,
       }),
   },
+
+  fornecedores: {
+    list: (token: string, params: { q?: string; status?: string; page?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.q) qs.set("q", params.q);
+      if (params.status) qs.set("status", params.status);
+      if (params.page) qs.set("page", String(params.page));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: FornecedorLinha[]; meta: Meta }>(`/painel/fornecedores${suffix}`, { token });
+    },
+    show: (token: string, id: number | string) =>
+      request<{ data: FornecedorLinha }>(`/painel/fornecedores/${id}`, { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: FornecedorLinha }>("/painel/fornecedores", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: FornecedorLinha }>(`/painel/fornecedores/${id}`, { method: "PUT", token, body }),
+    destroy: (token: string, id: number | string) =>
+      request<void>(`/painel/fornecedores/${id}`, { method: "DELETE", token }),
+    produtos: (token: string, id: number | string) =>
+      request<{ data: FornecedorProdutoVinc[] }>(`/painel/fornecedores/${id}/produtos`, { token }),
+    vincularProduto: (token: string, id: number | string, body: Json) =>
+      request<{ data: { ok: boolean } }>(`/painel/fornecedores/${id}/produtos`, { method: "POST", token, body }),
+    desvincularProduto: (token: string, id: number | string, produto: number | string) =>
+      request<void>(`/painel/fornecedores/${id}/produtos/${produto}`, { method: "DELETE", token }),
+    historico: (token: string, id: number | string) =>
+      request<{ data: FornecedorHistorico }>(`/painel/fornecedores/${id}/historico`, { token }),
+  },
+
+  compras: {
+    list: (token: string, params: { status?: string; fornecedor_id?: number; q?: string; page?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.status) qs.set("status", params.status);
+      if (params.fornecedor_id) qs.set("fornecedor_id", String(params.fornecedor_id));
+      if (params.q) qs.set("q", params.q);
+      if (params.page) qs.set("page", String(params.page));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: CompraLinha[]; meta: Meta }>(`/painel/compras${suffix}`, { token });
+    },
+    show: (token: string, id: number | string) =>
+      request<{ data: CompraDetalhe }>(`/painel/compras/${id}`, { token }),
+    create: (token: string, body: Json) =>
+      request<{ data: CompraDetalhe }>("/painel/compras", { method: "POST", token, body }),
+    update: (token: string, id: number | string, body: Json) =>
+      request<{ data: CompraDetalhe }>(`/painel/compras/${id}`, { method: "PUT", token, body }),
+    destroy: (token: string, id: number | string) =>
+      request<void>(`/painel/compras/${id}`, { method: "DELETE", token }),
+    enviar: (token: string, id: number | string) =>
+      request<{ data: CompraDetalhe }>(`/painel/compras/${id}/enviar`, { method: "POST", token }),
+    receber: (token: string, id: number | string, body: Json) =>
+      request<{ data: unknown; pedido: CompraDetalhe }>(`/painel/compras/${id}/receber`, { method: "POST", token, body }),
+    cancelar: (token: string, id: number | string) =>
+      request<{ data: CompraDetalhe }>(`/painel/compras/${id}/cancelar`, { method: "POST", token }),
+    sugestaoReposicao: (token: string, params: { fornecedor_id?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.fornecedor_id) qs.set("fornecedor_id", String(params.fornecedor_id));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return request<{ data: SugestaoGrupo[] }>(`/painel/compras/sugestao-reposicao${suffix}`, { token });
+    },
+  },
 };
 
 export interface SaldoEstoqueRow {
@@ -766,4 +825,108 @@ export async function uploadFotoProduto(
     res,
     `/painel/produtos/${produtoId}/fotos`,
   );
+}
+
+// ---- Fornecedores & Compras (Fase 4) -------------------------------------
+
+export interface FornecedorLinha {
+  id_fornecedor: number;
+  nome: string;
+  cnpj: string | null;
+  telefone: string | null;
+  email: string | null;
+  endereco: string | null;
+  contato_principal: string | null;
+  observacoes: string | null;
+  prazo_medio_dias: number | null;
+  condicao_pagamento_padrao: string | null;
+  desconto_padrao: string | number | null;
+  ativo: boolean;
+  produtos_count?: number;
+}
+
+export interface FornecedorProdutoVinc {
+  id_produto: number;
+  nome: string;
+  codigo_fornecedor: string | null;
+  codigo_no_fornecedor: string | null;
+  preco_custo_fornecedor: string | number | null;
+  fornecedor_principal: boolean;
+}
+
+export interface FornecedorHistorico {
+  pedidos: CompraLinha[];
+  metricas: {
+    total_pedidos: number;
+    total_comprado: number;
+    ultimo_pedido: string | null;
+  };
+}
+
+export type CompraStatus =
+  | "rascunho"
+  | "enviado"
+  | "parcialmente_recebido"
+  | "recebido"
+  | "cancelado";
+
+export interface CompraLinha {
+  id: number;
+  numero: string;
+  status: CompraStatus;
+  fornecedor_id: number;
+  deposito_id: number;
+  previsao_entrega: string | null;
+  subtotal: string;
+  frete: string;
+  desconto: string;
+  total: string;
+  condicao_pagamento: string | null;
+  itens_count?: number;
+  created_at: string;
+  fornecedor?: { id_fornecedor: number; nome: string } | null;
+  deposito?: { id: number; nome: string } | null;
+}
+
+export interface CompraItem {
+  id: number;
+  pedido_compra_id: number;
+  produto_variacao_id: number;
+  qtd: number;
+  qtd_recebida: number;
+  custo_unit: string;
+  total: string;
+  variacao?: {
+    id_variacao: number;
+    sku: string | null;
+    produto?: { nome: string };
+  } | null;
+}
+
+export interface CompraDetalhe extends CompraLinha {
+  observacoes: string | null;
+  itens: CompraItem[];
+  recebimentos?: {
+    id: number;
+    data: string;
+    nota_fiscal: string | null;
+    itens: { id: number; item_id: number; qtd_recebida: number }[];
+  }[];
+}
+
+export interface SugestaoGrupoItem {
+  produto_variacao_id: number;
+  sku: string | null;
+  produto: string;
+  deposito_id: number;
+  saldo: number;
+  minimo: number;
+  qtd_sugerida: number;
+  custo_unit: number;
+}
+
+export interface SugestaoGrupo {
+  fornecedor_id: number | null;
+  fornecedor: string;
+  itens: SugestaoGrupoItem[];
 }
