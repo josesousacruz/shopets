@@ -349,6 +349,8 @@ export const painel = {
       request<void>(`/painel/produtos/${id}`, { method: "DELETE", token }),
     fotoDelete: (token: string, id: number | string, mediaId: number | string) =>
       request<void>(`/painel/produtos/${id}/fotos/${mediaId}`, { method: "DELETE", token }),
+    fotoOrdem: (token: string, id: number | string, ordem: number[]) =>
+      request<{ data: { ordem: number[] } }>(`/painel/produtos/${id}/fotos/ordem`, { method: "PUT", token, body: { ordem } }),
   },
 
   variacoes: {

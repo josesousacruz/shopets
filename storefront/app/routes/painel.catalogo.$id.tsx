@@ -66,6 +66,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
         await painel.produtos.fotoDelete(token, id, String(form.get("mediaId")));
         return json({ ok: "foto-delete" });
       }
+      case "foto-ordem": {
+        const ordem = JSON.parse(String(form.get("ordem") ?? "[]")) as number[];
+        await painel.produtos.fotoOrdem(token, id, ordem);
+        return json({ ok: "foto-ordem" });
+      }
       case "variacao-create": {
         await painel.variacoes.create(token, id, lerVariacaoForm(form));
         return json({ ok: "variacao" });
@@ -106,8 +111,20 @@ function lerVariacaoForm(form: FormData): Record<string, unknown> {
 function Galeria({ produtoId, fotos }: { produtoId: number; fotos: { id: number; url: string; url_thumb: string }[] }) {
   const upload = useFetcher<typeof action>();
   const del = useFetcher<typeof action>();
+  const reorder = useFetcher<typeof action>();
   const fileRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
+
+  const mover = (idx: number, dir: -1 | 1) => {
+    const ids = fotos.map((f) => f.id);
+    const alvo = idx + dir;
+    if (alvo < 0 || alvo >= ids.length) return;
+    [ids[idx], ids[alvo]] = [ids[alvo], ids[idx]];
+    const fd = new FormData();
+    fd.set("_intent", "foto-ordem");
+    fd.set("ordem", JSON.stringify(ids));
+    reorder.submit(fd, { method: "post" });
+  };
 
   const submitFile = (file: File) => {
     const fd = new FormData();
@@ -124,9 +141,10 @@ function Galeria({ produtoId, fotos }: { produtoId: number; fotos: { id: number;
 
       {fotos.length > 0 && (
         <div className="pn-gallery">
-          {fotos.map((f) => (
+          {fotos.map((f, idx) => (
             <div className="pn-photo" key={f.id}>
               <img src={f.url_thumb || f.url} alt="" />
+              {idx === 0 ? <span className="pn-photo-principal">Principal</span> : null}
               <del.Form method="post">
                 <input type="hidden" name="_intent" value="foto-delete" />
                 <input type="hidden" name="mediaId" value={f.id} />
@@ -134,6 +152,10 @@ function Galeria({ produtoId, fotos }: { produtoId: number; fotos: { id: number;
                   <Trash2 size={15} />
                 </button>
               </del.Form>
+              <div className="pn-photo-mover">
+                <button type="button" onClick={() => mover(idx, -1)} disabled={idx === 0 || reorder.state !== "idle"} title="Mover para esquerda">◀</button>
+                <button type="button" onClick={() => mover(idx, 1)} disabled={idx === fotos.length - 1 || reorder.state !== "idle"} title="Mover para direita">▶</button>
+              </div>
             </div>
           ))}
         </div>
