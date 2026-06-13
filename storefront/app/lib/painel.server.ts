@@ -246,6 +246,18 @@ export interface ConfiguracoesPainel {
     taxa_entrega: number;
     valor_minimo_entrega: number;
   };
+  seo?: {
+    seo_titulo: string | null;
+    seo_descricao: string | null;
+    og_image_path: string | null;
+  };
+  fiscal?: {
+    ambiente_nfce: number;
+    csc_nfce: string | null;
+    csc_id_nfce: string | null;
+    certificado_path: string | null;
+    certificado_definido: boolean;
+  };
   integracoes: {
     payment_driver: string | null;
     shipping_driver: string | null;

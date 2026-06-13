@@ -1,9 +1,11 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Form, Link, useFetcher, useLoaderData, useSearchParams } from "@remix-run/react";
+import { useEffect, useRef, useState } from "react";
 import { ImageOff, Plus } from "lucide-react";
 import { requireAdmin } from "~/lib/admin-session.server";
 import { painel, PainelValidationError } from "~/lib/painel.server";
+import { Swal, toastSucesso } from "~/lib/painel-swal";
 import { formatBRL } from "~/lib/format";
 
 export const meta: MetaFunction = () => [{ title: "Catálogo — Painel Shopets" }];
@@ -35,10 +37,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const { token } = await requireAdmin(request);
   const form = await request.formData();
-  const id = String(form.get("id") ?? "");
-  const visivel = form.get("visivel_ecommerce") === "true";
 
   try {
+    if (form.get("_acao") === "bulk") {
+      const ids = JSON.parse(String(form.get("ids") ?? "[]")) as number[];
+      const action = String(form.get("action")) as "status" | "categoria" | "price_delta";
+      const payload = JSON.parse(String(form.get("payload") ?? "{}"));
+      const r = await painel.produtos.bulk(token, { ids, action, payload });
+      return json({ ok: true, bulk: r.data.afetados });
+    }
+
+    const id = String(form.get("id") ?? "");
+    const visivel = form.get("visivel_ecommerce") === "true";
     await painel.produtos.update(token, id, { visivel_ecommerce: visivel });
     return json({ ok: true, id, visivel });
   } catch (err) {
@@ -74,12 +84,65 @@ function ToggleLoja({ id, visivel }: { id: number; visivel: boolean }) {
 export default function Catalogo() {
   const { produtos, meta, categorias, filtros } = useLoaderData<typeof loader>();
   const [params] = useSearchParams();
+  const bulkFetcher = useFetcher<typeof action>();
+  const [selecionados, setSelecionados] = useState<number[]>([]);
 
   const goPage = (p: number) => {
     const q = new URLSearchParams(params);
     q.set("page", String(p));
     return `?${q}`;
   };
+
+  const todosMarcados = produtos.length > 0 && selecionados.length === produtos.length;
+  const toggleTodos = () => setSelecionados(todosMarcados ? [] : produtos.map((p) => p.id));
+  const toggleUm = (id: number) =>
+    setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const submeterBulk = (action: "status" | "categoria" | "price_delta", payload: Record<string, unknown>) => {
+    const fd = new FormData();
+    fd.set("_acao", "bulk");
+    fd.set("ids", JSON.stringify(selecionados));
+    fd.set("action", action);
+    fd.set("payload", JSON.stringify(payload));
+    bulkFetcher.submit(fd, { method: "post" });
+    setSelecionados([]);
+  };
+
+  const bulkStatus = (ativo: boolean) => submeterBulk("status", { visivel_ecommerce: ativo });
+
+  const bulkCategoria = async () => {
+    const { value } = await Swal.fire({
+      title: "Mover para categoria",
+      input: "select",
+      inputOptions: Object.fromEntries(categorias.map((c) => [String(c.id), c.nome])),
+      inputPlaceholder: "Selecione…",
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+    });
+    if (value) submeterBulk("categoria", { id_categoria: Number(value) });
+  };
+
+  const bulkPreco = async () => {
+    const { value } = await Swal.fire({
+      title: "Ajustar preço (%)",
+      input: "number",
+      inputLabel: "Variação percentual (ex.: 10 = +10%, -5 = −5%)",
+      showCancelButton: true,
+      confirmButtonText: "Aplicar",
+      cancelButtonText: "Cancelar",
+    });
+    if (value !== undefined && value !== "") submeterBulk("price_delta", { tipo: "percentual", valor: Number(value) });
+  };
+
+  const ultimoBulk = useRef<unknown>(null);
+  useEffect(() => {
+    const d = bulkFetcher.data;
+    if (bulkFetcher.state === "idle" && d && "bulk" in d && d.bulk != null && ultimoBulk.current !== d) {
+      ultimoBulk.current = d;
+      toastSucesso(`${d.bulk} produto(s) atualizado(s).`);
+    }
+  }, [bulkFetcher.data, bulkFetcher.state]);
 
   return (
     <div>
@@ -130,6 +193,9 @@ export default function Catalogo() {
           <table className="pn-table">
             <thead>
               <tr>
+                <th style={{ width: 28 }}>
+                  <input type="checkbox" checked={todosMarcados} onChange={toggleTodos} aria-label="Selecionar todos" />
+                </th>
                 <th></th>
                 <th>Produto</th>
                 <th>Categoria</th>
@@ -142,6 +208,14 @@ export default function Catalogo() {
             <tbody>
               {produtos.map((p) => (
                 <tr key={p.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selecionados.includes(p.id)}
+                      onChange={() => toggleUm(p.id)}
+                      aria-label={`Selecionar ${p.nome}`}
+                    />
+                  </td>
                   <td>
                     {p.thumb ? (
                       <img className="pn-thumb" src={p.thumb} alt="" />
@@ -201,6 +275,29 @@ export default function Catalogo() {
                 Próxima
               </Link>
             )}
+          </div>
+        </div>
+      )}
+
+      {selecionados.length > 0 && (
+        <div className="pn-bulk-bar">
+          <span>{selecionados.length} selecionado(s)</span>
+          <div className="acoes">
+            <button type="button" className="pn-btn-sm" onClick={() => bulkStatus(true)} disabled={bulkFetcher.state !== "idle"}>
+              Exibir na loja
+            </button>
+            <button type="button" className="pn-btn-sm" onClick={() => bulkStatus(false)} disabled={bulkFetcher.state !== "idle"}>
+              Ocultar da loja
+            </button>
+            <button type="button" className="pn-btn-sm" onClick={bulkCategoria} disabled={bulkFetcher.state !== "idle"}>
+              Mudar categoria
+            </button>
+            <button type="button" className="pn-btn-sm" onClick={bulkPreco} disabled={bulkFetcher.state !== "idle"}>
+              Ajustar preço
+            </button>
+            <button type="button" className="pn-btn-link" onClick={() => setSelecionados([])}>
+              Limpar
+            </button>
           </div>
         </div>
       )}

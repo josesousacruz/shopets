@@ -15,8 +15,11 @@ export const meta: MetaFunction = ({ params }) => [
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { token } = await requireAdmin(request);
-  const res = await painel.pedidos.show(token, params.numero!);
-  return json({ pedido: res.data });
+  const [res, msgs] = await Promise.all([
+    painel.pedidos.show(token, params.numero!),
+    painel.pedidos.mensagens(token, params.numero!),
+  ]);
+  return json({ pedido: res.data, mensagens: msgs.data });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -39,6 +42,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
       case "cancelar":
         await painel.pedidos.cancelar(token, numero, String(form.get("motivo") ?? ""));
         break;
+      case "rastreio":
+        await painel.pedidos.atualizarRastreio(token, numero, String(form.get("codigo_rastreio") ?? ""));
+        break;
+      case "mensagem":
+        await painel.pedidos.enviarMensagem(token, numero, String(form.get("texto") ?? ""));
+        break;
       default:
         return json({ erro: "Ação inválida." }, { status: 400 });
     }
@@ -57,6 +66,8 @@ function mensagemPedido(acao: string): string {
     case "enviar": return "Pedido marcado como enviado.";
     case "entregar": return "Pedido marcado como entregue.";
     case "cancelar": return "Pedido cancelado.";
+    case "rastreio": return "Rastreio atualizado e cliente notificado.";
+    case "mensagem": return "Mensagem enviada.";
     default: return "Ação concluída.";
   }
 }
@@ -73,12 +84,30 @@ function fmtDataHora(iso: string | null) {
 }
 
 export default function PedidoDetalhe() {
-  const { pedido } = useLoaderData<typeof loader>();
+  const { pedido, mensagens } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
   const submit = useSubmit();
   const busy = nav.state !== "idle";
   useActionFeedback(actionData);
+
+  const editarRastreio = async () => {
+    const r = await Swal.fire({
+      title: "Atualizar rastreio",
+      input: "text",
+      inputLabel: "Código de rastreio",
+      inputValue: pedido.codigo_rastreio ?? "",
+      showCancelButton: true,
+      confirmButtonText: "Salvar e notificar",
+      cancelButtonText: "Cancelar",
+      inputValidator: (v) => (!v ? "Informe o código." : undefined),
+    });
+    if (!r.isConfirmed) return;
+    const fd = new FormData();
+    fd.set("_acao", "rastreio");
+    fd.set("codigo_rastreio", String(r.value ?? ""));
+    submit(fd, { method: "post", replace: true });
+  };
 
   const podeSeparar = pedido.status === "pago";
   const podeEnviar = pedido.status === "em_separacao";
@@ -271,6 +300,28 @@ export default function PedidoDetalhe() {
               </ul>
             )}
           </div>
+
+          {/* Chat / mensagens */}
+          <div className="pn-card">
+            <h2>Mensagens</h2>
+            <div className="pn-chat">
+              {mensagens.length === 0 ? (
+                <p className="card-sub">Nenhuma mensagem ainda.</p>
+              ) : (
+                mensagens.map((m) => (
+                  <div key={m.id} className={`pn-chat-msg ${m.autor_tipo === "admin" ? "admin" : "cliente"}`}>
+                    <div className="pn-chat-meta">{m.autor} · {fmtDataHora(m.criado_em)}</div>
+                    <div className="pn-chat-texto">{m.texto}</div>
+                  </div>
+                ))
+              )}
+            </div>
+            <Form method="post" replace className="pn-chat-form">
+              <input type="hidden" name="_acao" value="mensagem" />
+              <input name="texto" placeholder="Escreva uma mensagem…" required maxLength={2000} />
+              <button type="submit" className="pn-btn-sm mint" disabled={busy}>Enviar</button>
+            </Form>
+          </div>
         </div>
 
         <div>
@@ -319,12 +370,13 @@ export default function PedidoDetalhe() {
             ) : (
               <p className="card-sub">Sem endereço.</p>
             )}
-            {pedido.codigo_rastreio && (
-              <dl className="pn-dl" style={{ marginTop: 12 }}>
-                <dt>Rastreio</dt>
-                <dd>{pedido.codigo_rastreio}</dd>
-              </dl>
-            )}
+            <dl className="pn-dl" style={{ marginTop: 12 }}>
+              <dt>Rastreio</dt>
+              <dd>{pedido.codigo_rastreio ?? "—"}</dd>
+            </dl>
+            <button type="button" className="pn-btn-sm" onClick={editarRastreio} disabled={busy} style={{ marginTop: 8 }}>
+              {pedido.codigo_rastreio ? "Atualizar rastreio" : "Adicionar rastreio"}
+            </button>
           </div>
 
           {/* Pagamento + venda/nfe */}

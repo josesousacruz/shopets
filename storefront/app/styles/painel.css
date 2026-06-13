@@ -2152,3 +2152,18 @@ a.pn-list-row:hover {
 
 .pn-inline-field { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pn-text-soft); }
 .pn-inline-field input { width: auto; }
+
+/* ── Fase 7.B: Chat do pedido ─────────────────────────────────────────── */
+.pn-chat { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; margin: 10px 0; }
+.pn-chat-msg { padding: 8px 12px; border-radius: 10px; max-width: 85%; }
+.pn-chat-msg.admin { align-self: flex-end; background: var(--pn-accent-soft, #e6f4f1); }
+.pn-chat-msg.cliente { align-self: flex-start; background: var(--pn-surface-muted, #f4f4f5); }
+.pn-chat-meta { font-size: 11px; color: var(--pn-text-soft); margin-bottom: 2px; }
+.pn-chat-texto { font-size: 14px; white-space: pre-wrap; }
+.pn-chat-form { display: flex; gap: 8px; margin-top: 10px; }
+.pn-chat-form input { flex: 1; }
+
+/* ── Fase 7.C: Barra de acoes em massa ────────────────────────────────── */
+.pn-bulk-bar { position: sticky; bottom: 16px; margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; background: var(--pn-text, #1a1a1a); color: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+.pn-bulk-bar .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pn-bulk-bar .pn-btn-link { color: #fff; opacity: 0.85; }

@@ -17,25 +17,27 @@ export async function action({ request }: ActionFunctionArgs) {
   const { token } = await requireAdmin(request);
   const form = await request.formData();
 
-  const num = (k: string) => {
-    const v = form.get(k);
-    return v == null || v === "" ? null : Number(v);
+  // Só inclui no payload os campos presentes na aba submetida (evita sobrescrever
+  // SEO/Fiscal ao salvar a aba Loja e vice-versa).
+  const payload: Record<string, string | number | null> = {};
+  const addStr = (k: string) => {
+    if (form.has(k)) {
+      const v = form.get(k);
+      payload[k] = v == null || v === "" ? null : String(v);
+    }
   };
-  const str = (k: string) => {
-    const v = form.get(k);
-    return v == null || v === "" ? null : String(v);
+  const addNum = (k: string, fallback = 0) => {
+    if (form.has(k)) {
+      const v = form.get(k);
+      payload[k] = v == null || v === "" ? fallback : Number(v);
+    }
   };
 
+  ["nome_empresa", "cnpj", "endereco", "telefone", "email", "seo_titulo", "seo_descricao", "og_image_path", "csc_nfce", "csc_id_nfce"].forEach(addStr);
+  ["taxa_entrega", "valor_minimo_entrega", "ambiente_nfce"].forEach((k) => addNum(k));
+
   try {
-    await painel.configuracoes.update(token, {
-      nome_empresa: str("nome_empresa"),
-      cnpj: str("cnpj"),
-      endereco: str("endereco"),
-      telefone: str("telefone"),
-      email: str("email"),
-      taxa_entrega: num("taxa_entrega") ?? 0,
-      valor_minimo_entrega: num("valor_minimo_entrega") ?? 0,
-    });
+    await painel.configuracoes.update(token, payload);
     return json({ ok: true });
   } catch (err) {
     if (err instanceof PainelValidationError) {
@@ -52,7 +54,7 @@ export default function Configuracoes() {
   const saving = nav.state === "submitting";
   const errors = actionData && "errors" in actionData ? actionData.errors : {};
   const message = actionData && "message" in actionData ? actionData.message : undefined;
-  const [tab, setTab] = useState<"loja" | "integracoes" | "cupons" | "banners">("loja");
+  const [tab, setTab] = useState<"loja" | "seo" | "fiscal" | "integracoes" | "cupons" | "banners">("loja");
 
   const err = (k: string) => (errors[k] ? <span className="err">{errors[k][0]}</span> : null);
 
@@ -69,6 +71,12 @@ export default function Configuracoes() {
       <div className="pn-tabs">
         <button type="button" className={tab === "loja" ? "active" : ""} onClick={() => setTab("loja")}>
           Loja
+        </button>
+        <button type="button" className={tab === "seo" ? "active" : ""} onClick={() => setTab("seo")}>
+          SEO
+        </button>
+        <button type="button" className={tab === "fiscal" ? "active" : ""} onClick={() => setTab("fiscal")}>
+          Fiscal
         </button>
         <button type="button" className={tab === "integracoes" ? "active" : ""} onClick={() => setTab("integracoes")}>
           Pagamento / Frete
@@ -163,6 +171,70 @@ export default function Configuracoes() {
             </div>
           </Form>
         </>
+      )}
+
+      {tab === "seo" && (
+        <Form method="post">
+          <div className="pn-card">
+            <h2>SEO da loja</h2>
+            <p className="card-sub">Como a loja aparece no Google e ao compartilhar links.</p>
+            <div className="ct-field">
+              <label htmlFor="seo_titulo">Título (meta title)</label>
+              <input id="seo_titulo" name="seo_titulo" maxLength={70} defaultValue={config.seo?.seo_titulo ?? ""} />
+              {err("seo_titulo")}
+            </div>
+            <div className="ct-field">
+              <label htmlFor="seo_descricao">Descrição (meta description)</label>
+              <textarea id="seo_descricao" name="seo_descricao" maxLength={200} rows={3} defaultValue={config.seo?.seo_descricao ?? ""} />
+              {err("seo_descricao")}
+            </div>
+            <div className="ct-field">
+              <label htmlFor="og_image_path">Imagem de compartilhamento (URL/caminho)</label>
+              <input id="og_image_path" name="og_image_path" defaultValue={config.seo?.og_image_path ?? ""} />
+              {err("og_image_path")}
+            </div>
+            <div className="pn-actions-bar" style={{ marginTop: 18 }}>
+              <button type="submit" className="pn-btn-sm mint" disabled={saving}>{saving ? "Salvando…" : "Salvar SEO"}</button>
+            </div>
+          </div>
+        </Form>
+      )}
+
+      {tab === "fiscal" && (
+        <Form method="post">
+          <div className="pn-card">
+            <h2>Fiscal — NFC-e</h2>
+            <p className="card-sub">
+              Ambiente de homologação para testes. Emissão em produção exige certificado A1 válido configurado pelo suporte.
+            </p>
+            <div className="ct-field">
+              <label htmlFor="ambiente_nfce">Ambiente</label>
+              <select id="ambiente_nfce" name="ambiente_nfce" defaultValue={String(config.fiscal?.ambiente_nfce ?? 2)}>
+                <option value="2">Homologação (testes)</option>
+                <option value="1">Produção</option>
+              </select>
+              {err("ambiente_nfce")}
+            </div>
+            <div className="pn-field-row">
+              <div className="ct-field">
+                <label htmlFor="csc_nfce">CSC (código de segurança)</label>
+                <input id="csc_nfce" name="csc_nfce" defaultValue={config.fiscal?.csc_nfce ?? ""} />
+                {err("csc_nfce")}
+              </div>
+              <div className="ct-field">
+                <label htmlFor="csc_id_nfce">ID do CSC</label>
+                <input id="csc_id_nfce" name="csc_id_nfce" defaultValue={config.fiscal?.csc_id_nfce ?? ""} />
+                {err("csc_id_nfce")}
+              </div>
+            </div>
+            <p className="card-sub">
+              Certificado digital: {config.fiscal?.certificado_definido ? "✓ configurado" : "não configurado"} (upload do .pfx via suporte).
+            </p>
+            <div className="pn-actions-bar" style={{ marginTop: 18 }}>
+              <button type="submit" className="pn-btn-sm mint" disabled={saving}>{saving ? "Salvando…" : "Salvar fiscal"}</button>
+            </div>
+          </div>
+        </Form>
       )}
 
       {tab === "integracoes" && (
