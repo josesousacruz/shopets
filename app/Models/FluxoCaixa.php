@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class FluxoCaixa extends Model
 {
@@ -16,6 +16,7 @@ class FluxoCaixa extends Model
     protected $fillable = [
         'user_id',
         'id_pdv',
+        'id_caixa_sessao',
         'tipo_operacao',
         'valor',
         'descricao',

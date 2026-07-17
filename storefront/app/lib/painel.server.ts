@@ -97,6 +97,7 @@ export interface PedidoDetalhe {
   frete_servico: string | null;
   prazo_entrega_dias: number | null;
   codigo_rastreio: string | null;
+  etiqueta_url: string | null;
   observacoes: string | null;
   criado_em: string | null;
   pago_em: string | null;
@@ -245,6 +246,15 @@ export interface ConfiguracoesPainel {
     logo_path: string | null;
     taxa_entrega: number;
     valor_minimo_entrega: number;
+    endereco_cep: string | null;
+    endereco_logradouro: string | null;
+    endereco_numero: string | null;
+    endereco_complemento: string | null;
+    endereco_bairro: string | null;
+    endereco_cidade: string | null;
+    endereco_uf: string | null;
+    endereco_codigo_ibge: string | null;
+    caixa_modo_sessao: boolean;
   };
   seo?: {
     seo_titulo: string | null;
@@ -257,10 +267,26 @@ export interface ConfiguracoesPainel {
     csc_id_nfce: string | null;
     certificado_path: string | null;
     certificado_definido: boolean;
+    certificado_validade: string | null;
+    inscricao_estadual: string | null;
+    regime_tributario: string;
+    nfe_serie: string;
+    nfe_proximo_numero: number;
   };
   integracoes: {
     payment_driver: string | null;
+    yapay_sandbox: boolean;
+    yapay_configurado: boolean;
+    mercadopago_sandbox: boolean;
+    mercadopago_configurado: boolean;
+    mercadopago_webhook_configurado: boolean;
     shipping_driver: string | null;
+    melhor_envio_sandbox: boolean;
+    melhor_envio_sandbox_client_id: string | null;
+    melhor_envio_sandbox_secret_configurado: boolean;
+    melhor_envio_prod_client_id: string | null;
+    melhor_envio_prod_secret_configurado: boolean;
+    melhor_envio_callback_url: string;
   };
 }
 
@@ -325,6 +351,13 @@ export const painel = {
       request<{ data: { id: number; texto: string } }>(
         `/painel/pedidos/${numero}/mensagens`,
         { method: "POST", token, body: { texto } },
+      ),
+    // Tenta comprar etiqueta real no Melhor Envio (quando configurado) e cai
+    // pro PDF interno automaticamente no backend — sempre volta uma URL.
+    etiqueta: (token: string, numero: string) =>
+      request<{ data: { numero: string; etiqueta_url: string } }>(
+        `/painel/pedidos/${numero}/etiqueta`,
+        { method: "POST", token },
       ),
   },
 
@@ -404,6 +437,38 @@ export const painel = {
     show: (token: string) => request<{ data: ConfiguracoesPainel }>("/painel/configuracoes", { token }),
     update: (token: string, body: Json) =>
       request<{ data: ConfiguracoesPainel }>("/painel/configuracoes", { method: "PUT", token, body }),
+    uploadCertificado: async (
+      token: string,
+      arquivo: File,
+      senha: string,
+    ): Promise<{ data: { certificado_definido: boolean; certificado_validade: string | null; expirado: boolean } }> => {
+      const fd = new FormData();
+      fd.append("certificado", arquivo, arquivo.name || "certificado.pfx");
+      fd.append("senha", senha);
+      const res = await fetch(`${env.apiBaseUrl}/painel/configuracoes/certificado`, {
+        method: "POST",
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      return parse(res, "/painel/configuracoes/certificado");
+    },
+  },
+
+  integracoes: {
+    melhorEnvio: {
+      status: (token: string) =>
+        request<{ data: { conectado: boolean } }>("/painel/integracoes/melhor-envio", { token }),
+      connect: (token: string) =>
+        request<{ data: { url: string } }>("/painel/integracoes/melhor-envio/connect", {
+          method: "POST",
+          token,
+        }),
+      disconnect: (token: string) =>
+        request<{ data: { conectado: boolean } }>("/painel/integracoes/melhor-envio", {
+          method: "DELETE",
+          token,
+        }),
+    },
   },
 
   devolucoes: {
@@ -754,6 +819,19 @@ export const painel = {
     kpis: (token: string, periodo = "30d") =>
       request<{ data: { faturamento: number; pedidos: number; ticket_medio: number; estoque_abaixo_minimo: number; a_receber_pendente: number; a_pagar_pendente: number } }>(
         `/painel/dashboard/kpis?periodo=${periodo}`, { token }),
+  },
+
+  revisaoFiscal: {
+    list: (token: string, page = 1) =>
+      request<{
+        data: { numero: string; modalidade: string; cliente: string; total: number; motivo: string | null; atualizado_em: string | null }[];
+        meta: { current_page: number; last_page: number; total: number };
+      }>(`/painel/revisao-fiscal?page=${page}`, { token }),
+    reemitir: (token: string, numero: string) =>
+      request<{ data: { numero: string; status: string; nfe_chave: string | null; resolvido: boolean } }>(
+        `/painel/revisao-fiscal/${numero}/reemitir`,
+        { method: "POST", token },
+      ),
   },
 
   relatorios: {
@@ -1275,6 +1353,7 @@ export interface PdvItem {
   deposito_id: number | null;
   serie_fiscal_default: string | null;
   regime_tributario: string | null;
+  nfce_proximo_numero?: number;
   users_count?: number;
   deposito?: { id: number; nome: string } | null;
 }

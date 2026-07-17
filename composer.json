@@ -20,6 +20,7 @@
         "laravel/wayfinder": "^0.1.9",
         "league/csv": "^9.28",
         "maennchen/zipstream-php": "^3.1",
+        "nfephp-org/sped-da": "^1.1",
         "nfephp-org/sped-nfe": "^5.0",
         "phiki/phiki": "^2.0",
         "spatie/laravel-activitylog": "^4.10",

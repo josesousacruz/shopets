@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class PontoVenda extends Model
 {
     use HasFactory, LogsActivity;
 
     protected $table = 'pontos_venda';
+
     protected $primaryKey = 'id_pdv';
 
     protected $fillable = [
@@ -26,11 +27,13 @@ class PontoVenda extends Model
         'deposito_id',
         'serie_fiscal_default',
         'regime_tributario',
+        'nfce_proximo_numero',
     ];
 
     protected $casts = [
         'ativo' => 'boolean',
         'permite_retirada' => 'boolean',
+        'nfce_proximo_numero' => 'integer',
     ];
 
     public function deposito()
@@ -55,7 +58,7 @@ class PontoVenda extends Model
     public function users()
     {
         return $this->belongsToMany(User::class, 'users_pdvs', 'id_pdv', 'user_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     /**

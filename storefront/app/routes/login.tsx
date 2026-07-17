@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LinksFunction, LoaderFunctionArgs, MetaFunctio
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
 import { login, ApiValidationError } from "~/lib/auth.server";
-import { createUserSession, getToken } from "~/lib/session.server";
+import { createUserSession, destroySessionCookie, getCliente, getToken } from "~/lib/session.server";
 import contaStyles from "~/styles/conta.css?url";
 
 export const links: LinksFunction = () => [{ rel: "stylesheet", href: contaStyles }];
@@ -15,7 +15,13 @@ function safeRedirect(to: FormDataEntryValue | null): string {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  if (await getToken(request)) return redirect("/conta");
+  // Só redireciona pra /conta se o token for VÁLIDO (getCliente valida via API).
+  if (await getCliente(request)) return redirect("/conta");
+  // Token presente porém inválido (morto): limpa o cookie e mostra o login —
+  // sem isso o usuário ficava preso indo pra /conta com um token que dá 401.
+  if (await getToken(request)) {
+    return json(null, { headers: { "Set-Cookie": await destroySessionCookie(request) } });
+  }
   return null;
 }
 

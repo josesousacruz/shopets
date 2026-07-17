@@ -26,8 +26,7 @@ class PedidoAdminController extends Controller
         private readonly TransicionarPedidoAction $transicionar,
         private readonly GerarEtiquetaAction $gerarEtiqueta,
         private readonly PaymentGatewayInterface $gateway,
-    ) {
-    }
+    ) {}
 
     /** PUT /pedidos/{numero}/rastreio — atualiza o código e notifica o cliente. */
     public function atualizarRastreio(Request $request, string $numero): JsonResponse
@@ -168,6 +167,7 @@ class PedidoAdminController extends Controller
                 'frete_servico' => $pedido->frete_servico,
                 'prazo_entrega_dias' => $pedido->prazo_entrega_dias,
                 'codigo_rastreio' => $pedido->codigo_rastreio,
+                'etiqueta_url' => $pedido->etiqueta_url,
                 'observacoes' => $pedido->observacoes,
                 'criado_em' => optional($pedido->created_at)->toIso8601String(),
                 'pago_em' => optional($pedido->pago_em)->toIso8601String(),
@@ -230,7 +230,7 @@ class PedidoAdminController extends Controller
             $this->transicionar->executar(
                 $pedido,
                 'enviado',
-                'Pedido enviado.' . ($request->codigo_rastreio ? " Rastreio: {$request->codigo_rastreio}." : ''),
+                'Pedido enviado.'.($request->codigo_rastreio ? " Rastreio: {$request->codigo_rastreio}." : ''),
                 function (Pedido $p) use ($request) {
                     $p->codigo_rastreio = $request->codigo_rastreio ?: $p->codigo_rastreio;
                 },

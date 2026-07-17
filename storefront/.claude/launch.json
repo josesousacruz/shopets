@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "backend",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["../artisan", "serve", "--port=8888"],
+      "port": 8888
+    },
+    {
       "name": "storefront",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],

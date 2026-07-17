@@ -64,7 +64,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    let res: { data: Carrinho };
+    let res: { data: Carrinho; setCookie?: string };
 
     if (intent === "add") {
       const id_produto = Number(form.get("id_produto"));
@@ -84,7 +84,12 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ ok: false as const, message: "Ação inválida." }, { status: 400 });
     }
 
-    return json({ ok: true as const, intent, carrinho: res.data });
+    // Persiste o cart_token do convidado quando a API gera um novo — sem isso
+    // o item entrava num carrinho órfão e o drawer aparecia vazio.
+    return json(
+      { ok: true as const, intent, carrinho: res.data },
+      res.setCookie ? { headers: { "Set-Cookie": res.setCookie } } : undefined,
+    );
   } catch (err) {
     if (err instanceof ApiValidationError) {
       const message =

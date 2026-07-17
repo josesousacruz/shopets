@@ -2,20 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Produto;
 use App\Models\Categoria;
-use App\Models\Venda;
-use App\Models\ItemVenda;
 use App\Models\Cliente;
-use App\Models\FormaPagamento;
 use App\Models\ConfiguracaoEmpresa;
+use App\Models\FormaPagamento;
+use App\Models\ItemVenda;
+use App\Models\Produto;
+use App\Models\Venda;
+use App\Services\NfceService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PDVController extends Controller
 {
@@ -53,7 +56,7 @@ class PDVController extends Controller
                 'description' => $produto->descricao,
                 'unit' => $produto->unidade,
                 'allowFraction' => (bool) $produto->permite_fracao,
-                'image' => null // Por enquanto sem imagem
+                'image' => null, // Por enquanto sem imagem
             ];
         });
 
@@ -62,7 +65,7 @@ class PDVController extends Controller
                 'id' => $categoria->id_categoria,
                 'name' => $categoria->nome,
                 'description' => $categoria->descricao,
-                'color' => $categoria->cor
+                'color' => $categoria->cor,
             ];
         });
 
@@ -145,7 +148,7 @@ class PDVController extends Controller
                 'description' => $produto->descricao,
                 'unit' => $produto->unidade,
                 'allowFraction' => (bool) $produto->permite_fracao,
-                'image' => null // Por enquanto sem imagem
+                'image' => null, // Por enquanto sem imagem
             ];
         });
 
@@ -165,7 +168,7 @@ class PDVController extends Controller
                 ],
                 'quantity' => (float) $item->quantidade,
                 'desconto_item' => (float) ($item->desconto_item ?? 0),
-                'valor_total_item' => (float) ($item->valor_total_item ?? ((float)$item->preco_unitario * (float)$item->quantidade)),
+                'valor_total_item' => (float) ($item->valor_total_item ?? ((float) $item->preco_unitario * (float) $item->quantidade)),
             ];
         });
 
@@ -243,8 +246,11 @@ class PDVController extends Controller
                     ->select('formas_pagamento.nome')
                     ->get();
                 $formaNome = null;
-                if ($pgs->count() === 1) { $formaNome = $pgs->first()->nome; }
-                elseif ($pgs->count() > 1) { $formaNome = 'Múltiplos'; }
+                if ($pgs->count() === 1) {
+                    $formaNome = $pgs->first()->nome;
+                } elseif ($pgs->count() > 1) {
+                    $formaNome = 'Múltiplos';
+                }
 
                 return [
                     'id_venda' => $v->id_venda,
@@ -267,28 +273,39 @@ class PDVController extends Controller
      */
     public function storeSale(Request $request)
     {
+        $idPdv = 1; // Fixo por enquanto — mesmo valor usado ao criar a Venda abaixo.
+
+        if (\App\Http\Controllers\CaixaSessaoController::modoSessaoAtivo()
+            && ! \App\Models\CaixaSessao::where('id_pdv', $idPdv)->where('status', 'aberta')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Abra o caixa antes de iniciar uma venda.',
+                'caixa_fechado' => true,
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
-            
+
             // Gerar número da venda
             $anoAtual = date('Y');
-            $ultimaVenda = Venda::where('numero_venda', 'like', $anoAtual . '%')
+            $ultimaVenda = Venda::where('numero_venda', 'like', $anoAtual.'%')
                 ->orderBy('numero_venda', 'desc')
                 ->first();
-            
+
             $proximoNumero = 1;
             if ($ultimaVenda && $ultimaVenda->numero_venda) {
                 $ultimoNumero = (int) substr($ultimaVenda->numero_venda, 4);
                 $proximoNumero = $ultimoNumero + 1;
             }
-            
-            $numeroVenda = $anoAtual . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
+
+            $numeroVenda = $anoAtual.str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
 
             // Criar a venda com status 'aberta' e valores zerados
             $venda = Venda::create([
                 'numero_venda' => $numeroVenda,
                 'id_usuario' => auth()->id(),
-                'id_pdv' => 1, // Fixo por enquanto
+                'id_pdv' => $idPdv,
                 'valor_subtotal' => 0,
                 'valor_desconto' => 0,
                 'valor_acrescimo' => 0,
@@ -296,20 +313,21 @@ class PDVController extends Controller
                 'status' => 'aberta',
                 'data_venda' => now(),
             ]);
-            
+
             DB::commit();
-            
+
             Log::info('Venda header created:', ['venda_id' => $venda->id_venda, 'numero_venda' => $venda->numero_venda]);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Venda #{$venda->numero_venda} iniciada com sucesso!",
-                'venda' => $venda->only(['id_venda', 'numero_venda', 'status', 'valor_total'])
+                'venda' => $venda->only(['id_venda', 'numero_venda', 'status', 'valor_total']),
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('PDV Store Sale Error:', ['message' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'message' => 'Erro ao iniciar a venda.'], 500);
         }
     }
@@ -374,10 +392,11 @@ class PDVController extends Controller
             });
 
             if (abs($somaPagamentos - $valorTotal) > 0.01) {
-               DB::rollback();
+                DB::rollback();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'A soma dos pagamentos difere do total da venda.'
+                    'message' => 'A soma dos pagamentos difere do total da venda.',
                 ], 422);
             }
 
@@ -393,8 +412,8 @@ class PDVController extends Controller
 
             foreach ($validated['pagamentos'] as $p) {
                 $numeroParcelas = isset($p['numero_parcelas']) ? (int) $p['numero_parcelas'] : 1;
-                $valorParcela = $numeroParcelas > 0 ? ((float)$p['valor_pagamento'] / $numeroParcelas) : (float)$p['valor_pagamento'];
-               DB::table('pagamentos_venda')->insert([
+                $valorParcela = $numeroParcelas > 0 ? ((float) $p['valor_pagamento'] / $numeroParcelas) : (float) $p['valor_pagamento'];
+                DB::table('pagamentos_venda')->insert([
                     'id_venda' => $venda->id_venda,
                     'id_forma_pagamento' => $p['id_forma_pagamento'],
                     'valor_pagamento' => (float) $p['valor_pagamento'],
@@ -410,27 +429,103 @@ class PDVController extends Controller
                 ]);
             }
 
-           DB::commit();
+            DB::commit();
 
-           Log::info('Venda finalizada:', [
+            Log::info('Venda finalizada:', [
                 'venda_id' => $venda->id_venda,
                 'numero_venda' => $venda->numero_venda,
             ]);
 
+            // NFC-e best-effort: a venda já está finalizada e commitada — uma
+            // falha aqui nunca desfaz a venda, só avisa o operador do balcão.
+            $fiscal = $this->emitirNfceBalcao($venda->fresh());
+
             return response()->json([
                 'success' => true,
                 'message' => "Venda #{$venda->numero_venda} finalizada com sucesso!",
-                'venda' => $venda->fresh()
+                'venda' => $venda->fresh(),
+                'fiscal' => $fiscal,
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-           DB::rollback();
-           Log::error('Erro de validação ao finalizar venda:', ['errors' => $e->errors(), 'request' => $request->all()]);
-            return response()->json(['success' => false, 'message' => 'Dados inválidos: ' . implode(', ', Arr::flatten($e->errors()))], 422);
+            DB::rollback();
+            Log::error('Erro de validação ao finalizar venda:', ['errors' => $e->errors(), 'request' => $request->all()]);
+
+            return response()->json(['success' => false, 'message' => 'Dados inválidos: '.implode(', ', Arr::flatten($e->errors()))], 422);
         } catch (\Exception $e) {
-           DB::rollback();
-           Log::error('Erro ao finalizar venda:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            DB::rollback();
+            Log::error('Erro ao finalizar venda:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
             return response()->json(['success' => false, 'message' => 'Erro interno ao finalizar a venda.'], 500);
+        }
+    }
+
+    /**
+     * Emite a NFC-e da venda de balcão. Best-effort: nunca desfaz a venda —
+     * em caso de erro, só loga e devolve o motivo pro operador decidir (ex.:
+     * reimprimir depois, ou seguir sem cupom fiscal se o cliente concordar).
+     * Sem tela de revisão fiscal dedicada pro balcão ainda (fica pro backlog);
+     * o registro do erro fica só no log + na resposta desta requisição.
+     */
+    private function emitirNfceBalcao(Venda $venda): array
+    {
+        if ($venda->nfce_chave) {
+            return ['emitido' => true, 'chave' => $venda->nfce_chave, 'danfce_url' => $venda->nfce_danfce_url];
+        }
+
+        try {
+            $venda->loadMissing('itens');
+
+            $produtos = Produto::whereIn('id_produto', $venda->itens->pluck('id_produto')->unique())
+                ->get()->keyBy('id_produto');
+
+            $itens = $venda->itens->map(fn ($item) => [
+                'nome' => $produtos->get($item->id_produto)?->nome ?? 'Item',
+                'ncm' => $produtos->get($item->id_produto)?->ncm,
+                'unidade' => $produtos->get($item->id_produto)?->unidade,
+                'quantidade' => (float) $item->quantidade,
+                'preco_unitario' => (float) $item->preco_unitario,
+                'codigo' => $produtos->get($item->id_produto)?->codigo_interno ?? (string) $item->id_produto,
+            ])->values()->all();
+
+            $pagamentos = DB::table('pagamentos_venda')
+                ->join('formas_pagamento', 'formas_pagamento.id_forma_pagamento', '=', 'pagamentos_venda.id_forma_pagamento')
+                ->where('pagamentos_venda.id_venda', $venda->id_venda)
+                ->get(['formas_pagamento.tipo', 'pagamentos_venda.valor_pagamento'])
+                ->map(fn ($l) => ['tipo' => $l->tipo, 'valor' => (float) $l->valor_pagamento])
+                ->all();
+
+            $cliente = $venda->id_cliente ? Cliente::find($venda->id_cliente) : null;
+
+            $resultado = app(NfceService::class)->emitir([
+                'id_pdv' => $venda->id_pdv,
+                'natOp' => 'Venda',
+                'cliente' => $cliente ? ['nome' => $cliente->nome, 'cpf' => $cliente->cpf_cnpj] : null,
+                'itens' => $itens,
+                'pagamentos' => $pagamentos ?: [['tipo' => 'outros', 'valor' => (float) $venda->valor_total]],
+            ]);
+
+            $danfceUrl = null;
+            if (! empty($resultado['danfce_pdf'])) {
+                $caminho = "notas-fiscais/nfce-{$venda->numero_venda}.pdf";
+                Storage::disk('public')->put($caminho, $resultado['danfce_pdf']);
+                $danfceUrl = Storage::disk('public')->url($caminho);
+            }
+
+            $venda->update([
+                'nfce_chave' => $resultado['chave'],
+                'nfce_numero' => (string) $resultado['numero'],
+                'nfce_danfce_url' => $danfceUrl,
+            ]);
+
+            return ['emitido' => true, 'chave' => $resultado['chave'], 'danfce_url' => $danfceUrl];
+        } catch (Throwable $e) {
+            Log::warning('PDVController: emissão de NFC-e do balcão falhou.', [
+                'venda_id' => $venda->id_venda,
+                'erro' => $e->getMessage(),
+            ]);
+
+            return ['emitido' => false, 'erro' => $e->getMessage()];
         }
     }
 
@@ -445,25 +540,25 @@ class PDVController extends Controller
                 'motivo' => 'nullable|string|max:500',
             ]);
 
-           DB::beginTransaction();
+            DB::beginTransaction();
 
             // Buscar a venda: permitir cancelar 'aberta' ou 'finalizada'
             $venda = Venda::where('id_venda', $validated['id_venda'])
-                          ->whereIn('status', ['aberta', 'finalizada'])
-                          ->firstOrFail();
+                ->whereIn('status', ['aberta', 'finalizada'])
+                ->firstOrFail();
 
             // Atualizar a venda para cancelada
             $venda->update([
                 'status' => 'cancelada',
-                'observacoes' => 'Venda cancelada. Motivo: ' . ($validated['motivo'] ?? 'Não informado'),
+                'observacoes' => 'Venda cancelada. Motivo: '.($validated['motivo'] ?? 'Não informado'),
             ]);
 
-           DB::commit();
+            DB::commit();
 
-           Log::info('Venda cancelada:', [
+            Log::info('Venda cancelada:', [
                 'venda_id' => $venda->id_venda,
                 'numero_venda' => $venda->numero_venda,
-                'motivo' => $validated['motivo'] ?? 'Não informado'
+                'motivo' => $validated['motivo'] ?? 'Não informado',
             ]);
 
             return response()->json([
@@ -472,17 +567,17 @@ class PDVController extends Controller
             ]);
 
         } catch (\Exception $e) {
-           DB::rollback();
-            
-           Log::error('Erro ao cancelar venda:', [
+            DB::rollback();
+
+            Log::error('Erro ao cancelar venda:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao cancelar venda: ' . $e->getMessage()
+                'message' => 'Erro ao cancelar venda: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -504,6 +599,7 @@ class PDVController extends Controller
                 'data_venda' => $r->data_venda,
             ];
         });
+
         return response()->json(['vendas' => $data]);
     }
 
@@ -526,6 +622,7 @@ class PDVController extends Controller
                 ];
             });
         $venda = Venda::findOrFail($id);
+
         return response()->json([
             'venda' => [
                 'id_venda' => $venda->id_venda,
@@ -544,9 +641,9 @@ class PDVController extends Controller
             'itens.*' => 'required|exists:itens_venda,id_item',
         ]);
         $orig = Venda::with('itens')->findOrFail($id);
-        $idsDevolver = collect($validated['itens'])->map(fn($x) => (int) $x)->all();
+        $idsDevolver = collect($validated['itens'])->map(fn ($x) => (int) $x)->all();
         $itensRestantes = $orig->itens->filter(function ($iv) use ($idsDevolver) {
-            return !in_array($iv->id_item, $idsDevolver);
+            return ! in_array($iv->id_item, $idsDevolver);
         })->map(function ($iv) {
             return [
                 'id_item' => $iv->id_item,
@@ -554,9 +651,10 @@ class PDVController extends Controller
                 'quantidade' => (float) $iv->quantidade,
                 'preco_unitario' => (float) $iv->preco_unitario,
                 'desconto_item' => (float) ($iv->desconto_item ?? 0),
-                'valor_total_item' => (float) ($iv->valor_total_item ?? ((float)$iv->preco_unitario * (float)$iv->quantidade)),
+                'valor_total_item' => (float) ($iv->valor_total_item ?? ((float) $iv->preco_unitario * (float) $iv->quantidade)),
             ];
         });
+
         return response()->json([
             'success' => true,
             'venda_original' => [
@@ -589,7 +687,7 @@ class PDVController extends Controller
             $venda = Venda::where('id_venda', $id)->where('status', 'aberta')->firstOrFail();
             $subtotal = (float) ($venda->valor_subtotal ?? 0);
             $desconto = (float) ($venda->valor_desconto ?? 0);
-            if (!empty($validated['novos_itens'])) {
+            if (! empty($validated['novos_itens'])) {
                 foreach ($validated['novos_itens'] as $ni) {
                     $valorBruto = (float) $ni['preco_unitario'] * (float) $ni['quantidade'];
                     ItemVenda::create([
@@ -613,6 +711,7 @@ class PDVController extends Controller
             if ($diferenca > 0) {
                 if (abs($somaPagamentos - $diferenca) > 0.01) {
                     DB::rollback();
+
                     return response()->json(['success' => false, 'message' => 'Pagamentos não fecham a diferença'], 422);
                 }
             } else {
@@ -624,7 +723,7 @@ class PDVController extends Controller
                 'status' => 'finalizada',
                 'observacoes' => $validated['observacoes'] ?? null,
             ]);
-            if ($diferenca > 0 && !empty($validated['pagamentos'])) {
+            if ($diferenca > 0 && ! empty($validated['pagamentos'])) {
                 foreach ($validated['pagamentos'] as $p) {
                     $np = isset($p['numero_parcelas']) ? (int) $p['numero_parcelas'] : 1;
                     $vp = $np > 0 ? ((float) $p['valor_pagamento'] / $np) : (float) $p['valor_pagamento'];
@@ -645,6 +744,7 @@ class PDVController extends Controller
                 }
             }
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'venda' => $venda->fresh(),
@@ -653,9 +753,11 @@ class PDVController extends Controller
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollback();
+
             return response()->json(['success' => false, 'message' => 'Dados inválidos'], 422);
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json(['success' => false, 'message' => 'Erro interno'], 500);
         }
     }
@@ -677,15 +779,16 @@ class PDVController extends Controller
         ]);
         DB::beginTransaction();
         $orig = Venda::with('itens')->findOrFail($id);
-        $idsDev = collect($validated['itens_devolver'])->map(fn($x) => (int) $x)->all();
+        $idsDev = collect($validated['itens_devolver'])->map(fn ($x) => (int) $x)->all();
         $itensRestantes = $orig->itens->filter(function ($iv) use ($idsDev) {
-            return !in_array($iv->id_item, $idsDev);
+            return ! in_array($iv->id_item, $idsDev);
         });
         $novosItensPayload = $validated['novos_itens'] ?? [];
 
         if ($itensRestantes->count() === 0 && (empty($novosItensPayload) || count($novosItensPayload) === 0)) {
             $orig->update(['status' => 'devolvida']);
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'venda_original' => [
@@ -701,7 +804,7 @@ class PDVController extends Controller
         }
 
         $anoAtual = date('Y');
-        $ultimaVenda = Venda::where('numero_venda', 'like', $anoAtual . '%')
+        $ultimaVenda = Venda::where('numero_venda', 'like', $anoAtual.'%')
             ->orderBy('numero_venda', 'desc')
             ->first();
         $proximoNumero = 1;
@@ -709,7 +812,7 @@ class PDVController extends Controller
             $ultimoNumero = (int) substr($ultimaVenda->numero_venda, 4);
             $proximoNumero = $ultimoNumero + 1;
         }
-        $numeroVendaNova = $anoAtual . str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
+        $numeroVendaNova = $anoAtual.str_pad($proximoNumero, 6, '0', STR_PAD_LEFT);
 
         $nova = Venda::create([
             'numero_venda' => $numeroVendaNova,
@@ -737,7 +840,7 @@ class PDVController extends Controller
             $subtotal += (float) $iv->preco_unitario * (float) $iv->quantidade;
             $desconto += (float) ($iv->desconto_item ?? 0);
         }
-        if (!empty($novosItensPayload)) {
+        if (! empty($novosItensPayload)) {
             foreach ($novosItensPayload as $ni) {
                 $valorBruto = (float) $ni['preco_unitario'] * (float) $ni['quantidade'];
                 ItemVenda::create([
@@ -760,6 +863,7 @@ class PDVController extends Controller
         if ($diferenca > 0) {
             if (abs($somaPagamentos - $diferenca) > 0.01) {
                 DB::rollback();
+
                 return response()->json(['success' => false, 'message' => 'Pagamentos não fecham a diferença'], 422);
             }
         } else {
@@ -772,7 +876,7 @@ class PDVController extends Controller
             'status' => 'finalizada',
             'observacoes' => $validated['observacoes'] ?? null,
         ]);
-        if ($diferenca > 0 && !empty($validated['pagamentos'])) {
+        if ($diferenca > 0 && ! empty($validated['pagamentos'])) {
             foreach ($validated['pagamentos'] as $p) {
                 $np = isset($p['numero_parcelas']) ? (int) $p['numero_parcelas'] : 1;
                 $vp = $np > 0 ? ((float) $p['valor_pagamento'] / $np) : (float) $p['valor_pagamento'];
@@ -800,6 +904,7 @@ class PDVController extends Controller
             'updated_at' => now(),
         ]);
         DB::commit();
+
         return response()->json([
             'success' => true,
             'venda_original' => [
@@ -832,6 +937,7 @@ class PDVController extends Controller
                     'tipo' => $f->tipo,
                 ];
             });
+
         return response()->json(['formas_pagamento' => $rows]);
     }
 

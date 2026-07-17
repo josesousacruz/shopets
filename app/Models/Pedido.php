@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pedido extends Model
 {
-    use HasFactory, BelongsToEmpresa;
+    use BelongsToEmpresa, HasFactory;
 
     protected $table = 'pedidos';
+
     protected $primaryKey = 'id_pedido';
 
     protected $fillable = [
@@ -29,6 +30,7 @@ class Pedido extends Model
         'desconto',
         'total',
         'frete_servico',
+        'frete_servico_id',
         'prazo_entrega_dias',
         'codigo_rastreio',
         'etiqueta_url',
@@ -37,6 +39,7 @@ class Pedido extends Model
         'id_venda',
         'nfe_chave',
         'nfe_numero',
+        'nfe_danfe_url',
         'pago_em',
         'enviado_em',
         'entregue_em',

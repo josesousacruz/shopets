@@ -9,6 +9,7 @@ export const STATUS_LABEL: Record<string, string> = {
   enviado: "Enviado",
   entregue: "Entregue",
   cancelado: "Cancelado",
+  aguardando_revisao_fiscal: "Revisão fiscal pendente",
 };
 
 /** Rótulos pt-BR para o status da devolução. */

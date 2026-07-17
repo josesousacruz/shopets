@@ -50,17 +50,37 @@ export async function logout(request: Request, redirectTo = "/") {
   });
 }
 
-/** Exige token; senão redireciona para /login?redirectTo=... */
+/** Serializa o Set-Cookie que apaga a sessão (sem redirecionar). */
+export async function destroySessionCookie(request: Request): Promise<string> {
+  const session = await getSession(request);
+  return storage.destroySession(session);
+}
+
+/**
+ * Exige um cliente autenticado válido e retorna seu token.
+ *
+ * Valida o token contra a API (/auth/me): se estiver ausente OU inválido
+ * (expirado/revogado/banco resetado), LIMPA o cookie de sessão e redireciona
+ * para /login. Sem isso, um token morto no cookie fazia as telas de conta
+ * estourarem 401 em vez de mandar o usuário logar.
+ */
 export async function requireToken(
   request: Request,
   redirectTo: string = new URL(request.url).pathname,
 ): Promise<string> {
   const token = await getToken(request);
-  if (!token) {
-    const params = new URLSearchParams([["redirectTo", redirectTo]]);
-    throw redirect(`/login?${params}`);
+  if (token) {
+    try {
+      await me(token);
+      return token;
+    } catch {
+      // token inválido/expirado — cai na limpeza abaixo
+    }
   }
-  return token;
+  const params = new URLSearchParams([["redirectTo", redirectTo]]);
+  throw redirect(`/login?${params}`, {
+    headers: { "Set-Cookie": await destroySessionCookie(request) },
+  });
 }
 
 /** Retorna o cliente autenticado ou null (trata 401 como null). */

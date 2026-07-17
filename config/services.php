@@ -41,16 +41,35 @@ return [
             'token' => env('MELHOR_ENVIO_TOKEN'),
         ],
         'melhorenvio' => [
+            // Token estático (fluxo "conta única"). Ignorado quando o OAuth abaixo
+            // está configurado (client_id presente) — nesse caso o token vem da loja.
             'token' => env('MELHORENVIO_TOKEN'),
-            'sandbox' => env('MELHORENVIO_SANDBOX', true),
+            // O ambiente (sandbox/produção) vem de `configuracoes_empresa.melhor_envio_sandbox`
+            // (tela Configurações → Pagamento/Frete), não mais do .env.
             'cep_origem' => env('MELHORENVIO_CEP_ORIGEM', '01001000'),
+            // Credenciais do app Pontto registrado no Melhor Envio (nível aplicação).
+            'client_id' => env('MELHORENVIO_CLIENT_ID'),
+            'client_secret' => env('MELHORENVIO_CLIENT_SECRET'),
+            'redirect_uri' => env('MELHORENVIO_REDIRECT_URI'),
+            // Obrigatório pelo Melhor Envio: identifica o app + contato.
+            'user_agent' => env('MELHORENVIO_USER_AGENT', 'Pontto (contato@pontto.com.br)'),
         ],
     ],
 
     'payment' => [
-        'driver' => env('PAYMENT_DRIVER', 'fake'),
+        // Driver ativo e credenciais do Yapay agora vêm de `configuracoes_empresa`
+        // (tela Configurações → Integrações no painel), não mais do .env — ver
+        // AppServiceProvider::register() e ConfiguracaoController.
+        //
+        // Secret genérico que autentica a URL de notificação
+        // (POST /api/v1/webhooks/pagamento?wh_secret=...), independente do driver
+        // ativo. Sem ele configurado, o webhook rejeita tudo (fail-closed). Esse
+        // continua no .env por ser um segredo interno, não uma credencial de terceiro.
+        'webhook_secret' => env('PAYMENT_WEBHOOK_SECRET'),
         'mercadopago' => [
-            'token' => env('MERCADOPAGO_TOKEN'),
+            // O access token vem de `configuracoes_empresa.mercadopago_access_token`
+            // (tela do painel). Aqui fica só o secret de assinatura do webhook
+            // (x-signature) — segredo interno de infra, como o webhook_secret acima.
             'webhook_secret' => env('MERCADOPAGO_WEBHOOK_SECRET'),
         ],
     ],

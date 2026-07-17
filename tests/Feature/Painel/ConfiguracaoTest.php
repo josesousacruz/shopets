@@ -102,4 +102,233 @@ class ConfiguracaoTest extends TestCase
         $this->putJson('/api/v1/painel/configuracoes', ['ambiente_nfce' => 9])
             ->assertStatus(422)->assertJsonValidationErrors('ambiente_nfce');
     }
+
+    public function test_payment_driver_e_sandbox_default_fake_e_homologacao(): void
+    {
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+
+        $this->assertSame('fake', $r->json('data.integracoes.payment_driver'));
+        $this->assertTrue($r->json('data.integracoes.yapay_sandbox'));
+        $this->assertFalse($r->json('data.integracoes.yapay_configurado'));
+    }
+
+    public function test_salva_driver_yapay_e_token(): void
+    {
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'payment_driver' => 'yapay',
+            'yapay_token_account' => 'tok-conta-real-123',
+            'yapay_sandbox' => false,
+        ])->assertOk();
+
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+        $this->assertSame('yapay', $r->json('data.integracoes.payment_driver'));
+        $this->assertFalse($r->json('data.integracoes.yapay_sandbox'));
+        $this->assertTrue($r->json('data.integracoes.yapay_configurado'));
+
+        // Token nunca volta na resposta, mas fica encriptado no banco.
+        $this->assertArrayNotHasKey('yapay_token_account', $r->json('data.integracoes'));
+        $config = ConfiguracaoEmpresa::first();
+        $this->assertSame('tok-conta-real-123', $config->yapay_token_account);
+        $raw = \Illuminate\Support\Facades\DB::table('configuracoes_empresa')->where('id', $config->id)->value('yapay_token_account');
+        $this->assertNotSame('tok-conta-real-123', $raw);
+    }
+
+    public function test_reenviar_token_em_branco_nao_apaga_o_ja_salvo(): void
+    {
+        ConfiguracaoEmpresa::create([
+            'nome_empresa' => 'Loja',
+            'payment_driver' => 'yapay',
+            'yapay_token_account' => 'tok-existente',
+        ]);
+
+        // Reenvia a aba sem preencher o token (campo write-only vazio).
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'payment_driver' => 'yapay',
+            'yapay_token_account' => '',
+            'yapay_sandbox' => true,
+        ])->assertOk();
+
+        $this->assertSame('tok-existente', ConfiguracaoEmpresa::first()->yapay_token_account);
+    }
+
+    public function test_valida_payment_driver_invalido(): void
+    {
+        $this->putJson('/api/v1/painel/configuracoes', ['payment_driver' => 'pagseguro'])
+            ->assertStatus(422)->assertJsonValidationErrors('payment_driver');
+    }
+
+    public function test_salva_driver_mercadopago_e_access_token(): void
+    {
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'payment_driver' => 'mercadopago',
+            'mercadopago_access_token' => 'APP_USR-token-teste-123',
+            'mercadopago_sandbox' => true,
+        ])->assertOk();
+
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+        $this->assertSame('mercadopago', $r->json('data.integracoes.payment_driver'));
+        $this->assertTrue($r->json('data.integracoes.mercadopago_sandbox'));
+        $this->assertTrue($r->json('data.integracoes.mercadopago_configurado'));
+
+        // Token nunca volta na resposta, mas fica encriptado no banco.
+        $this->assertArrayNotHasKey('mercadopago_access_token', $r->json('data.integracoes'));
+        $config = ConfiguracaoEmpresa::first();
+        $this->assertSame('APP_USR-token-teste-123', $config->mercadopago_access_token);
+        $raw = \Illuminate\Support\Facades\DB::table('configuracoes_empresa')->where('id', $config->id)->value('mercadopago_access_token');
+        $this->assertNotSame('APP_USR-token-teste-123', $raw);
+    }
+
+    public function test_reenviar_access_token_mp_em_branco_nao_apaga_o_ja_salvo(): void
+    {
+        ConfiguracaoEmpresa::create([
+            'nome_empresa' => 'Loja',
+            'payment_driver' => 'mercadopago',
+            'mercadopago_access_token' => 'APP_USR-existente',
+        ]);
+
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'payment_driver' => 'mercadopago',
+            'mercadopago_access_token' => '',
+            'mercadopago_sandbox' => true,
+        ])->assertOk();
+
+        $this->assertSame('APP_USR-existente', ConfiguracaoEmpresa::first()->mercadopago_access_token);
+    }
+
+    public function test_melhor_envio_sandbox_default_homologacao(): void
+    {
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+        $this->assertTrue($r->json('data.integracoes.melhor_envio_sandbox'));
+    }
+
+    public function test_trocar_ambiente_melhor_envio_desconecta_tokens(): void
+    {
+        ConfiguracaoEmpresa::create([
+            'nome_empresa' => 'Loja',
+            'melhor_envio_sandbox' => true,
+            'melhor_envio_access_token' => 'acc-sandbox',
+            'melhor_envio_refresh_token' => 'ref-sandbox',
+            'melhor_envio_token_expira_em' => now()->addHour(),
+        ]);
+
+        // Sandbox e produção são contas separadas no ME: trocar o ambiente
+        // invalida os tokens conectados — precisa reconectar na conta certa.
+        $this->putJson('/api/v1/painel/configuracoes', ['melhor_envio_sandbox' => false])
+            ->assertOk()
+            ->assertJsonPath('data.integracoes.melhor_envio_sandbox', false);
+
+        $config = ConfiguracaoEmpresa::first();
+        $this->assertNull($config->melhor_envio_access_token);
+        $this->assertNull($config->melhor_envio_refresh_token);
+        $this->assertNull($config->melhor_envio_token_expira_em);
+    }
+
+    public function test_salvar_mesmo_ambiente_melhor_envio_mantem_tokens(): void
+    {
+        ConfiguracaoEmpresa::create([
+            'nome_empresa' => 'Loja',
+            'melhor_envio_sandbox' => true,
+            'melhor_envio_access_token' => 'acc-sandbox',
+            'melhor_envio_refresh_token' => 'ref-sandbox',
+            'melhor_envio_token_expira_em' => now()->addHour(),
+        ]);
+
+        $this->putJson('/api/v1/painel/configuracoes', ['melhor_envio_sandbox' => true])
+            ->assertOk();
+
+        $this->assertSame('acc-sandbox', ConfiguracaoEmpresa::first()->melhor_envio_access_token);
+    }
+
+    public function test_salva_credenciais_do_app_melhor_envio_por_ambiente(): void
+    {
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'melhor_envio_sandbox_client_id' => 'app-sand-1',
+            'melhor_envio_sandbox_client_secret' => 'secret-sand',
+            'melhor_envio_prod_client_id' => 'app-prod-2',
+            'melhor_envio_prod_client_secret' => 'secret-prod',
+        ])->assertOk();
+
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+        // client_id é público e volta; secret nunca volta — só a flag.
+        $this->assertSame('app-sand-1', $r->json('data.integracoes.melhor_envio_sandbox_client_id'));
+        $this->assertSame('app-prod-2', $r->json('data.integracoes.melhor_envio_prod_client_id'));
+        $this->assertTrue($r->json('data.integracoes.melhor_envio_sandbox_secret_configurado'));
+        $this->assertTrue($r->json('data.integracoes.melhor_envio_prod_secret_configurado'));
+        $this->assertArrayNotHasKey('melhor_envio_sandbox_client_secret', $r->json('data.integracoes'));
+
+        // Secret criptografado no banco.
+        $config = ConfiguracaoEmpresa::first();
+        $raw = \Illuminate\Support\Facades\DB::table('configuracoes_empresa')->where('id', $config->id)->value('melhor_envio_sandbox_client_secret');
+        $this->assertNotSame('secret-sand', $raw);
+        $this->assertSame('secret-sand', $config->melhor_envio_sandbox_client_secret);
+    }
+
+    public function test_trocar_credencial_do_ambiente_ativo_desconecta_tokens(): void
+    {
+        ConfiguracaoEmpresa::create([
+            'nome_empresa' => 'Loja',
+            'melhor_envio_sandbox' => true,
+            'melhor_envio_sandbox_client_id' => 'app-antigo',
+            'melhor_envio_access_token' => 'acc',
+            'melhor_envio_refresh_token' => 'ref',
+            'melhor_envio_token_expira_em' => now()->addHour(),
+        ]);
+
+        // Tokens foram emitidos pro app antigo: registrar app novo exige reconectar.
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'melhor_envio_sandbox_client_id' => 'app-novo',
+        ])->assertOk();
+
+        $this->assertNull(ConfiguracaoEmpresa::first()->melhor_envio_access_token);
+    }
+
+    public function test_trocar_credencial_do_ambiente_inativo_mantem_tokens(): void
+    {
+        ConfiguracaoEmpresa::create([
+            'nome_empresa' => 'Loja',
+            'melhor_envio_sandbox' => true,
+            'melhor_envio_access_token' => 'acc',
+            'melhor_envio_refresh_token' => 'ref',
+            'melhor_envio_token_expira_em' => now()->addHour(),
+        ]);
+
+        // Mexer no app de produção não afeta a conexão ativa (sandbox).
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'melhor_envio_prod_client_id' => 'app-prod-novo',
+        ])->assertOk();
+
+        $this->assertSame('acc', ConfiguracaoEmpresa::first()->melhor_envio_access_token);
+    }
+
+    public function test_show_inclui_callback_url_do_melhor_envio(): void
+    {
+        config()->set('services.shipping.melhorenvio.redirect_uri', null);
+        config()->set('app.url', 'https://loja.exemplo.com.br');
+
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+
+        $this->assertSame(
+            'https://loja.exemplo.com.br/painel/integracoes/melhor-envio/callback',
+            $r->json('data.integracoes.melhor_envio_callback_url')
+        );
+    }
+
+    public function test_mercadopago_webhook_secret_write_only(): void
+    {
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'mercadopago_webhook_secret' => 'mp-wh-secret-1',
+        ])->assertOk();
+
+        $r = $this->getJson('/api/v1/painel/configuracoes')->assertOk();
+        $this->assertTrue($r->json('data.integracoes.mercadopago_webhook_configurado'));
+        $this->assertArrayNotHasKey('mercadopago_webhook_secret', $r->json('data.integracoes'));
+
+        // Reenviar em branco não apaga.
+        $this->putJson('/api/v1/painel/configuracoes', [
+            'mercadopago_webhook_secret' => '',
+            'mercadopago_sandbox' => true,
+        ])->assertOk();
+
+        $this->assertSame('mp-wh-secret-1', ConfiguracaoEmpresa::first()->mercadopago_webhook_secret);
+    }
 }

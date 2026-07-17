@@ -48,6 +48,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       case "mensagem":
         await painel.pedidos.enviarMensagem(token, numero, String(form.get("texto") ?? ""));
         break;
+      case "etiqueta":
+        await painel.pedidos.etiqueta(token, numero);
+        break;
       default:
         return json({ erro: "Ação inválida." }, { status: 400 });
     }
@@ -68,6 +71,7 @@ function mensagemPedido(acao: string): string {
     case "cancelar": return "Pedido cancelado.";
     case "rastreio": return "Rastreio atualizado e cliente notificado.";
     case "mensagem": return "Mensagem enviada.";
+    case "etiqueta": return "Etiqueta gerada.";
     default: return "Ação concluída.";
   }
 }
@@ -106,6 +110,12 @@ export default function PedidoDetalhe() {
     const fd = new FormData();
     fd.set("_acao", "rastreio");
     fd.set("codigo_rastreio", String(r.value ?? ""));
+    submit(fd, { method: "post", replace: true });
+  };
+
+  const gerarEtiqueta = () => {
+    const fd = new FormData();
+    fd.set("_acao", "etiqueta");
     submit(fd, { method: "post", replace: true });
   };
 
@@ -373,10 +383,27 @@ export default function PedidoDetalhe() {
             <dl className="pn-dl" style={{ marginTop: 12 }}>
               <dt>Rastreio</dt>
               <dd>{pedido.codigo_rastreio ?? "—"}</dd>
+              <dt>Etiqueta</dt>
+              <dd>
+                {pedido.etiqueta_url ? (
+                  <a href={pedido.etiqueta_url} target="_blank" rel="noreferrer">
+                    Ver etiqueta
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </dd>
             </dl>
-            <button type="button" className="pn-btn-sm" onClick={editarRastreio} disabled={busy} style={{ marginTop: 8 }}>
-              {pedido.codigo_rastreio ? "Atualizar rastreio" : "Adicionar rastreio"}
-            </button>
+            <div className="pn-actions-bar" style={{ marginTop: 8, gap: 8 }}>
+              <button type="button" className="pn-btn-sm" onClick={editarRastreio} disabled={busy}>
+                {pedido.codigo_rastreio ? "Atualizar rastreio" : "Adicionar rastreio"}
+              </button>
+              {pedido.modalidade === "entrega" && !pedido.etiqueta_url && (
+                <button type="button" className="pn-btn-sm mint" onClick={gerarEtiqueta} disabled={busy}>
+                  {busy ? "Gerando…" : "Gerar etiqueta"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Pagamento + venda/nfe */}

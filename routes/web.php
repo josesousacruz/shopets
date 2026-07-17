@@ -1,18 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use App\Http\Controllers\PDVController;
-use App\Http\Controllers\EstoqueController;
-use App\Http\Controllers\FornecedorController;
+use App\Http\Controllers\Admin\LojaPedidoController;
 use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\FinanceiroController;
-use App\Http\Controllers\RelatorioController;
 use App\Http\Controllers\ContaPagarController;
 use App\Http\Controllers\ContaReceberController;
+use App\Http\Controllers\EstoqueController;
+use App\Http\Controllers\FinanceiroController;
 use App\Http\Controllers\FluxoCaixaController;
+use App\Http\Controllers\FornecedorController;
 use App\Http\Controllers\NfceController;
-use App\Http\Controllers\Admin\LojaPedidoController;
+use App\Http\Controllers\PDVController;
+use App\Http\Controllers\RelatorioController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 // Redireciona a raiz para o PDV
 Route::get('/', function () {
@@ -35,6 +35,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/sales', [PDVController::class, 'storeSale'])->name('sales.store');
     Route::post('/sales/finalizar', [PDVController::class, 'finalizarVenda'])->name('sales.finalizar');
     Route::post('/sales/cancelar', [PDVController::class, 'cancelarVenda'])->name('sales.cancelar');
+
+    // Caixa — sessão de abertura/fechamento/sangria (opcional, ver caixa_modo_sessao).
+    Route::get('/caixa/status', [\App\Http\Controllers\CaixaSessaoController::class, 'status'])->name('caixa.status');
+    Route::post('/caixa/abrir', [\App\Http\Controllers\CaixaSessaoController::class, 'abrir'])->name('caixa.abrir');
+    Route::post('/caixa/movimento', [\App\Http\Controllers\CaixaSessaoController::class, 'movimento'])->name('caixa.movimento');
+    Route::post('/caixa/fechar', [\App\Http\Controllers\CaixaSessaoController::class, 'fechar'])->name('caixa.fechar');
 
     Route::get('/estoque', [EstoqueController::class, 'index'])->name('estoque.index');
     Route::post('/estoque', [EstoqueController::class, 'store'])->name('estoque.store');
@@ -109,11 +115,15 @@ Route::middleware('auth')->group(function () {
 });
 Route::post('/nfce/emitir', [NfceController::class, 'emitir']);
 
+// Callback OAuth2 do Melhor Envio (navegação do browser; protegido por `state`).
+Route::get('/painel/integracoes/melhor-envio/callback', [\App\Http\Controllers\Api\V1\Painel\MelhorEnvioIntegracaoController::class, 'callback'])
+    ->name('painel.integracoes.melhor-envio.callback');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 });
 
-require __DIR__ . '/settings.php';
-require __DIR__ . '/auth.php';
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';

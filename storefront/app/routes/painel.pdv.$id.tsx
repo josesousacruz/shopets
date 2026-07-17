@@ -49,6 +49,7 @@ export async function action({ request: req, params }: ActionFunctionArgs) {
       await painel.pdv.update(token, id, {
         serie_fiscal_default: String(fd.get("serie_fiscal_default") ?? "") || null,
         regime_tributario: String(fd.get("regime_tributario") ?? "") || null,
+        nfce_proximo_numero: fd.get("nfce_proximo_numero") ? Number(fd.get("nfce_proximo_numero")) : null,
       });
       return redirect(`/painel/pdv/${id}?aba=fiscal&feedback=editar`);
     }
@@ -169,15 +170,29 @@ export default function PdvDetalhe() {
 
       {aba === "fiscal" ? (
         <div className="pn-card">
+          <p className="card-sub">
+            Série e numeração da NFC-e emitida no balcão deste PDV. O regime tributário usado na
+            emissão vem de Configurações → Fiscal (é único pra empresa toda).
+          </p>
           <Form method="post" replace>
             <input type="hidden" name="intent" value="fiscal" />
             <div className="pn-field-row">
               <div className="pn-field">
-                <label htmlFor="serie_fiscal_default">Série fiscal padrão</label>
+                <label htmlFor="serie_fiscal_default">Série da NFC-e</label>
                 <input id="serie_fiscal_default" name="serie_fiscal_default" defaultValue={pdv.serie_fiscal_default ?? ""} />
               </div>
               <div className="pn-field">
-                <label htmlFor="regime_tributario">Regime tributário</label>
+                <label htmlFor="nfce_proximo_numero">Próximo número</label>
+                <input
+                  id="nfce_proximo_numero"
+                  name="nfce_proximo_numero"
+                  type="number"
+                  min="1"
+                  defaultValue={pdv.nfce_proximo_numero ?? 1}
+                />
+              </div>
+              <div className="pn-field">
+                <label htmlFor="regime_tributario">Regime tributário (informativo)</label>
                 <select id="regime_tributario" name="regime_tributario" defaultValue={pdv.regime_tributario ?? ""}>
                   <option value="">—</option>
                   <option value="simples_nacional">Simples Nacional</option>

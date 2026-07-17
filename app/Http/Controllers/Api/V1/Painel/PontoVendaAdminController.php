@@ -79,6 +79,7 @@ class PontoVendaAdminController extends Controller
             'deposito_id' => ['nullable', 'integer', 'exists:depositos,id'],
             'serie_fiscal_default' => ['nullable', 'string', 'max:10'],
             'regime_tributario' => ['nullable', 'string', 'max:30'],
+            'nfce_proximo_numero' => ['nullable', 'integer', 'min:1'],
         ]);
     }
 }

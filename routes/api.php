@@ -132,6 +132,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('/pedidos/{numero}/mensagens', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'mensagens']);
             Route::post('/pedidos/{numero}/mensagens', [\App\Http\Controllers\Api\V1\Painel\PedidoAdminController::class, 'enviarMensagem']);
 
+            // Revisão fiscal — pedidos com NF-e/NFC-e que falhou na emissão.
+            Route::get('/revisao-fiscal', [\App\Http\Controllers\Api\V1\Painel\RevisaoFiscalAdminController::class, 'index']);
+            Route::post('/revisao-fiscal/{numero}/reemitir', [\App\Http\Controllers\Api\V1\Painel\RevisaoFiscalAdminController::class, 'reemitir']);
+
             // Catálogo — produtos
             Route::get('/produtos', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'index']);
             Route::post('/produtos/bulk', [\App\Http\Controllers\Api\V1\Painel\ProdutoAdminController::class, 'bulk']);
@@ -206,6 +210,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
             Route::get('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'show']);
             Route::put('/configuracoes', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'update']);
+            Route::post('/configuracoes/certificado', [\App\Http\Controllers\Api\V1\Painel\ConfiguracaoController::class, 'uploadCertificado']);
+
+            // Integração Melhor Envio (OAuth2) — status/connect/disconnect
+            Route::get('/integracoes/melhor-envio', [\App\Http\Controllers\Api\V1\Painel\MelhorEnvioIntegracaoController::class, 'status']);
+            Route::post('/integracoes/melhor-envio/connect', [\App\Http\Controllers\Api\V1\Painel\MelhorEnvioIntegracaoController::class, 'connect']);
+            Route::delete('/integracoes/melhor-envio', [\App\Http\Controllers\Api\V1\Painel\MelhorEnvioIntegracaoController::class, 'disconnect']);
 
             // RBAC — Permissões e Papéis (matriz custom)
             Route::get('/permissoes', [\App\Http\Controllers\Api\V1\Painel\PermissaoAdminController::class, 'index']);

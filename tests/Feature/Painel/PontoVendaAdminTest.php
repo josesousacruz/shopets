@@ -47,6 +47,17 @@ class PontoVendaAdminTest extends TestCase
         $this->getJson('/api/v1/painel/pontos-venda')->assertOk()->assertJsonPath('data.0.nome_pdv', 'Loja A');
     }
 
+    public function test_atualiza_numeracao_nfce(): void
+    {
+        $pdv = PontoVenda::create(['nome_pdv' => 'Loja', 'ativo' => true, 'serie_fiscal_default' => '1']);
+
+        $this->putJson("/api/v1/painel/pontos-venda/{$pdv->id_pdv}", ['nfce_proximo_numero' => 500])
+            ->assertOk()
+            ->assertJsonPath('data.nfce_proximo_numero', 500);
+
+        $this->assertSame(500, $pdv->fresh()->nfce_proximo_numero);
+    }
+
     public function test_atualiza_e_desativa_pdv(): void
     {
         $pdv = PontoVenda::create(['nome_pdv' => 'Loja', 'ativo' => true]);

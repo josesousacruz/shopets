@@ -55,6 +55,12 @@ interface VendaEmAberto {
     status?: string;
 }
 
+interface CaixaSessaoAtual {
+    id: number;
+    valor_abertura: string;
+    status: 'aberta' | 'fechada';
+}
+
 interface Props {
     products: Product[];
     categories: Category[];
@@ -97,6 +103,107 @@ function PDV({
     const [vendaEmAberto, setVendaEmAberto] = useState<VendaEmAberto | null>(null);
     const [currentProducts, setCurrentProducts] = useState<Product[]>(products);
 
+    // Caixa (opcional — ver Configurações → Loja → PDV). Desligado, isso tudo
+    // fica ocioso: modoSessaoAtivo fica false e o checkout segue direto.
+    const [caixaModoSessaoAtivo, setCaixaModoSessaoAtivo] = useState(false);
+    const [caixaSessao, setCaixaSessao] = useState<CaixaSessaoAtual | null>(null);
+
+    const loadCaixaStatus = async () => {
+        try {
+            const { data } = await axios.get('/caixa/status', { params: { id_pdv: 1 } });
+            setCaixaModoSessaoAtivo(!!data.data?.modo_sessao_ativo);
+            setCaixaSessao(data.data?.sessao ?? null);
+        } catch (error) {
+            console.error('Erro ao consultar status do caixa:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadCaixaStatus();
+    }, []);
+
+    const handleAbrirCaixa = async () => {
+        const r = await Swal.fire({
+            title: 'Abrir caixa',
+            input: 'number',
+            inputLabel: 'Valor inicial (R$)',
+            inputValue: 0,
+            inputAttributes: { min: '0', step: '0.01' },
+            showCancelButton: true,
+            confirmButtonText: 'Abrir',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (v) => (v === '' || Number(v) < 0 ? 'Informe um valor válido.' : undefined),
+        });
+        if (!r.isConfirmed) return;
+
+        try {
+            await axios.post('/caixa/abrir', { id_pdv: 1, valor_abertura: Number(r.value) });
+            await loadCaixaStatus();
+            Swal.fire('Caixa aberto!', '', 'success');
+        } catch (error: any) {
+            Swal.fire('Erro!', error.response?.data?.message || 'Não foi possível abrir o caixa.', 'error');
+        }
+    };
+
+    const handleMovimentoCaixa = async (tipo: 'sangria' | 'suprimento') => {
+        const r = await Swal.fire({
+            title: tipo === 'sangria' ? 'Sangria (retirada)' : 'Suprimento (entrada)',
+            html:
+                '<input id="swal-valor" class="swal2-input" type="number" min="0.01" step="0.01" placeholder="Valor (R$)">' +
+                '<input id="swal-descricao" class="swal2-input" placeholder="Motivo (opcional)">',
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Registrar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const valor = (document.getElementById('swal-valor') as HTMLInputElement)?.value;
+                const descricao = (document.getElementById('swal-descricao') as HTMLInputElement)?.value;
+                if (!valor || Number(valor) <= 0) {
+                    Swal.showValidationMessage('Informe um valor válido.');
+                    return false;
+                }
+                return { valor: Number(valor), descricao };
+            },
+        });
+        if (!r.isConfirmed || !r.value) return;
+
+        try {
+            await axios.post('/caixa/movimento', { id_pdv: 1, tipo, valor: r.value.valor, descricao: r.value.descricao });
+            Swal.fire('Registrado!', '', 'success');
+        } catch (error: any) {
+            Swal.fire('Erro!', error.response?.data?.message || 'Não foi possível registrar.', 'error');
+        }
+    };
+
+    const handleFecharCaixa = async () => {
+        const r = await Swal.fire({
+            title: 'Fechar caixa',
+            input: 'number',
+            inputLabel: 'Valor contado no caixa (R$)',
+            inputAttributes: { min: '0', step: '0.01' },
+            showCancelButton: true,
+            confirmButtonText: 'Fechar caixa',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (v) => (v === '' || Number(v) < 0 ? 'Informe um valor válido.' : undefined),
+        });
+        if (!r.isConfirmed) return;
+
+        try {
+            const { data } = await axios.post('/caixa/fechar', {
+                id_pdv: 1,
+                valor_fechamento_informado: Number(r.value),
+            });
+            await loadCaixaStatus();
+            const dif = Number(data.data.diferenca);
+            const texto = dif === 0
+                ? 'Caixa fechado sem diferença.'
+                : `Diferença: ${dif > 0 ? 'sobra' : 'falta'} de R$ ${Math.abs(dif).toFixed(2)}.`;
+            Swal.fire('Caixa fechado!', texto, dif === 0 ? 'success' : 'warning');
+        } catch (error: any) {
+            Swal.fire('Erro!', error.response?.data?.message || 'Não foi possível fechar o caixa.', 'error');
+        }
+    };
+
     const reloadProducts = async () => {
         try {
             const response = await axios.get('/pdv/products');
@@ -111,6 +218,11 @@ function PDV({
     const handleCheckout = async () => {
         if (!activeCart || activeCart.items.length === 0) {
             Swal.fire('Atenção!', 'Adicione itens ao carrinho antes de finalizar a venda.', 'warning');
+            return;
+        }
+
+        if (caixaModoSessaoAtivo && !caixaSessao) {
+            Swal.fire('Caixa fechado', 'Abra o caixa antes de iniciar uma venda.', 'warning');
             return;
         }
 
@@ -134,8 +246,13 @@ function PDV({
             // Abre o modal de finalização
             setIsFinalizarModalOpen(true);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro no processo de checkout:', error);
+            if (error.response?.data?.caixa_fechado) {
+                await loadCaixaStatus();
+                Swal.fire('Caixa fechado', error.response.data.message, 'warning');
+                return;
+            }
             Swal.fire('Erro!', 'Não foi possível iniciar o processo de venda.', 'error');
         }
     };
@@ -262,6 +379,57 @@ function PDV({
 
     return (
         <>
+            {caixaModoSessaoAtivo && (
+                <div
+                    className={`flex items-center justify-between px-4 py-2 text-sm font-medium ${
+                        caixaSessao ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'
+                    }`}
+                >
+                    {caixaSessao ? (
+                        <>
+                            <span>
+                                Caixa aberto — valor inicial{' '}
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(caixaSessao.valor_abertura))}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="px-3 py-1 rounded bg-white border border-green-300 hover:bg-green-100"
+                                    onClick={() => handleMovimentoCaixa('sangria')}
+                                >
+                                    Sangria
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-1 rounded bg-white border border-green-300 hover:bg-green-100"
+                                    onClick={() => handleMovimentoCaixa('suprimento')}
+                                >
+                                    Suprimento
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-1 rounded bg-white border border-amber-300 hover:bg-amber-100"
+                                    onClick={handleFecharCaixa}
+                                >
+                                    Fechar caixa
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <span>Caixa fechado — abra o caixa antes de vender.</span>
+                            <button
+                                type="button"
+                                className="px-3 py-1 rounded bg-amber-600 text-white hover:bg-amber-700"
+                                onClick={handleAbrirCaixa}
+                            >
+                                Abrir caixa
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
+
             <PDVView
                 products={currentProducts}
                 categories={categories}

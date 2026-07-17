@@ -77,6 +77,23 @@ async function cartRequest<T>(path: string, opts: CartRequestOpts = {}): Promise
 /* ── Carrinho ─────────────────────────────────────────── */
 
 /**
+ * Para convidado (sem Bearer): persiste o cart_token quando a API devolve um
+ * novo/diferente. Compartilhado por todas as operações de carrinho para que o
+ * cookie seja gravado já na PRIMEIRA mutação (antes era só no GET, então o
+ * primeiro "adicionar" criava um carrinho órfão e o drawer vinha vazio).
+ */
+async function persistCartToken(
+  bearer: string | null,
+  cartToken: string | null,
+  data: Carrinho,
+): Promise<string | undefined> {
+  if (!bearer && data.token && data.token !== cartToken) {
+    return setCartToken(data.token);
+  }
+  return undefined;
+}
+
+/**
  * Obtém o carrinho. Sempre retorna os dados; se a API gerou um novo token
  * (carrinho convidado novo), devolve também `setCookie` para persistir.
  */
@@ -89,52 +106,52 @@ export async function fetchCarrinho(request: Request): Promise<{
 
   const { data } = await cartRequest<{ data: Carrinho }>("/carrinho", { bearer, cartToken });
 
-  // Para convidado: persistir o token quando for novo/diferente.
-  let setCookie: string | undefined;
-  if (!bearer && data.token && data.token !== cartToken) {
-    setCookie = await setCartToken(data.token);
-  }
-
-  return { carrinho: data, setCookie };
+  return { carrinho: data, setCookie: await persistCartToken(bearer, cartToken, data) };
 }
 
 export async function adicionarItem(
   request: Request,
   payload: { id_produto: number; id_variacao?: number | null; quantidade: number },
-): Promise<{ data: Carrinho }> {
+): Promise<{ data: Carrinho; setCookie?: string }> {
   const bearer = await getToken(request);
   const cartToken = await getCartToken(request);
-  return cartRequest<{ data: Carrinho }>("/carrinho/itens", {
+  const res = await cartRequest<{ data: Carrinho }>("/carrinho/itens", {
     method: "POST",
     bearer,
     cartToken,
     body: payload as Json,
   });
+  return { data: res.data, setCookie: await persistCartToken(bearer, cartToken, res.data) };
 }
 
 export async function atualizarItem(
   request: Request,
   id: number,
   quantidade: number,
-): Promise<{ data: Carrinho }> {
+): Promise<{ data: Carrinho; setCookie?: string }> {
   const bearer = await getToken(request);
   const cartToken = await getCartToken(request);
-  return cartRequest<{ data: Carrinho }>(`/carrinho/itens/${id}`, {
+  const res = await cartRequest<{ data: Carrinho }>(`/carrinho/itens/${id}`, {
     method: "PUT",
     bearer,
     cartToken,
     body: { quantidade },
   });
+  return { data: res.data, setCookie: await persistCartToken(bearer, cartToken, res.data) };
 }
 
-export async function removerItem(request: Request, id: number): Promise<{ data: Carrinho }> {
+export async function removerItem(
+  request: Request,
+  id: number,
+): Promise<{ data: Carrinho; setCookie?: string }> {
   const bearer = await getToken(request);
   const cartToken = await getCartToken(request);
-  return cartRequest<{ data: Carrinho }>(`/carrinho/itens/${id}`, {
+  const res = await cartRequest<{ data: Carrinho }>(`/carrinho/itens/${id}`, {
     method: "DELETE",
     bearer,
     cartToken,
   });
+  return { data: res.data, setCookie: await persistCartToken(bearer, cartToken, res.data) };
 }
 
 /* ── Cupom ────────────────────────────────────────────── */

@@ -5,9 +5,12 @@ namespace App\Providers;
 use App\Domain\Payment\FakePaymentGateway;
 use App\Domain\Payment\MercadoPagoGateway;
 use App\Domain\Payment\PaymentGatewayInterface;
+use App\Domain\Payment\YapayGateway;
 use App\Domain\Shipping\MelhorEnvioService;
+use App\Domain\Shipping\MelhorEnvioTokenManager;
 use App\Domain\Shipping\ShippingQuoteInterface;
 use App\Domain\Shipping\StubShippingService;
+use App\Models\ConfiguracaoEmpresa;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -21,25 +24,57 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(ShippingQuoteInterface::class, function ($app) {
-            $driver = config('services.shipping.driver', 'stub');
+            // Driver e ambiente vêm da tela Configurações → Pagamento/Frete (não mais
+            // do .env) — sem linha em configuracoes_empresa (banco recém-criado),
+            // cai em 'stub' / sandbox.
+            $config = ConfiguracaoEmpresa::first();
+            $driver = $config?->shipping_driver ?: 'stub';
 
             return match ($driver) {
                 'melhorenvio', 'melhor_envio' => new MelhorEnvioService(
-                    config('services.shipping.melhorenvio.token') ?? config('services.shipping.melhor_envio.token'),
-                    (bool) config('services.shipping.melhorenvio.sandbox', true),
+                    $this->melhorEnvioToken($app),
+                    (bool) ($config?->melhor_envio_sandbox ?? true),
                 ),
-                default => new StubShippingService(),
+                default => new StubShippingService,
             };
         });
 
         $this->app->singleton(PaymentGatewayInterface::class, function ($app) {
-            $driver = config('services.payment.driver', 'fake');
+            // Driver e credenciais vêm da tela de Configurações (não mais do .env) —
+            // sem linha em configuracoes_empresa (banco recém-criado), cai em 'fake'.
+            $config = ConfiguracaoEmpresa::first();
+            $driver = $config?->payment_driver ?: 'fake';
 
             return match ($driver) {
-                'mercadopago' => new MercadoPagoGateway(config('services.payment.mercadopago.token')),
-                default => new FakePaymentGateway(),
+                'mercadopago' => new MercadoPagoGateway($config?->mercadopago_access_token),
+                'yapay' => new YapayGateway(
+                    $config?->yapay_token_account,
+                    // Homologação por padrão mesmo sem config explícita.
+                    (bool) ($config?->yapay_sandbox ?? true),
+                ),
+                default => new FakePaymentGateway,
             };
         });
+    }
+
+    /**
+     * Resolve o access token do Melhor Envio.
+     *
+     * Com o app OAuth configurado (client_id/secret na tela do admin, ou .env como
+     * fallback), o token vem da conta conectada pelo lojista (renovado sob demanda).
+     * Sem OAuth, usa o token estático do .env.
+     * Não conectado ainda → null (o service lança ao ser efetivamente usado).
+     */
+    private function melhorEnvioToken($app): ?string
+    {
+        $manager = $app->make(MelhorEnvioTokenManager::class);
+
+        if ($manager->appConfigurado()) {
+            return $manager->isConnected() ? $manager->validToken() : null;
+        }
+
+        return config('services.shipping.melhorenvio.token')
+            ?? config('services.shipping.melhor_envio.token');
     }
 
     /**
