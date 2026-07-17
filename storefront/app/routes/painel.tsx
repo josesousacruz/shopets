@@ -8,6 +8,7 @@ import {
   useLoaderData,
   useLocation,
   useNavigate,
+  type ShouldRevalidateFunction,
 } from "@remix-run/react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -42,6 +43,7 @@ import {
   Search,
   ArrowRight,
   MoreHorizontal,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import { requireAdmin } from "~/lib/admin-session.server";
@@ -50,6 +52,7 @@ import { getSidebarCollapsed, setSidebarCollapsed } from "~/lib/painel-prefs";
 import { getPdvAtivo } from "~/lib/pdv-context.server";
 import { PdvSwitcher } from "~/components/painel/PdvSwitcher";
 import { NotificationsBell } from "~/components/painel/NotificationsBell";
+import { NavigationLoader } from "~/components/painel/NavigationLoader";
 import painelStyles from "~/styles/painel.css?url";
 import contaStyles from "~/styles/conta.css?url";
 
@@ -63,18 +66,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Badges da nav (Pedidos a separar = pago + em separação; Devoluções na fila
   // = solicitadas). Best-effort: nunca derruba o shell se a API falhar.
-  let badges = { pedidos: 0, devolucoes: 0 };
+  let badges = { pedidos: 0, devolucoes: 0, revisaoFiscal: 0 };
   let pdvs: Awaited<ReturnType<typeof painel.pontosVenda.list>>["data"] = [];
   try {
-    const [pago, separacao, devolucoes, pdvList] = await Promise.all([
+    const [pago, separacao, devolucoes, revisaoFiscal, pdvList] = await Promise.all([
       painel.pedidos.list(token, { status: "pago" }),
       painel.pedidos.list(token, { status: "em_separacao" }),
       painel.devolucoes.list(token, { status: "solicitada" }),
+      painel.revisaoFiscal.list(token),
       painel.pontosVenda.list(token).catch(() => ({ data: [] as typeof pdvs })),
     ]);
     badges = {
       pedidos: pago.meta.total + separacao.meta.total,
       devolucoes: devolucoes.meta.total,
+      revisaoFiscal: revisaoFiscal.meta.total,
     };
     pdvs = pdvList.data;
   } catch {
@@ -86,7 +91,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ user, badges, pdvs, pdvAtivoId });
 }
 
-type BadgeKey = "pedidos" | "devolucoes";
+/**
+ * O shell (user, badges de pedidos/devoluções, PDVs) só muda em navegação real
+ * ou após uma mutação. Abrir/fechar um drawer altera apenas a query string da
+ * MESMA rota — sem isso o Remix revalidaria o layout (5 chamadas à API, incl.
+ * /me) a cada open/close, deixando o offcanvas lento pra fechar.
+ */
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  formMethod,
+  defaultShouldRevalidate,
+}) => {
+  const mutacao = formMethod && formMethod.toLowerCase() !== "get";
+  if (!mutacao && currentUrl.pathname === nextUrl.pathname) {
+    return false;
+  }
+  return defaultShouldRevalidate;
+};
+
+type BadgeKey = "pedidos" | "devolucoes" | "revisaoFiscal";
 
 interface NavEntry {
   to?: string;
@@ -117,6 +141,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/painel/banners", label: "Banners", icon: Image },
       { to: "/painel/cupons", label: "Cupons", icon: Ticket },
       { to: "/painel/devolucoes", label: "Devoluções", icon: RotateCcw, badgeKey: "devolucoes" },
+      { to: "/painel/revisao-fiscal", label: "Revisão fiscal", icon: AlertTriangle, badgeKey: "revisaoFiscal" },
     ],
   },
   {
@@ -443,6 +468,7 @@ export default function PainelLayout() {
                     key={it.to}
                     to={it.to}
                     end={it.end}
+                    prefetch="intent"
                     onClick={() => setNavOpen(false)}
                     className={({ isActive }) => (isActive ? "active" : "")}
                   >
@@ -513,6 +539,7 @@ export default function PainelLayout() {
       </div>
 
       {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
+      <NavigationLoader />
     </div>
   );
 }

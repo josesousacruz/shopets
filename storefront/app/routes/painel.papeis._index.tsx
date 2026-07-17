@@ -7,6 +7,7 @@ import { EmptyState } from "~/components/painel/EmptyState";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Papéis e Permissões — Painel Shopets" }];
@@ -22,6 +23,14 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
 
   return json({ papeis: papeis.data, permissoesPorModulo: perms.data, editando });
 }
+
+/**
+ * Abrir/fechar o drawer ?novo=1 não refaz a listagem — abre instantâneo.
+ * `editar` NÃO está listado: o loader busca o detalhe do papel (permissions)
+ * via papeis.show, dado que não existe na listagem, então ?editar= continua
+ * revalidando normalmente.
+ */
+export const shouldRevalidate = drawerShouldRevalidate(["novo"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);

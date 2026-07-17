@@ -4,6 +4,7 @@ import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remi
 import { ClipboardList, ChevronLeft, Plus } from "lucide-react";
 import { useActionFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Inventários — Painel Shopets" }];
@@ -32,9 +33,11 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
     inventarios: lista.data,
     meta: lista.meta,
     depositos: depRes.data,
-    abrindo: url.searchParams.get("abrir") === "1",
   });
 }
+
+/** Abrir/fechar o drawer (?abrir) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["abrir"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -56,17 +59,20 @@ export async function action({ request: req }: ActionFunctionArgs) {
 }
 
 export default function InventariosIndex() {
-  const { inventarios, meta, depositos, abrindo } = useLoaderData<typeof loader>();
+  const { inventarios, meta, depositos } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   useActionFeedback(actionData);
+  // Estado do drawer derivado da URL no cliente: junto com shouldRevalidate,
+  // abre no mesmo frame do clique sem refazer a listagem.
+  const abrindo = searchParams.get("abrir") === "1";
 
   return (
     <div>
       <div className="pn-head">
         <div>
           <span className="eye">
-            <Link to="/painel/estoque" className="pn-btn-link">
+            <Link to="/painel/estoque" className="pn-btn-link" prefetch="intent">
               <ChevronLeft size={12} /> Estoque
             </Link>{" "}
             · Operação
@@ -133,7 +139,7 @@ export default function InventariosIndex() {
                   <td>{i.aberto_em ? new Date(i.aberto_em).toLocaleString("pt-BR") : "—"}</td>
                   <td>{STATUS_LABEL[i.status] ?? i.status}</td>
                   <td className="pn-row-actions">
-                    <Link to={`/painel/estoque/inventario/${i.id}`} className="pn-btn-link">
+                    <Link to={`/painel/estoque/inventario/${i.id}`} className="pn-btn-link" prefetch="intent">
                       Abrir
                     </Link>
                   </td>

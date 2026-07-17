@@ -7,6 +7,7 @@ import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Fornecedores — Painel Shopets" }];
@@ -21,11 +22,11 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
     page: url.searchParams.get("page") ? Number(url.searchParams.get("page")) : undefined,
   });
 
-  const editarId = url.searchParams.get("editar");
-  const editando = editarId ? lista.data.find((f) => String(f.id_fornecedor) === editarId) ?? null : null;
-
-  return json({ fornecedores: lista.data, meta: lista.meta, editando });
+  return json({ fornecedores: lista.data, meta: lista.meta });
 }
+
+/** Abrir/fechar o drawer (?novo/?editar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "editar"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -66,7 +67,7 @@ export async function action({ request: req }: ActionFunctionArgs) {
 }
 
 export default function FornecedoresIndex() {
-  const { fornecedores, meta, editando } = useLoaderData<typeof loader>();
+  const { fornecedores, meta } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const nav = useNavigation();
@@ -75,6 +76,12 @@ export default function FornecedoresIndex() {
   useFlashFeedback();
 
   const ativos = fornecedores.filter((f) => f.ativo).length;
+  // Estado do drawer derivado da URL no cliente: junto com shouldRevalidate,
+  // abre no mesmo frame do clique usando a listagem já em memória.
+  const editarId = searchParams.get("editar");
+  const editando = editarId
+    ? fornecedores.find((f) => String(f.id_fornecedor) === editarId) ?? null
+    : null;
   const drawerAberto = editando || searchParams.get("novo") === "1";
 
   return (
@@ -86,7 +93,7 @@ export default function FornecedoresIndex() {
           <p>{meta.total} fornecedor(es) cadastrado(s).</p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/compras" className="pn-btn-sm">
+          <Link to="/painel/compras" className="pn-btn-sm" prefetch="intent">
             <Truck size={14} /> Pedidos de compra
           </Link>
           <Link to="?novo=1" className="pn-btn-sm mint" preventScrollReset>
@@ -157,7 +164,7 @@ export default function FornecedoresIndex() {
                     <StatusBadge tone={f.ativo ? "ok" : "muted"}>{f.ativo ? "Ativo" : "Inativo"}</StatusBadge>
                   </td>
                   <td className="pn-row-actions">
-                    <Link to={`/painel/fornecedores/${f.id_fornecedor}`} className="pn-btn-link">
+                    <Link to={`/painel/fornecedores/${f.id_fornecedor}`} className="pn-btn-link" prefetch="intent">
                       Abrir
                     </Link>
                     <Link to={`?editar=${f.id_fornecedor}`} className="pn-btn-link" preventScrollReset>

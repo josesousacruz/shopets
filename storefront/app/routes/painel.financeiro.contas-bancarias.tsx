@@ -6,6 +6,7 @@ import { EmptyState } from "~/components/painel/EmptyState";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
 
@@ -16,6 +17,9 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
   const r = await painel.financeiro.contasBancarias.list(token);
   return json({ contas: r.data });
 }
+
+/** Abrir/fechar o drawer (?novo/?editar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "editar"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -67,7 +71,7 @@ export default function ContasBancarias() {
           <p>{contas.length} conta(s).</p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/financeiro" className="pn-btn-sm">Voltar</Link>
+          <Link to="/painel/financeiro" className="pn-btn-sm" prefetch="intent">Voltar</Link>
           <Link to="?novo=1" className="pn-btn-sm mint" preventScrollReset><Plus size={14} /> Nova conta</Link>
         </div>
       </div>

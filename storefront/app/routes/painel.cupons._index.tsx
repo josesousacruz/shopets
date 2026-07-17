@@ -26,6 +26,7 @@ import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge, type StatusTone } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { confirmDestrutivo, toastInfo } from "~/lib/painel-swal";
 import { painel, PainelValidationError, type CupomAdmin } from "~/lib/painel.server";
 
@@ -76,17 +77,11 @@ function fmtData(iso: string | null): string {
 export async function loader({ request }: LoaderFunctionArgs) {
   const { token } = await requireAdmin(request);
   const res = await painel.cupons.list(token);
-  const url = new URL(request.url);
-  const editarId = url.searchParams.get("editar");
-  const editando = editarId
-    ? res.data.find((c) => String(c.id) === editarId) ?? null
-    : null;
-  return json({
-    cupons: res.data,
-    abrindo: url.searchParams.get("novo") === "1",
-    editando,
-  });
+  return json({ cupons: res.data });
 }
+
+/** Abrir/fechar o drawer (?novo/?editar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "editar"]);
 
 export async function action({ request }: ActionFunctionArgs) {
   const { token } = await requireAdmin(request);
@@ -167,7 +162,7 @@ function parseSnapshotCupom(form: FormData): {
 }
 
 export default function CuponsIndex() {
-  const { cupons, abrindo, editando } = useLoaderData<typeof loader>();
+  const { cupons } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const submit = useSubmit();
@@ -175,6 +170,13 @@ export default function CuponsIndex() {
   const enviando = nav.state === "submitting";
   useActionFeedback(actionData);
   useFlashFeedback();
+  // Estado do drawer derivado da URL no cliente: junto com shouldRevalidate,
+  // abre no mesmo frame do clique usando a listagem já em memória.
+  const abrindo = searchParams.get("novo") === "1";
+  const editarId = searchParams.get("editar");
+  const editando = editarId
+    ? cupons.find((c) => String(c.id) === editarId) ?? null
+    : null;
   const q = searchParams.get("q")?.toUpperCase() ?? "";
   const filtroStatus = (searchParams.get("status") ?? "") as StatusCupom | "";
   const filtroTipo = (searchParams.get("tipo") ?? "") as CupomAdmin["tipo"] | "";

@@ -6,6 +6,7 @@ import { EmptyState } from "~/components/painel/EmptyState";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import type { ConciliacaoSugestao, ExtratoLinha } from "~/lib/painel.server";
 import { painel, PainelValidationError, uploadOfx } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
@@ -27,6 +28,13 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
 
   return json({ contas: contas.data, linhas, sugestoes, contaId, linhaId });
 }
+
+/**
+ * `?conta` (filtro) e `?linha` (busca sugestões na API) precisam re-executar o
+ * loader, então NÃO entram na lista. O helper ainda evita o refetch triplo
+ * quando o useFlashFeedback limpa `?feedback=`/`?erro=` da URL.
+ */
+export const shouldRevalidate = drawerShouldRevalidate([]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -76,7 +84,7 @@ export default function Conciliacao() {
           <p>Importe o extrato e concilie com contas a pagar/receber.</p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/financeiro" className="pn-btn-sm">Voltar</Link>
+          <Link to="/painel/financeiro" className="pn-btn-sm" prefetch="intent">Voltar</Link>
         </div>
       </div>
 

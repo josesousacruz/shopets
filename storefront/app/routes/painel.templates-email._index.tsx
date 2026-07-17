@@ -1,31 +1,44 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
+import {
+  Form,
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
+} from "@remix-run/react";
 import { Eye, Mail, Plus } from "lucide-react";
 import { EmptyState } from "~/components/painel/EmptyState";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
-import { requireAdmin } from "~/lib/admin-session.server";
+import { requireAdminToken } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Templates de E-mail — Painel Shopets" }];
 
 export async function loader({ request: req }: LoaderFunctionArgs) {
-  const { token } = await requireAdmin(req);
-  const url = new URL(req.url);
+  // requireAdminToken (não requireAdmin): o layout já valida o admin via /me,
+  // então aqui evitamos a chamada /me redundante a cada carregamento.
+  const token = await requireAdminToken(req);
   const lista = await painel.templatesEmail.list(token);
 
-  const editarId = url.searchParams.get("editar");
-  const editando = editarId ? lista.data.find((t) => String(t.id) === editarId) ?? null : null;
-
-  const previewId = url.searchParams.get("preview");
+  const previewId = new URL(req.url).searchParams.get("preview");
   const preview = previewId ? (await painel.templatesEmail.preview(token, previewId)).data : null;
 
-  return json({ templates: lista.data, editando, preview });
+  return json({ templates: lista.data, preview });
 }
 
+/**
+ * Abrir/fechar o drawer (?novo/?editar) não refaz a listagem — abre instantâneo.
+ * `preview` NÃO está listado: abrir o preview exige chamada extra à API no
+ * loader, então mudanças em ?preview= continuam revalidando normalmente.
+ */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "editar"]);
+
 export async function action({ request: req }: ActionFunctionArgs) {
-  const { token } = await requireAdmin(req);
+  const token = await requireAdminToken(req);
   const fd = await req.formData();
   const intent = String(fd.get("intent") ?? "");
   const body = {
@@ -51,7 +64,7 @@ export async function action({ request: req }: ActionFunctionArgs) {
 }
 
 export default function TemplatesEmail() {
-  const { templates, editando, preview } = useLoaderData<typeof loader>();
+  const { templates, preview } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const nav = useNavigation();
@@ -59,6 +72,9 @@ export default function TemplatesEmail() {
   useActionFeedback(actionData);
   useFlashFeedback();
 
+  // Derivado da URL no cliente (ver shouldRevalidate): fechar não espera o loader.
+  const editarId = searchParams.get("editar");
+  const editando = editarId ? templates.find((t) => String(t.id) === editarId) ?? null : null;
   const aberto = editando || searchParams.get("novo") === "1";
 
   return (

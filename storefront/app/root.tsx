@@ -1,6 +1,15 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useLocation } from "@remix-run/react";
+import {
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  useLoaderData,
+  useLocation,
+  type ShouldRevalidateFunction,
+} from "@remix-run/react";
 import { Header } from "~/components/layout/Header";
 import { Footer } from "~/components/layout/Footer";
 import { CartProvider } from "~/components/cart/CartContext";
@@ -8,7 +17,7 @@ import { CartDrawer } from "~/components/cart/CartDrawer";
 import { CookieConsent } from "~/components/CookieConsent";
 import { AnalyticsScripts } from "~/lib/tracking";
 import { env } from "~/lib/env.server";
-import { getCliente } from "~/lib/session.server";
+import { destroySessionCookie, getCliente, getToken } from "~/lib/session.server";
 import { fetchCarrinho } from "~/lib/cart.server";
 import tailwind from "~/tailwind.css?url";
 
@@ -19,26 +28,54 @@ export async function loader({ request }: { request: Request }) {
     return json({ ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente: null, cartCount: 0, cartSubtotal: 0 });
   }
 
+  const token = await getToken(request);
   const cliente = await getCliente(request);
+
+  // Token presente mas inválido (expirado/revogado/banco resetado): limpa a
+  // sessão aqui mesmo. Senão o Header fica deslogado, /login redireciona pra
+  // /conta e o carrinho manda um Bearer morto — impedindo a persistência do
+  // cart_token de convidado (carrinho sempre vazio).
+  const headers = new Headers();
+  if (token && !cliente) {
+    headers.append("Set-Cookie", await destroySessionCookie(request));
+  }
 
   // Resumo do carrinho para o Header (contagem + total). Tolerante a falhas.
   let cartCount = 0;
   let cartSubtotal = 0;
-  let setCookie: string | undefined;
   try {
     const { carrinho, setCookie: sc } = await fetchCarrinho(request);
     cartCount = carrinho.quantidade_total;
     cartSubtotal = carrinho.subtotal;
-    setCookie = sc;
+    if (sc) headers.append("Set-Cookie", sc);
   } catch {
     // carrinho indisponível — Header mostra 0
   }
 
   return json(
     { ga4Id: env.ga4Id, metaPixelId: env.metaPixelId, cliente, cartCount, cartSubtotal },
-    setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
+    headers.has("Set-Cookie") ? { headers } : undefined,
   );
 }
+
+/**
+ * Nada no loader do root depende de query string (cliente/carrinho só mudam
+ * com pathname ou após mutação). Sem isto, abrir/fechar drawer via ?novo=1
+ * ou mudar filtros revalidaria o root a cada clique — requisição inútil que
+ * atrasa a abertura dos modais do painel.
+ */
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  formMethod,
+  defaultShouldRevalidate,
+}) => {
+  const mutacao = formMethod && formMethod.toLowerCase() !== "get";
+  if (!mutacao && currentUrl.pathname === nextUrl.pathname) {
+    return false;
+  }
+  return defaultShouldRevalidate;
+};
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: tailwind },

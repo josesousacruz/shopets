@@ -4,6 +4,7 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParam
 import { Filter, AlertTriangle, Pencil, History, ArrowRightLeft } from "lucide-react";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Estoque — Painel Shopets" }];
@@ -21,16 +22,15 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
     painel.estoque.depositos(token),
   ]);
 
-  const ajustarId = url.searchParams.get("ajustar");
-  const ajustando = ajustarId ? saldos.data.find((s) => String(s.id) === ajustarId) ?? null : null;
-
   return json({
     saldos: saldos.data,
     meta: saldos.meta,
     depositos: depRes.data,
-    ajustando,
   });
 }
+
+/** Abrir/fechar o drawer (?ajustar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["ajustar"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -65,13 +65,19 @@ export async function action({ request: req }: ActionFunctionArgs) {
 }
 
 export default function EstoqueIndex() {
-  const { saldos, meta, depositos, ajustando } = useLoaderData<typeof loader>();
+  const { saldos, meta, depositos } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const nav = useNavigation();
   const enviando = nav.state === "submitting";
   useActionFeedback(actionData);
   useFlashFeedback();
+  // Estado do drawer derivado da URL no cliente: junto com shouldRevalidate,
+  // abre no mesmo frame do clique usando a listagem já em memória.
+  const ajustarId = searchParams.get("ajustar");
+  const ajustando = ajustarId
+    ? saldos.find((s) => String(s.id) === ajustarId) ?? null
+    : null;
 
   const queryString = (() => {
     const cleaned = new URLSearchParams(searchParams);
@@ -93,7 +99,7 @@ export default function EstoqueIndex() {
           </p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/estoque/transferencias" className="pn-btn-sm">
+          <Link to="/painel/estoque/transferencias" className="pn-btn-sm" prefetch="intent">
             <ArrowRightLeft size={14} /> Transferências
           </Link>
         </div>
@@ -183,7 +189,7 @@ export default function EstoqueIndex() {
                         <Pencil size={12} /> Ajustar
                       </Link>
                       {variacaoId ? (
-                        <Link to={`/painel/estoque/kardex/${variacaoId}`} className="pn-btn-link">
+                        <Link to={`/painel/estoque/kardex/${variacaoId}`} className="pn-btn-link" prefetch="intent">
                           <History size={12} /> Kardex
                         </Link>
                       ) : null}

@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import type { PlanoContaNode } from "~/lib/painel.server";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 
@@ -15,6 +16,9 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
   const r = await painel.financeiro.planoContas.tree(token);
   return json({ arvore: r.data });
 }
+
+/** Abrir/fechar o drawer (?novo) não refaz a árvore — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -95,7 +99,7 @@ export default function PlanoContas() {
           <p>Estrutura hierárquica de receitas e despesas.</p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/financeiro" className="pn-btn-sm">Voltar</Link>
+          <Link to="/painel/financeiro" className="pn-btn-sm" prefetch="intent">Voltar</Link>
           <Link to="?novo=1" className="pn-btn-sm mint" preventScrollReset><Plus size={14} /> Nova conta</Link>
         </div>
       </div>

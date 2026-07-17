@@ -8,11 +8,15 @@ import { StatusBadge } from "~/components/painel/StatusBadge";
 import type { StatusTone } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import type { ContaItem } from "~/lib/painel.server";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
 
 export const meta: MetaFunction = () => [{ title: "Contas a Pagar — Painel Shopets" }];
+
+/** Abrir/fechar o drawer (?novo/?baixar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "baixar"]);
 
 function tone(c: ContaItem): StatusTone {
   if (c.status === "pago") return "ok";

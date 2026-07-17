@@ -4,6 +4,7 @@ import { Form, Link, useActionData, useLoaderData, useNavigation, useSearchParam
 import { CalendarClock, Download, Filter, Star } from "lucide-react";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import type { RelatorioDados } from "~/lib/painel.server";
 import { exportRelatorio, painel, PainelValidationError } from "~/lib/painel.server";
 
@@ -40,6 +41,9 @@ export async function loader({ request: req, params }: LoaderFunctionArgs) {
   const dados = await painel.relatorios.show(token, slug, filtros);
   return json({ dados, filtros });
 }
+
+/** Abrir/fechar o drawer ?agendar=1 não refaz o relatório — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["agendar"]);
 
 export async function action({ request: req, params }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -101,7 +105,7 @@ export default function RelatorioSlug() {
           <p>{total} linha(s).</p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/relatorios" className="pn-btn-sm">Voltar</Link>
+          <Link to="/painel/relatorios" className="pn-btn-sm" prefetch="intent">Voltar</Link>
           <a className="pn-btn-sm" href={`?${qs}${qs ? "&" : ""}export=csv`}><Download size={14} /> CSV</a>
           <a className="pn-btn-sm" href={`?${qs}${qs ? "&" : ""}export=pdf`}><Download size={14} /> PDF</a>
           <Link to={`?${qs}${qs ? "&" : ""}agendar=1`} className="pn-btn-sm" preventScrollReset><CalendarClock size={14} /> Agendar</Link>

@@ -7,6 +7,7 @@ import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 
 export const meta: MetaFunction = () => [{ title: "Pontos de Venda — Painel Shopets" }];
@@ -16,6 +17,9 @@ export async function loader({ request: req }: LoaderFunctionArgs) {
   const [pdvs, depRes] = await Promise.all([painel.pdv.list(token), painel.estoque.depositos(token)]);
   return json({ pdvs: pdvs.data, depositos: depRes.data });
 }
+
+/** Abrir/fechar o drawer ?novo=1 não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo"]);
 
 export async function action({ request: req }: ActionFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -73,7 +77,7 @@ export default function PdvIndex() {
       ) : (
         <div className="pn-cards-grid">
           {pdvs.map((p) => (
-            <Link to={`/painel/pdv/${p.id_pdv}`} className="pn-card pn-pdv-card" key={p.id_pdv}>
+            <Link to={`/painel/pdv/${p.id_pdv}`} className="pn-card pn-pdv-card" key={p.id_pdv} prefetch="intent">
               <div className="pn-pdv-card-head">
                 <Store size={18} />
                 <strong>{p.nome_pdv}</strong>

@@ -6,11 +6,15 @@ import { CheckCircle2, Send, XCircle } from "lucide-react";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { painel, PainelValidationError } from "~/lib/painel.server";
 import { formatBRL } from "~/lib/format";
 import { STATUS_LABEL, STATUS_TONE } from "./painel.compras._index";
 
 export const meta: MetaFunction = () => [{ title: "Pedido de Compra — Painel Shopets" }];
+
+/** Abrir/fechar o drawer (?receber) não refaz o detalhe do pedido — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["receber"]);
 
 export async function loader({ request: req, params }: LoaderFunctionArgs) {
   const { token } = await requireAdmin(req);
@@ -97,7 +101,7 @@ export default function ComprasDetalhe() {
           </p>
         </div>
         <div className="pn-head-actions">
-          <Link to="/painel/compras" className="pn-btn-sm">
+          <Link to="/painel/compras" className="pn-btn-sm" prefetch="intent">
             Voltar
           </Link>
           {podeEnviar ? (

@@ -35,6 +35,7 @@ import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge, type StatusTone } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { confirmDestrutivo } from "~/lib/painel-swal";
 import {
   painel,
@@ -70,17 +71,11 @@ const STATUS_LABEL: Record<StatusBanner, string> = {
 export async function loader({ request }: LoaderFunctionArgs) {
   const { token } = await requireAdmin(request);
   const res = await painel.banners.list(token);
-  const url = new URL(request.url);
-  const editarId = url.searchParams.get("editar");
-  const editando = editarId
-    ? res.data.find((b) => String(b.id) === editarId) ?? null
-    : null;
-  return json({
-    banners: res.data,
-    abrindo: url.searchParams.get("novo") === "1",
-    editando,
-  });
+  return json({ banners: res.data });
 }
+
+/** Abrir/fechar o drawer (?novo/?editar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "editar"]);
 
 export async function action({ request }: ActionFunctionArgs) {
   const { token } = await requireAdmin(request);
@@ -203,7 +198,7 @@ function fmtData(iso: string | null): string {
 }
 
 export default function BannersIndex() {
-  const { banners, abrindo, editando } = useLoaderData<typeof loader>();
+  const { banners } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const submit = useSubmit();
@@ -212,6 +207,13 @@ export default function BannersIndex() {
   useActionFeedback(actionData);
   useFlashFeedback();
   const filtro = (searchParams.get("status") ?? "") as StatusBanner | "";
+  // Estado do drawer derivado da URL no cliente: junto com shouldRevalidate,
+  // abre no mesmo frame do clique usando a listagem já em memória.
+  const abrindo = searchParams.get("novo") === "1";
+  const editarId = searchParams.get("editar");
+  const editando = editarId
+    ? banners.find((b) => String(b.id) === editarId) ?? null
+    : null;
 
   const snapshotBanner = (b: BannerAdmin) =>
     JSON.stringify({

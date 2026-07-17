@@ -27,6 +27,7 @@ import { KpiStrip } from "~/components/painel/KpiStrip";
 import { StatusBadge } from "~/components/painel/StatusBadge";
 import { useActionFeedback, useFlashFeedback } from "~/hooks/use-action-feedback";
 import { requireAdmin } from "~/lib/admin-session.server";
+import { drawerShouldRevalidate } from "~/lib/drawer-revalidate";
 import { confirmDestrutivo } from "~/lib/painel-swal";
 import { painel, PainelValidationError, type CategoriaAdmin } from "~/lib/painel.server";
 
@@ -35,17 +36,11 @@ export const meta: MetaFunction = () => [{ title: "Categorias — Painel Shopets
 export async function loader({ request }: LoaderFunctionArgs) {
   const { token } = await requireAdmin(request);
   const res = await painel.categorias.list(token);
-  const url = new URL(request.url);
-  const editarId = url.searchParams.get("editar");
-  const editando = editarId
-    ? res.data.find((c) => String(c.id) === editarId) ?? null
-    : null;
-  return json({
-    categorias: res.data,
-    abrindo: url.searchParams.get("novo") === "1",
-    editando,
-  });
+  return json({ categorias: res.data });
 }
+
+/** Abrir/fechar o drawer (?novo/?editar) não refaz a listagem — abre instantâneo. */
+export const shouldRevalidate = drawerShouldRevalidate(["novo", "editar"]);
 
 function snapshotFromForm(form: FormData): {
   nome: string;
@@ -127,7 +122,7 @@ function nivelDe(c: CategoriaAdmin, mapa: Map<number, CategoriaAdmin>): number {
 }
 
 export default function CategoriasIndex() {
-  const { categorias, abrindo, editando } = useLoaderData<typeof loader>();
+  const { categorias } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const submit = useSubmit();
@@ -137,6 +132,13 @@ export default function CategoriasIndex() {
   useFlashFeedback();
   const q = searchParams.get("q")?.toLowerCase() ?? "";
   const filtroStatus = searchParams.get("status") ?? "";
+  // Estado do drawer derivado da URL no cliente: junto com shouldRevalidate,
+  // abre no mesmo frame do clique usando a listagem já em memória.
+  const abrindo = searchParams.get("novo") === "1";
+  const editarId = searchParams.get("editar");
+  const editando = editarId
+    ? categorias.find((c) => String(c.id) === editarId) ?? null
+    : null;
 
   const snapshotCategoria = (c: CategoriaAdmin) =>
     JSON.stringify({
