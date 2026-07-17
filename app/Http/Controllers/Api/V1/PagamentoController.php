@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Order\MarcarPedidoPagoAction;
 use App\Domain\Payment\FakePaymentGateway;
+use App\Domain\Payment\MercadoPagoGateway;
 use App\Domain\Payment\PaymentGatewayInterface;
+use App\Domain\Payment\YapayGateway;
 use App\Http\Controllers\Controller;
 use App\Models\PagamentoPedido;
 use Illuminate\Http\JsonResponse;
@@ -15,8 +17,7 @@ class PagamentoController extends Controller
 {
     public function __construct(
         private readonly PaymentGatewayInterface $gateway,
-    ) {
-    }
+    ) {}
 
     /**
      * POST /api/v1/pedidos/{numero}/pagar
@@ -59,7 +60,7 @@ class PagamentoController extends Controller
 
         $pagamento = DB::transaction(function () use ($pagamentoExistente, $pedido, $metodo, $cobranca) {
             $payload = [
-                'gateway' => config('services.payment.driver', 'fake'),
+                'gateway' => $this->gatewayLabel(),
                 'gateway_id_externo' => $cobranca['gateway_id'],
                 'metodo' => $metodo,
                 'status' => $cobranca['status'] ?? 'pendente',
@@ -120,5 +121,18 @@ class PagamentoController extends Controller
             'pedido' => $pedido?->numero,
             'status' => $pedido?->fresh()->status,
         ]);
+    }
+
+    /**
+     * Identifica o gateway efetivamente resolvido nesta requisição — evita ler
+     * a config em paralelo (que poderia divergir do que o container resolveu).
+     */
+    private function gatewayLabel(): string
+    {
+        return match (true) {
+            $this->gateway instanceof YapayGateway => 'yapay',
+            $this->gateway instanceof MercadoPagoGateway => 'mercadopago',
+            default => 'fake',
+        };
     }
 }

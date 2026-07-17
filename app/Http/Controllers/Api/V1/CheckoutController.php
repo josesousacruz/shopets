@@ -17,8 +17,7 @@ class CheckoutController extends Controller
         private readonly IniciarCheckoutAction $action,
         private readonly CarrinhoService $carrinhoService,
         private readonly ShippingQuoteInterface $shipping,
-    ) {
-    }
+    ) {}
 
     public function iniciar(Request $request): JsonResponse
     {
@@ -83,6 +82,10 @@ class CheckoutController extends Controller
             'id_pdv' => $data['id_pdv'] ?? null,
             'pagamento_modo' => $data['pagamento_modo'] ?? null,
             'frete_servico' => $data['frete_servico'] ?? null,
+            // ID real do serviço no Melhor Envio (null no driver stub) — necessário
+            // depois pra comprar a etiqueta de verdade. Vem da re-cotação server-side
+            // acima, nunca do que o cliente mandou.
+            'frete_servico_id' => $escolhida['id'] ?? null,
             'frete' => $frete,
             'prazo_entrega_dias' => $prazo,
         ]);

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Sprint4;
 
+use App\Domain\Payment\PaymentGatewayInterface;
 use App\Models\PagamentoPedido;
 use App\Services\NfceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +13,8 @@ use Tests\TestCase;
 class WebhookPagamentoTest extends TestCase
 {
     use RefreshDatabase, Sprint4Helpers;
+
+    private const SECRET = 'test-secret';
 
     protected function setUp(): void
     {
@@ -24,6 +27,7 @@ class WebhookPagamentoTest extends TestCase
             ]);
         });
         Mail::fake();
+        config(['services.payment.webhook_secret' => self::SECRET]);
     }
 
     private function criarPagamentoPendente(): array
@@ -36,12 +40,19 @@ class WebhookPagamentoTest extends TestCase
         return [$pedido, $gatewayId];
     }
 
+    private function webhookUrl(?string $secret = self::SECRET): string
+    {
+        return $secret === null
+            ? '/api/v1/webhooks/pagamento'
+            : '/api/v1/webhooks/pagamento?wh_secret='.$secret;
+    }
+
     public function test_webhook_aprovado_marca_pedido_pago_e_gera_venda(): void
     {
         $this->seedInfra();
         [$pedido, $gatewayId] = $this->criarPagamentoPendente();
 
-        $this->postJson('/api/v1/webhooks/pagamento', [
+        $this->postJson($this->webhookUrl(), [
             'gateway_id' => $gatewayId,
             'status' => 'approved',
         ])->assertOk();
@@ -59,11 +70,11 @@ class WebhookPagamentoTest extends TestCase
 
         $payload = ['gateway_id' => $gatewayId, 'status' => 'approved'];
 
-        $this->postJson('/api/v1/webhooks/pagamento', $payload)->assertOk();
+        $this->postJson($this->webhookUrl(), $payload)->assertOk();
         $idVenda = $pedido->fresh()->id_venda;
 
         // Segundo webhook não cria nova venda.
-        $this->postJson('/api/v1/webhooks/pagamento', $payload)->assertOk();
+        $this->postJson($this->webhookUrl(), $payload)->assertOk();
 
         $this->assertEquals($idVenda, $pedido->fresh()->id_venda);
         $this->assertEquals(1, \App\Models\Venda::count());
@@ -73,10 +84,68 @@ class WebhookPagamentoTest extends TestCase
     {
         $this->seedInfra();
 
-        $this->postJson('/api/v1/webhooks/pagamento', [
+        $this->postJson($this->webhookUrl(), [
             'gateway_id' => 'inexistente_xyz',
             'status' => 'approved',
         ])->assertOk();
+    }
+
+    public function test_webhook_sem_secret_nao_processa(): void
+    {
+        $this->seedInfra();
+        [$pedido, $gatewayId] = $this->criarPagamentoPendente();
+
+        $this->postJson($this->webhookUrl(null), [
+            'gateway_id' => $gatewayId,
+            'status' => 'approved',
+        ])->assertOk();
+
+        $pedido->refresh();
+        $this->assertNull($pedido->id_venda);
+        $this->assertEquals('pendente', PagamentoPedido::first()->status);
+    }
+
+    public function test_webhook_secret_errado_nao_processa(): void
+    {
+        $this->seedInfra();
+        [$pedido, $gatewayId] = $this->criarPagamentoPendente();
+
+        $this->postJson($this->webhookUrl('errado'), [
+            'gateway_id' => $gatewayId,
+            'status' => 'approved',
+        ])->assertOk();
+
+        $pedido->refresh();
+        $this->assertNull($pedido->id_venda);
+        $this->assertEquals('pendente', PagamentoPedido::first()->status);
+    }
+
+    public function test_webhook_gateway_real_ignora_status_forjado_no_corpo(): void
+    {
+        $this->seedInfra();
+
+        // Gateway "real" (não FakePaymentGateway): o webhook precisa reconfirmar
+        // via consultarStatus() em vez de confiar no body.
+        $this->mock(PaymentGatewayInterface::class, function ($mock) {
+            $mock->shouldReceive('criarCobranca')
+                ->andReturn(['gateway_id' => 'yp_123', 'status' => 'pendente']);
+            $mock->shouldReceive('consultarStatus')
+                ->with('yp_123')
+                ->andReturn('aprovado');
+        });
+
+        [$cliente, $pedido] = $this->pedidoComItem();
+        Sanctum::actingAs($cliente);
+        $this->postJson("/api/v1/pedidos/{$pedido->numero}/pagar", ['metodo' => 'pix']);
+
+        // Corpo forjado diz "rejeitado" — quem decide é a reconfirmação (mock → aprovado).
+        $this->postJson($this->webhookUrl(), [
+            'gateway_id' => 'yp_123',
+            'status' => 'rejeitado',
+        ])->assertOk();
+
+        $this->assertEquals('aprovado', PagamentoPedido::first()->status);
+        $this->assertNotNull($pedido->fresh()->id_venda);
     }
 
     public function test_endpoint_dev_aprova_pagamento(): void

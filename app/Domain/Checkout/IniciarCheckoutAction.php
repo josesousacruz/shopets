@@ -33,11 +33,10 @@ class IniciarCheckoutAction
     public function __construct(
         private readonly EstoqueService $estoque,
         private readonly CarrinhoService $carrinhoService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param  array{modalidade:string, id_endereco?:int|null, id_pdv?:int|null, frete_servico?:string|null, frete?:float, prazo_entrega_dias?:int|null}  $dados
+     * @param  array{modalidade:string, id_endereco?:int|null, id_pdv?:int|null, frete_servico?:string|null, frete_servico_id?:string|null, frete?:float, prazo_entrega_dias?:int|null}  $dados
      */
     public function executar(Cliente $cliente, Carrinho $carrinho, array $dados): Pedido
     {
@@ -61,6 +60,7 @@ class IniciarCheckoutAction
                         'id_variacao' => $item->id_variacao,
                         'motivo' => 'produto_indisponivel',
                     ];
+
                     continue;
                 }
 
@@ -73,6 +73,7 @@ class IniciarCheckoutAction
                         'solicitado' => $item->quantidade,
                         'motivo' => 'estoque_insuficiente',
                     ];
+
                     continue;
                 }
 
@@ -141,6 +142,7 @@ class IniciarCheckoutAction
                 'total' => $total,
                 'id_cupom' => $idCupom,
                 'frete_servico' => $dados['frete_servico'] ?? null,
+                'frete_servico_id' => $dados['frete_servico_id'] ?? null,
                 'prazo_entrega_dias' => $dados['prazo_entrega_dias'] ?? null,
             ]);
 
