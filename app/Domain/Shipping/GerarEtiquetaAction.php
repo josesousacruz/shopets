@@ -6,20 +6,33 @@ use App\Models\ConfiguracaoEmpresa;
 use App\Models\Pedido;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
- * Gera a etiqueta de envio (PDF) para um pedido e a armazena no disco público.
+ * Gera a etiqueta de envio de um pedido. Idempotente — se o pedido já tem
+ * etiqueta_url, é no-op e retorna a URL existente.
  *
- * Idempotente — se o pedido já tem etiqueta_url, é no-op e retorna a URL
- * existente. A integração real (Melhor Envio) substitui este gerador depois.
+ * Tenta a compra real no Melhor Envio primeiro (quando o driver de frete é
+ * `melhorenvio` e o pedido tem `frete_servico_id`); se não for elegível ou a
+ * compra falhar (conta sem saldo, serviço indisponível etc.), cai pro PDF
+ * interno — best-effort, igual ao padrão já usado na emissão fiscal
+ * (EmitirNotaFiscalJob): nunca bloqueia a operação do pedido por causa disso.
  */
 class GerarEtiquetaAction
 {
+    public function __construct(private readonly ShippingQuoteInterface $shipping) {}
+
     public function executar(Pedido $pedido): string
     {
         if (! empty($pedido->etiqueta_url)) {
             return $pedido->etiqueta_url;
+        }
+
+        $urlReal = $this->tentarComprarReal($pedido);
+        if ($urlReal) {
+            return $this->salvar($pedido, $urlReal, 'Etiqueta comprada no Melhor Envio.');
         }
 
         return DB::transaction(function () use ($pedido) {
@@ -33,17 +46,40 @@ class GerarEtiquetaAction
 
             $url = Storage::disk('public')->url($caminho);
 
-            $pedido->etiqueta_url = $url;
-            $pedido->save();
+            return $this->salvar($pedido, $url, 'Etiqueta de envio gerada (PDF interno).');
+        });
+    }
 
-            $pedido->eventos()->create([
-                'tipo' => 'etiqueta_gerada',
-                'descricao' => 'Etiqueta de envio gerada.',
-                'criado_em' => now(),
+    private function tentarComprarReal(Pedido $pedido): ?string
+    {
+        if (! $this->shipping instanceof MelhorEnvioService || empty($pedido->frete_servico_id)) {
+            return null;
+        }
+
+        try {
+            return (new ComprarEtiquetaMelhorEnvioAction($this->shipping))->executar($pedido);
+        } catch (Throwable $e) {
+            Log::warning('GerarEtiquetaAction: compra real no Melhor Envio falhou, caindo pro PDF interno.', [
+                'id_pedido' => $pedido->id_pedido,
+                'erro' => $e->getMessage(),
             ]);
 
-            return $url;
-        });
+            return null;
+        }
+    }
+
+    private function salvar(Pedido $pedido, string $url, string $descricaoEvento): string
+    {
+        $pedido->etiqueta_url = $url;
+        $pedido->save();
+
+        $pedido->eventos()->create([
+            'tipo' => 'etiqueta_gerada',
+            'descricao' => $descricaoEvento,
+            'criado_em' => now(),
+        ]);
+
+        return $url;
     }
 
     private function html(Pedido $pedido, ?ConfiguracaoEmpresa $empresa): string

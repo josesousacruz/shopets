@@ -16,14 +16,15 @@ use RuntimeException;
 class MelhorEnvioService implements ShippingQuoteInterface
 {
     private const PESO_PADRAO_GRAMAS = 200;
+
     private const SANDBOX_URL = 'https://sandbox.melhorenvio.com.br';
+
     private const PROD_URL = 'https://www.melhorenvio.com.br';
 
     public function __construct(
         private readonly ?string $token = null,
         private readonly bool $sandbox = true,
-    ) {
-    }
+    ) {}
 
     public function cotar(string $cepDestino, Collection $itens): array
     {
@@ -49,6 +50,9 @@ class MelhorEnvioService implements ShippingQuoteInterface
         return collect($resposta)
             ->filter(fn ($o) => empty($o['error']))
             ->map(fn ($o) => [
+                // ID numérico do serviço no ME — necessário depois pra comprar a
+                // etiqueta real (POST /me/cart exige `service`). Ausente no stub.
+                'id' => isset($o['id']) ? (string) $o['id'] : null,
                 'servico' => $o['name'] ?? 'Frete',
                 'transportadora' => data_get($o, 'company.name', 'Transportadora'),
                 'preco' => (float) ($o['price'] ?? 0),
@@ -101,6 +105,8 @@ class MelhorEnvioService implements ShippingQuoteInterface
 
         return Http::baseUrl($this->sandbox ? self::SANDBOX_URL : self::PROD_URL)
             ->withToken($this->token)
+            // Obrigatório pelo Melhor Envio: requisições sem User-Agent são bloqueadas.
+            ->withHeaders(['User-Agent' => (string) config('services.shipping.melhorenvio.user_agent', 'Pontto')])
             ->acceptJson()
             ->asJson();
     }
