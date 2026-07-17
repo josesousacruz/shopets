@@ -2,280 +2,211 @@
 
 namespace App\Services;
 
-use NFePHP\NFe\Tools;
-use NFePHP\NFe\Make;
+use App\Models\ConfiguracaoEmpresa;
+use App\Models\PontoVenda;
+use App\Services\Fiscal\FiscalHelpers;
+use App\Services\Fiscal\FiscalNumeracaoService;
+use Exception;
 use NFePHP\Common\Certificate;
+use NFePHP\DA\NFe\Danfce;
 use NFePHP\NFe\Common\Standardize;
 use NFePHP\NFe\Complements;
-use Exception;
+use NFePHP\NFe\Make;
+use NFePHP\NFe\Tools;
 
+/**
+ * Emissão de NFC-e (modelo 65) — venda presencial (balcão do PDV físico e
+ * retirada via ecommerce). CFOP fixo 5102 (NFC-e é sempre operação dentro do
+ * estado do emitente); CSOSN fixo 102 (Simples Nacional) — ver FiscalHelpers.
+ *
+ * @see docs: única regra tributária suportada é Simples Nacional (CRT=1).
+ */
 class NfceService
 {
-    protected Tools $tools;
-    protected string $configJson;
-
-    public function __construct()
-    {
-        // Carregar as configurações
-        $arr = [
-            "atualizacao" => "2017-02-20 09:11:21",
-            "tpAmb" => 2, //Homologação
-            "razaosocial" => "Intermaritima Portos e Logistica",
-            "cnpj" => "96825575001194",
-            "siglaUF" => "BA",
-            "schemes" => "PL_009_V4",
-            "versao" => '4.00',
-            "tokenIBPT" => "AAAAAAA",
-            "CSC" => "GPB0JBWLUR6HWFTVEAS6RJ69GPCROFPBBB8G",
-            "CSCid" => "000001",
-            "proxyConf" => [
-                "proxyIp" => "",
-                "proxyPort" => "",
-                "proxyUser" => "",
-                "proxyPass" => ""
-            ]
-        ];
-
-        $this->configJson = json_encode($arr);
-
-        // Certificado (pegar do diretório correto)
-        $pfx = file_get_contents(storage_path('app/certificados/96825575002328_COMPAT.pfx'));
-
-        // Inicializa a ferramenta
-        $this->tools = new Tools($this->configJson, Certificate::readPfx($pfx, '25742574'));
-
-        // Desabilita a validação do certificado, se necessário
-        // $this->tools->disableCertValidation(true);  // Se necessário, descomente esta linha
-
-        // Configura o modelo de NFC-e
-        $this->tools->model('65');  // Configura o modelo de NFC-e
-    }
-
     /**
-     * Função para emitir a NFC-e.
-     *
-     * @param array $dados Dados da venda/produtos/cliente
-     * @return array Retorna XML, resposta da SEFAZ e o protocolo de autorização
+     * @param  array{
+     *     id_pdv:int,
+     *     natOp?:string,
+     *     cliente?:array{nome?:string|null,cpf?:string|null}|null,
+     *     itens:array<int,array{nome:string,ncm?:string|null,unidade?:string|null,quantidade:float,preco_unitario:float,codigo?:string|null}>,
+     *     pagamentos:array<int,array{tipo:string,valor:float}>,
+     * }  $dados
+     * @return array{chave:string, numero:int, serie:string, xml:string, authorizedXml:string, danfce_pdf:string}
      */
     public function emitir(array $dados): array
     {
-        try {
+        $empresa = FiscalHelpers::validarConfigEmissor(ConfiguracaoEmpresa::first());
 
-            $make = new Make();
-
-            // ================
-            //  MONTAGEM NFC-e
-            // ================
-            $this->montarInfNFe($make, $dados);
-            $this->montarIde($make, $dados);
-            $this->montarEmit($make, $dados);
-            $this->montarEnderEmit($make, $dados);
-            $this->montarDest($make, $dados);
-            $this->montarProd($make, $dados);
-            $this->montarImposto($make, $dados);
-
-            $this->montarICMS($make);
-            $this->montarPIS($make);
-            $this->montarCOFINS($make);
-            $this->montarTransp($make);
-            $this->montarPag($make);
-
-
-            // Monta o XML
-            if (!$make->monta()) {
-                throw new Exception("Erro ao montar XML NFC-e: " . implode(", ", $make->getErrors()));
-            }
-            $xml = $make->getXML();
-
-            // Assinar
-            $xmlAssinado = $this->tools->signNFe($xml);
-
-            // ========================
-            // ENVIO PARA A SEFAZ
-            // ========================
-            $idLote = str_pad(1, 15, '0', STR_PAD_LEFT);
-
-            $response = $this->tools->sefazEnviaLote([$xmlAssinado], $idLote, 1);
-
-            $std = new Standardize($response);
-            $respObj = $std->toStd();
-
-            if ($respObj->cStat != 104) {
-                throw new Exception("Lote não processado: {$respObj->cStat} - {$respObj->xMotivo}");
-            }
-
-            if ($respObj->protNFe->infProt->cStat != 100) {
-                throw new Exception("NFC-e não autorizada: {$respObj->protNFe->infProt->cStat} - {$respObj->protNFe->infProt->xMotivo}");
-            }
-
-            // ========================
-            //  PROTOCOLO + XML FINAL
-            // ========================
-            $authorizedXml = Complements::toAuthorize($xmlAssinado, $response);
-            file_put_contents(storage_path('app/nfce_protocolado.xml'), $authorizedXml);
-
-            return [
-                'xml'           => $xmlAssinado,
-                'response'      => $response,
-                'authorizedXml' => $authorizedXml
-            ];
-        } catch (Exception $e) {
-            throw new Exception("Erro ao emitir NFC-e: " . $e->getMessage());
+        if (! PontoVenda::where('id_pdv', $dados['id_pdv'])->exists()) {
+            throw new Exception('Ponto de venda não encontrado para emissão da NFC-e.');
         }
+
+        ['serie' => $serie, 'numero' => $numero] = (new FiscalNumeracaoService)->reservarNfce($dados['id_pdv']);
+
+        $tools = $this->tools($empresa);
+
+        $make = new Make;
+        $this->montarInfNFe($make);
+        $this->montarIde($make, $empresa, $serie, $numero, $dados['natOp'] ?? 'Venda');
+        $make->tagemit(FiscalHelpers::montarEmit($empresa));
+        $make->tagenderEmit(FiscalHelpers::montarEnderEmit($empresa));
+        $this->montarDest($make, $dados['cliente'] ?? null);
+
+        $vProdTotal = 0.0;
+        foreach (array_values($dados['itens']) as $i => $item) {
+            $n = $i + 1;
+            $vProdTotal += $this->montarItem($make, $n, $item);
+        }
+
+        $make->tagtransp((object) ['modFrete' => 9]); // 9 = sem frete (venda presencial)
+        $this->montarPagamentos($make, $dados['pagamentos']);
+
+        if (! $make->monta()) {
+            throw new Exception('Erro ao montar XML NFC-e: '.implode(', ', $make->getErrors()));
+        }
+
+        $xml = $make->getXML();
+        $xmlAssinado = $tools->signNFe($xml);
+
+        $idLote = str_pad('1', 15, '0', STR_PAD_LEFT);
+        $response = $tools->sefazEnviaLote([$xmlAssinado], $idLote, 1);
+
+        $respObj = (new Standardize($response))->toStd();
+
+        if ((int) $respObj->cStat !== 104) {
+            throw new Exception("Lote não processado: {$respObj->cStat} - {$respObj->xMotivo}");
+        }
+        if ((int) $respObj->protNFe->infProt->cStat !== 100) {
+            throw new Exception("NFC-e não autorizada: {$respObj->protNFe->infProt->cStat} - {$respObj->protNFe->infProt->xMotivo}");
+        }
+
+        $authorizedXml = Complements::toAuthorize($xmlAssinado, $response);
+        $chave = (string) $respObj->protNFe->infProt->chNFe;
+
+        $danfcePdf = (new Danfce($authorizedXml))->render();
+
+        return [
+            'chave' => $chave,
+            'numero' => $numero,
+            'serie' => $serie,
+            'xml' => $xmlAssinado,
+            'authorizedXml' => $authorizedXml,
+            'danfce_pdf' => $danfcePdf,
+        ];
     }
 
-    // Funções para montar cada seção do XML (métodos similares ao exemplo)
-
-    private function montarInfNFe($make)
+    private function tools(ConfiguracaoEmpresa $empresa): Tools
     {
-        $std = new \stdClass();
-        $std->Id = '';
-        $std->versao = '4.00';
-        return $make->taginfNFe($std);
+        $config = json_encode([
+            'atualizacao' => now()->toDateTimeString(),
+            'tpAmb' => FiscalHelpers::tpAmb($empresa),
+            'razaosocial' => $empresa->nome_empresa,
+            'cnpj' => preg_replace('/\D/', '', (string) $empresa->cnpj),
+            'siglaUF' => $empresa->endereco_uf,
+            'schemes' => 'PL_009_V4',
+            'versao' => '4.00',
+            'tokenIBPT' => '',
+            'CSC' => $empresa->csc_nfce,
+            'CSCid' => $empresa->csc_id_nfce,
+        ]);
+
+        $pfx = \Illuminate\Support\Facades\Storage::disk('local')->get($empresa->certificado_path);
+        $tools = new Tools($config, Certificate::readPfx($pfx, $empresa->certificado_senha));
+        $tools->model('65');
+
+        return $tools;
     }
 
-    private function montarIde($make)
+    private function montarInfNFe(Make $make): void
     {
-        $std = new \stdClass();
-        $std->cUF = 29;               // Código do estado
-        $std->cNF = rand(10000000, 99999999);
-        $std->natOp = 'VENDA';
-        $std->mod = 65;               // NFC-e
-        $std->serie = 1;
-        $std->nNF = 1;                // ou nº sequencial da sua base
+        $make->taginfNFe((object) ['Id' => '', 'versao' => '4.00']);
+    }
+
+    private function montarIde(Make $make, ConfiguracaoEmpresa $empresa, string $serie, int $numero, string $natOp): void
+    {
+        $std = new \stdClass;
+        $std->cUF = FiscalHelpers::codigoUf($empresa->endereco_uf);
+        $std->cNF = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
+        $std->natOp = $natOp;
+        $std->mod = 65;
+        $std->serie = $serie;
+        $std->nNF = $numero;
         $std->dhEmi = date('c');
-        $std->tpNF = 1;               // 1=Saída
+        $std->tpNF = 1;
         $std->idDest = 1;
-        $std->cMunFG = 2927408;       // código IBGE do emitente
-        $std->tpImp = 4;              // DANFE NFC-e
-        $std->tpEmis = 1;             // Normal
+        $std->cMunFG = (int) $empresa->endereco_codigo_ibge;
+        $std->tpImp = 4; // DANFE NFC-e
+        $std->tpEmis = 1;
         $std->cDV = 1;
-        $std->tpAmb = 2;              // Homologação
-        $std->finNFe = 1;             // Normal
+        $std->tpAmb = FiscalHelpers::tpAmb($empresa);
+        $std->finNFe = 1;
         $std->indFinal = 1;
-        $std->indPres = 1;            // Presencial
+        $std->indPres = 1; // presencial
         $std->procEmi = 0;
         $std->verProc = '1.0';
 
-        return $make->tagide($std);
+        $make->tagide($std);
     }
 
-    private function montarEmit($make)
+    /** Cliente anônimo (comum em NFC-e) → omite o bloco <dest> por completo. */
+    private function montarDest(Make $make, ?array $cliente): void
     {
-        $std = new \stdClass();
-        $std->CNPJ = '96825575001194';
-        $std->xNome = 'Intermaritima Portos e Logistica';
-        $std->xFant = 'Intermaritima';
-        $std->IE = '64825710';
-        $std->CRT = 1; // Simples Nacional (1,2,3)
-        return $make->tagemit($std);
+        if (empty($cliente['cpf'])) {
+            return;
+        }
+
+        $make->tagdest((object) [
+            'CPF' => preg_replace('/\D/', '', $cliente['cpf']),
+            'xNome' => $cliente['nome'] ?? null,
+            'indIEDest' => 9, // não contribuinte
+        ]);
     }
 
-
-    private function montarEnderEmit($make)
+    /** @return float vProd do item (pra somar no total de pagamento esperado). */
+    private function montarItem(Make $make, int $n, array $item): float
     {
-        $std = new \stdClass();
-        $std->xLgr = 'Avenida Getúlio Vargas';
-        $std->nro = '100';
-        $std->xBairro = 'Centro';
-        $std->cMun = 2927408;
-        $std->xMun = 'Salvador';
-        $std->UF = 'BA';
-        $std->CEP = '40000000';
-        return $make->tagenderemit($std);
+        $qtd = (float) $item['quantidade'];
+        $vUn = (float) $item['preco_unitario'];
+        $vProd = round($qtd * $vUn, 2);
+        $ncm = preg_replace('/\D/', '', (string) ($item['ncm'] ?? '')) ?: '00000000';
+        $unidade = mb_strtoupper((string) ($item['unidade'] ?? 'UN'));
+
+        $make->tagprod((object) [
+            'item' => $n,
+            'cProd' => (string) ($item['codigo'] ?? $n),
+            'cEAN' => 'SEM GTIN',
+            'xProd' => mb_substr((string) $item['nome'], 0, 120),
+            'NCM' => str_pad($ncm, 8, '0', STR_PAD_LEFT),
+            'CFOP' => '5102', // NFC-e é sempre presencial/mesmo estado do emitente.
+            'uCom' => $unidade,
+            'qCom' => number_format($qtd, 4, '.', ''),
+            'vUnCom' => number_format($vUn, 10, '.', ''),
+            'vProd' => number_format($vProd, 2, '.', ''),
+            'cEANTrib' => 'SEM GTIN',
+            'uTrib' => $unidade,
+            'qTrib' => number_format($qtd, 4, '.', ''),
+            'vUnTrib' => number_format($vUn, 10, '.', ''),
+            'indTot' => 1,
+        ]);
+
+        $make->tagimposto((object) ['item' => $n, 'vTotTrib' => 0]);
+        $make->tagICMSSN((object) ['item' => $n, 'orig' => 0, 'CSOSN' => '102']);
+        $make->tagPIS((object) ['item' => $n, 'CST' => '07', 'vBC' => 0, 'pPIS' => 0, 'vPIS' => 0]);
+        $make->tagCOFINS((object) ['item' => $n, 'CST' => '07', 'vBC' => 0, 'pCOFINS' => 0, 'vCOFINS' => 0]);
+
+        return $vProd;
     }
 
-    private function montarDest($make)
+    /** @param  array<int,array{tipo:string,valor:float}>  $pagamentos */
+    private function montarPagamentos(Make $make, array $pagamentos): void
     {
-        $std = new \stdClass();
-        $std->CPF = '12345678909';
-        $std->xNome = 'Cliente';
-        $std->indIEDest = 9; // não contribuinte
-        return $make->tagdest($std);
-    }
+        $make->tagpag(new \stdClass);
 
-    private function montarProd($make)
-    {
-        $std = new \stdClass();
-        $std->item = 1;
-        $std->cProd = '001';
-        $std->cEAN = 'SEM GTIN';
-        $std->xProd = 'CAMISETA REGATA GG';
-        $std->NCM = '61091000';
-        $std->CFOP = '5102';
-        $std->uCom = 'UN';
-        $std->qCom = '1.00';
-        $std->vUnCom = '25.00';
-        $std->vProd = '25.00';
-        $std->cEANTrib = 'SEM GTIN';
-        $std->uTrib = 'UN';
-        $std->qTrib = '1.00';
-        $std->vUnTrib = '25.00';
-        $std->indTot = 1;
-
-        return $make->tagprod($std);
-    }
-
-
-    private function montarImposto($make)
-    {
-        $std = new \stdClass();
-        $std->item = 1;
-        $std->vTotTrib = 25.00;
-        return $make->tagimposto($std);
-    }
-
-    private function montarICMS($make)
-    {
-        $std = new \stdClass();
-        $std->item = 1;
-        $std->orig = 0;
-        $std->CSOSN = '102'; // Simples Nacional
-        return $make->tagICMSSN($std);
-    }
-
-    private function montarPIS($make)
-    {
-        $std = new \stdClass();
-        $std->item = 1;
-        $std->CST = '07';
-        $std->vBC = 0.00;
-        $std->pPIS = 0.00;
-        $std->vPIS = 0.00;
-
-        return $make->tagPIS($std);
-    }
-
-    private function montarCOFINS($make)
-    {
-        $std = new \stdClass();
-        $std->item = 1;
-        $std->CST = '07';
-        $std->vBC = 0.00;
-        $std->pCOFINS = 0.00;
-        $std->vCOFINS = 0.00;
-
-        return $make->tagCOFINS($std);
-    }
-
-
-    private function montarTransp($make)
-    {
-        $std = new \stdClass();
-        $std->modFrete = 9; // 9 = Sem frete
-        return $make->tagtransp($std);
-    }
-
-    private function montarPag($make)
-    {
-        // TAG <pag>
-        $stdPag = new \stdClass();
-        $make->tagpag($stdPag);
-
-        // TAG <detPag>
-        $stdDet = new \stdClass();
-        $stdDet->tPag = '01';  // 01 = Dinheiro
-        $stdDet->vPag = 25.00; // valor do pagamento
-        $make->tagdetPag($stdDet);
+        foreach ($pagamentos as $pag) {
+            $make->tagdetPag((object) [
+                'tPag' => FiscalHelpers::tPag($pag['tipo']),
+                'vPag' => number_format((float) $pag['valor'], 2, '.', ''),
+            ]);
+        }
     }
 }

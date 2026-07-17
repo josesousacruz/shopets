@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Venda extends Model
 {
     use HasFactory, LogsActivity;
 
     protected $table = 'vendas';
+
     protected $primaryKey = 'id_venda';
 
     protected $fillable = [
@@ -28,6 +29,9 @@ class Venda extends Model
         'status',
         'observacoes',
         'data_venda',
+        'nfce_chave',
+        'nfce_numero',
+        'nfce_danfce_url',
     ];
 
     protected $casts = [
@@ -74,8 +78,6 @@ class Venda extends Model
     {
         return $this->belongsTo(PontoVenda::class, 'id_pdv', 'id_pdv');
     }
-
-    
 
     /**
      * Relacionamento com itens da venda
